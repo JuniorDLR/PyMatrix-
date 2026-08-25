@@ -1,0 +1,1 @@
+# Modulo Core - Inicializador
