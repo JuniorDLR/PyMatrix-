@@ -419,9 +419,9 @@ class App(ctk.CTk):
             
             es_correcta = verificar_solucion(self.matriz_inicial, self.resultado.variables)
             if es_correcta:
-                lines.append("[✓] Verificación: La solución cumple el sistema original")
+                lines.append("Verificación: La solución cumple el sistema original")
             else:
-                lines.append("[✗] Verificación: La solución NO cumple (revisar precisión)")
+                lines.append("Verificación: La solución NO cumple (revisar precisión)")
         
         return "\n".join(lines)
 
