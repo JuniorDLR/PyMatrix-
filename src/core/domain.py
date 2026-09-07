@@ -1,8 +1,35 @@
+from fractions import Fraction
 from dataclasses import dataclass, field
 from typing import Literal
 
 # Alias de tipo: matriz aumentada m x (n+1) donde la última columna son términos independientes
 Matriz = list[list[float]]
+
+
+def formatear_fraccion(valor: float, max_denom: int = 10000) -> str:
+    """Convierte cualquier valor float a su representación exacta en fracción irreducible.
+    
+    Usa la librería estándar de Python (fractions.Fraction).
+    Si el valor es entero (ej. 3.0, -2.0, 0.0), retorna '3', '-2', '0'.
+    Si el valor es decimal (ej. 0.5, -1.333333333333), retorna '1/2', '-4/3'.
+    
+    Args:
+        valor: Número en punto flotante
+        max_denom: Denominador máximo para limitar aproximaciones de redondeo
+        
+    Returns:
+        Cadena con la fracción (ej. '3/4', '-7/2', '5')
+    """
+    if abs(valor) < 1e-10:
+        return "0"
+    
+    # Redondear a 8 decimales para limpiar residuos infinitesimales de coma flotante
+    val_redondeado = round(valor, 8)
+    f = Fraction(val_redondeado).limit_denominator(max_denom)
+    
+    if f.denominator == 1:
+        return str(f.numerator)
+    return f"{f.numerator}/{f.denominator}"
 
 
 @dataclass(frozen=True)
@@ -74,55 +101,66 @@ class ExpresionParametrica:
     """Expresión algebraica completa: constante + suma(términos).
     
     Representa una variable básica en función de las variables libres.
-    Ejemplo: X1 = 2 + 3*X2 - 1*X4  →  constante=2, terminos=[(3, X2), (-1, X4)]
+    Ejemplo: X1 = 2/3 + 3/4*X2 - 1/2*X4
     
     Atributos:
-        constante: Término independiente (ej: 2)
+        constante: Término independiente
         terminos: Tupla de Termino (coef * variable_libre)
     """
     constante: float
     terminos: tuple[Termino, ...] = field(default_factory=tuple)
     
     def a_string(self, var_names: list[str] | None = None) -> str:
-        """Convierte la expresión a string legible.
+        """Convierte la expresión a string legible con fracciones irreducibles.
         
         Args:
             var_names: Nombres opcionales para variables libres (ej: ["X1", "X2", "X3", "X4"])
             
         Returns:
-            String formateado: "2 + 3·X2 - 1·X4" o "X2" si es variable libre pura
+            String formateado: "2/3 + 3/4·X2 - 1/2·X4" o "X2 (libre)"
         """
-        if not self.terminos and self.constante == 0:
+        if not self.terminos and abs(self.constante) < 1e-10:
             return "0"
         
-        parts = []
-        # Parte constante (término independiente)
-        if self.constante != 0:
-            parts.append(f"{self.constante:.4g}".rstrip('.'))
+        # Caso variable libre pura: constante=0 y único término con coef=1
+        if abs(self.constante) < 1e-10 and len(self.terminos) == 1 and abs(self.terminos[0].coef - 1.0) < 1e-10:
+            idx = self.terminos[0].var_libre_idx
+            var_name = var_names[idx] if var_names and idx < len(var_names) else f"t{idx+1}"
+            return f"{var_name} (libre)"
         
-        # Parte parametrica: coeficiente * variable_libre
+        parts = []
+        # Parte constante (término independiente) en fracción
+        if abs(self.constante) > 1e-10:
+            parts.append(formatear_fraccion(self.constante))
+        
+        # Parte parametrica: coeficiente (en fracción) * variable_libre
         for t in self.terminos:
             if var_names and t.var_libre_idx < len(var_names):
                 var_name = var_names[t.var_libre_idx]
             else:
                 var_name = f"t{t.var_libre_idx+1}"
             
-            coef_str = f"{t.coef:.4g}".rstrip('.')
-            # Formateo bonito: ±1 se omite, signos explícitos
-            if coef_str == "1":
+            coef_val = t.coef
+            coef_abs_str = formatear_fraccion(abs(coef_val))
+            
+            if abs(coef_val - 1.0) < 1e-10:
                 parts.append(f"+ {var_name}")
-            elif coef_str == "-1":
+            elif abs(coef_val - (-1.0)) < 1e-10:
                 parts.append(f"- {var_name}")
-            elif t.coef > 0:
-                parts.append(f"+ {coef_str}·{var_name}")
+            elif coef_val > 0:
+                parts.append(f"+ {coef_abs_str}·{var_name}")
             else:
-                parts.append(f"- {abs(t.coef):.4g}·{var_name}")
+                parts.append(f"- {coef_abs_str}·{var_name}")
         
         if not parts:
             return "0"
         
-        # Unir: primer término sin signo +, resto con espacios
-        result = parts[0]
+        # Primer término sin el '+' inicial si lo tiene
+        first = parts[0]
+        if first.startswith("+ "):
+            first = first[2:]
+            
+        result = first
         for p in parts[1:]:
             result += f" {p}"
         return result

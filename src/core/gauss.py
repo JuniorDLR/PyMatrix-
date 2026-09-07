@@ -2,7 +2,8 @@ import copy
 from .domain import (
     Matriz, PasoGauss, ResultadoSistema, 
     SolucionUnica, SolucionInfinita, SinSolucion,
-    Termino, ExpresionParametrica, SolucionGeneral
+    Termino, ExpresionParametrica, SolucionGeneral,
+    formatear_fraccion
 )
 
 
@@ -28,31 +29,33 @@ def a_rref(matriz_ref: Matriz, columnas_pivote: list[int]) -> Matriz:
     matriz = copiar_matriz(matriz_ref)
     filas = len(matriz)
     columnas = len(matriz[0]) if filas > 0 else 0
+    num_vars = columnas - 1
     
-    # Procesar pivotes de derecha a izquierda (hacia arriba)
-    for pivot_col in reversed(columnas_pivote):
-        # Encontrar la fila que tiene el pivote en esta columna
-        pivot_row = None
-        for r in range(filas):
-            if abs(matriz[r][pivot_col]) > 1e-10:
-                pivot_row = r
+    # Encontrar el par (fila, col) exacto donde cada columna pivote es la entrada principal
+    pivotes: list[tuple[int, int]] = []
+    for r in range(filas):
+        for c in range(num_vars):
+            if abs(matriz[r][c]) > 1e-10:
+                if c in columnas_pivote:
+                    pivotes.append((r, c))
                 break
-        
-        if pivot_row is None:
-            continue
-        
+    
+    # Procesar pivotes de derecha a izquierda (de abajo hacia arriba)
+    for pivot_row, pivot_col in reversed(pivotes):
         # 1. Normalizar pivote a 1
         pivote_val = matriz[pivot_row][pivot_col]
-        if abs(pivote_val - 1.0) > 1e-10:
+        if abs(pivote_val - 1.0) > 1e-10 and abs(pivote_val) > 1e-10:
             for j in range(columnas):
                 matriz[pivot_row][j] /= pivote_val
+        matriz[pivot_row][pivot_col] = 1.0
         
-        # 2. Eliminar hacia arriba: ceros en TODAS las demás filas
+        # 2. Eliminar hacia arriba y abajo: ceros en TODAS las demás filas
         for r in range(filas):
             if r != pivot_row and abs(matriz[r][pivot_col]) > 1e-10:
                 factor = matriz[r][pivot_col]
                 for j in range(columnas):
                     matriz[r][j] -= factor * matriz[pivot_row][j]
+                matriz[r][pivot_col] = 0.0
     
     return matriz
 
@@ -60,36 +63,30 @@ def a_rref(matriz_ref: Matriz, columnas_pivote: list[int]) -> Matriz:
 def extraer_variables(matriz_rref: Matriz) -> tuple[list[int], list[int]]:
     """Identifica variables básicas y libres desde una matriz en RREF.
     
-    En RREF, una variable es BÁSICA si su columna es:
-    - Un vector canónico (1 en una fila, 0 en todas las demás)
-    Esa fila es la "fila pivote" de esa variable.
+    En RREF, una variable es BÁSICA si su columna contiene el primer elemento no nulo
+    (pivote = 1) de alguna fila, y todos los demás elementos de esa columna son 0.
     
-    Las variables NO básicas son LIBRES (parámetros).
+    Las variables restantes son LIBRES (parámetros).
     
     Args:
-        matriz_rref: Matriz en Forma Escalonada Reducida
+        matriz_rref: Matriz en Forma Escalonada Reducida (RREF)
         
     Returns:
         Tupla (vars_basicas_idx, vars_libres_idx) - índices 0-based
     """
     filas = len(matriz_rref)
     columnas = len(matriz_rref[0]) if filas > 0 else 0
-    num_variables = columnas - 1  # Excluir columna de términos independientes
+    num_variables = columnas - 1
     
     columnas_pivote = []
     for r in range(filas):
         for c in range(num_variables):
-            # Buscar entradas que sean 1 (candidato a pivote)
-            if abs(matriz_rref[r][c] - 1.0) < 1e-10:
-                # Verificar que sea vector canónico: ceros en todas las demás filas
-                es_pivote = True
-                for rr in range(filas):
-                    if rr != r and abs(matriz_rref[rr][c]) > 1e-10:
-                        es_pivote = False
-                        break
-                if es_pivote:
-                    columnas_pivote.append(c)
-                break  # Solo una columna pivote por fila
+            if abs(matriz_rref[r][c]) > 1e-10:
+                if abs(matriz_rref[r][c] - 1.0) < 1e-10:
+                    # Verificar que sea canónico en esa columna
+                    if all(abs(matriz_rref[rr][c]) < 1e-10 for rr in range(filas) if rr != r):
+                        columnas_pivote.append(c)
+                break  # Solo el primer elemento no nulo de la fila
     
     vars_basicas = sorted(columnas_pivote)
     vars_libres = [j for j in range(num_variables) if j not in columnas_pivote]
@@ -112,27 +109,25 @@ def parametrizar(matriz_rref: Matriz, vars_basicas: list[int], vars_libres: list
         
     Returns:
         Dict {idx_variable: ExpresionParametrica} para TODAS las variables
-        (básicas con su expresión, libres como identidad: x = 1*x)
     """
     filas = len(matriz_rref)
     columnas = len(matriz_rref[0]) if filas > 0 else 0
+    num_variables = columnas - 1
     
-    expresiones = {}
+    expresiones: dict[int, ExpresionParametrica] = {}
     
-    # Variables básicas: leer desde su fila pivote
+    # Encontrar la fila correspondiente a cada columna básica
     for var_b in vars_basicas:
         fila_pivote = None
         for r in range(filas):
-            if abs(matriz_rref[r][var_b] - 1.0) < 1e-10:
-                # Verificar que sea fila pivote (vector canónico)
-                es_pivote = True
-                for c in range(columnas - 1):
-                    if c != var_b and abs(matriz_rref[r][c]) > 1e-10:
-                        es_pivote = False
-                        break
-                if es_pivote:
-                    fila_pivote = r
+            # Es fila pivote si var_b es el primer no nulo de la fila r
+            for c in range(num_variables):
+                if abs(matriz_rref[r][c]) > 1e-10:
+                    if c == var_b and abs(matriz_rref[r][c] - 1.0) < 1e-10:
+                        fila_pivote = r
                     break
+            if fila_pivote is not None:
+                break
         
         if fila_pivote is None:
             expresiones[var_b] = ExpresionParametrica(0.0, ())
@@ -157,23 +152,18 @@ def parametrizar(matriz_rref: Matriz, vars_basicas: list[int], vars_libres: list
     return expresiones
 
 
-def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
-    """Algoritmo completo Gauss-Jordan con clasificación de sistemas.
+def resolver_gauss(matriz_inicial: Matriz) -> tuple[list[PasoGauss], ResultadoSistema, SolucionGeneral | None]:
+    """Eliminación de Gauss (Forma Escalonada por Filas - REF) + Sustitución hacia atrás.
     
-    Fases:
-    1. Eliminación hacia adelante (REF): pivoteo parcial + ceros debajo
-    2. Clasificación: inconsistente / único / infinitas
-    3. (Opcional) RREF + parametrización si return_rref=True
+    Genera los pasos de la reducción escalonada hacia adelante y clasifica el sistema.
     
     Args:
         matriz_inicial: Matriz aumentada m x (n+1)
-        return_rref: Si True, retorna también SolucionGeneral con RREF
         
     Returns:
-        Si return_rref=False: (pasos, ResultadoSistema)
-        Si return_rref=True:  (pasos, ResultadoSistema, SolucionGeneral|None)
+        Tupla (pasos, ResultadoSistema, SolucionGeneral | None)
     """
-    pasos = []
+    pasos: list[PasoGauss] = []
     matriz = copiar_matriz(matriz_inicial)
     filas = len(matriz)
     columnas = len(matriz[0]) if filas > 0 else 0
@@ -182,28 +172,26 @@ def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
     pasos.append(PasoGauss("Matriz Aumentada Inicial", copiar_matriz(matriz)))
     
     if filas == 0 or columnas == 0:
-        if return_rref:
-            return pasos, SinSolucion(), None
-        return pasos, SinSolucion()
+        return pasos, SinSolucion(mensaje="La matriz está vacía."), None
     
     # === FASE 1: ELIMINACIÓN HACIA ADELANTE (REF) ===
     pivote_fila = 0
     pivote_col = 0
-    columnas_pivote = []  # Columnas donde se encontraron pivotes
+    columnas_pivote: list[int] = []
     
     while pivote_fila < filas and pivote_col < columnas - 1:
-        # Pivoteo parcial: buscar máximo en columna actual (estabilidad numérica)
+        # Pivoteo parcial: buscar máximo en columna actual
         max_fila = pivote_fila
         for i in range(pivote_fila + 1, filas):
             if abs(matriz[i][pivote_col]) > abs(matriz[max_fila][pivote_col]):
                 max_fila = i
         
-        # Columna casi nula → no hay pivote aquí, avanzar columna
+        # Columna nula o casi nula → avanzar columna
         if abs(matriz[max_fila][pivote_col]) < 1e-10:
             pivote_col += 1
             continue
             
-        # Intercambiar filas si el máximo no está en la fila actual
+        # Intercambiar filas si es necesario
         if max_fila != pivote_fila:
             matriz[pivote_fila], matriz[max_fila] = matriz[max_fila], matriz[pivote_fila]
             pasos.append(PasoGauss(
@@ -211,10 +199,11 @@ def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
                 copiar_matriz(matriz)
             ))
         
-        # Hacer ceros DEBAJO del pivote (eliminación gaussiana clásica)
+        # Ceros DEBAJO del pivote
         hubo_cambios = False
+        pivote_val = matriz[pivote_fila][pivote_col]
         for i in range(pivote_fila + 1, filas):
-            factor = matriz[i][pivote_col] / matriz[pivote_fila][pivote_col]
+            factor = matriz[i][pivote_col] / pivote_val
             if abs(factor) > 1e-10:
                 for j in range(pivote_col, columnas):
                     matriz[i][j] -= factor * matriz[pivote_fila][j]
@@ -222,7 +211,7 @@ def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
                 
         if hubo_cambios:
             pasos.append(PasoGauss(
-                f"Eliminación: Ceros generados usando la fila {pivote_fila+1} como pivote", 
+                f"Eliminación hacia abajo: Ceros bajo el pivote (Fila {pivote_fila+1}, Columna {pivote_col+1})", 
                 copiar_matriz(matriz)
             ))
         
@@ -230,9 +219,10 @@ def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
         pivote_fila += 1
         pivote_col += 1
     
-    # === FASE 2: CLASIFICACIÓN DEL SISTEMA (teorema existencia/unicidad) ===
+    matriz_ref = copiar_matriz(matriz)
     
-    # 1. INCONSISTENTE: fila [0 0 ... 0 | k] con k ≠ 0
+    # === FASE 2: CLASIFICACIÓN DEL SISTEMA ===
+    # 1. Inconsistente: [0 0 ... 0 | k] con k ≠ 0
     for i in range(filas):
         todo_cero = True
         for j in range(columnas - 1):
@@ -240,37 +230,30 @@ def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
                 todo_cero = False
                 break
         if todo_cero and abs(matriz[i][-1]) > 1e-10:
-            if return_rref:
-                return pasos, SinSolucion(), None
-            return pasos, SinSolucion()
+            return pasos, SinSolucion(mensaje="El sistema no tiene solución (fila inconsistente 0 = k)."), None
     
     num_variables = columnas - 1
     filas_no_nulas = sum(1 for i in range(filas) 
                          if any(abs(matriz[i][j]) > 1e-10 for j in range(num_variables)))
     
-    # 2. INFINITAS SOLUCIONES: hay variables libres (columnas sin pivote)
-    if len(columnas_pivote) < num_variables or filas_no_nulas < num_variables:
-        vars_libres = [j for j in range(num_variables) if j not in columnas_pivote]
-        resultado = SolucionInfinita(variables_libres=vars_libres)
-        
-        if return_rref:
-            # Completar a RREF y parametrizar
-            matriz_rref = a_rref(matriz, columnas_pivote)
-            vars_basicas, vars_libres_rref = extraer_variables(matriz_rref)
-            expresiones = parametrizar(matriz_rref, vars_basicas, vars_libres_rref)
-            
-            solucion_general = SolucionGeneral(
-                tipo="Consistente Indeterminado",
-                variables_basicas=expresiones,
-                variables_libres=tuple(vars_libres_rref),
-                matriz_rref=matriz_rref,
-                matriz_ref=copiar_matriz(matriz)
-            )
-            return pasos, resultado, solucion_general
-        
-        return pasos, resultado
+    # RREF para parametrización interna
+    matriz_rref = a_rref(matriz_ref, columnas_pivote)
+    vars_basicas, vars_libres = extraer_variables(matriz_rref)
+    expresiones = parametrizar(matriz_rref, vars_basicas, vars_libres)
     
-    # 3. SOLUCIÓN ÚNICA: sustitución hacia atrás (matriz ya es triangular superior)
+    # 2. Infinitas soluciones
+    if len(columnas_pivote) < num_variables or filas_no_nulas < num_variables:
+        resultado_inf = SolucionInfinita(variables_libres=vars_libres)
+        solucion_general = SolucionGeneral(
+            tipo="Consistente Indeterminado",
+            variables_basicas=expresiones,
+            variables_libres=tuple(vars_libres),
+            matriz_rref=matriz_rref,
+            matriz_ref=matriz_ref
+        )
+        return pasos, resultado_inf, solucion_general
+    
+    # 3. Solución única por sustitución hacia atrás
     solucion = [0.0] * num_variables
     for i in range(num_variables - 1, -1, -1):
         suma = matriz[i][-1]
@@ -279,32 +262,172 @@ def resolver_gauss(matriz_inicial: Matriz, return_rref: bool = False):
         
         pivote = matriz[i][i]
         if abs(pivote) < 1e-10:
-            if return_rref:
-                return pasos, SinSolucion(), None
-            return pasos, SinSolucion()
+            return pasos, SinSolucion(mensaje="El sistema no tiene solución única (pivote nulo en sustitución)."), None
         
         solucion[i] = suma / pivote
     
-    # Redondear y corregir -0.0
     solucion = [round(x, 4) + 0.0 for x in solucion]
-    resultado = SolucionUnica(variables=solucion)
+    resultado_u = SolucionUnica(variables=solucion)
     
-    if return_rref:
-        # Generar RREF y parametrización también para caso único
-        matriz_rref = a_rref(matriz, columnas_pivote)
-        vars_basicas, vars_libres_rref = extraer_variables(matriz_rref)
-        expresiones = parametrizar(matriz_rref, vars_basicas, vars_libres_rref)
+    solucion_general = SolucionGeneral(
+        tipo="Consistente Determinado",
+        variables_basicas=expresiones,
+        variables_libres=tuple(vars_libres),
+        matriz_rref=matriz_rref,
+        matriz_ref=matriz_ref
+    )
+    return pasos, resultado_u, solucion_general
+
+
+def resolver_gauss_jordan(matriz_inicial: Matriz) -> tuple[list[PasoGauss], ResultadoSistema, SolucionGeneral | None]:
+    """Eliminación de Gauss-Jordan (Forma Escalonada Reducida por Filas - FERF/RREF).
+    
+    Genera los pasos detallados:
+    1. Eliminación hacia adelante (REF).
+    2. Normalización de cada pivote a 1.
+    3. Eliminación hacia arriba para generar ceros sobre cada pivote.
+    
+    Args:
+        matriz_inicial: Matriz aumentada m x (n+1)
         
-        solucion_general = SolucionGeneral(
-            tipo="Consistente Determinado",
-            variables_basicas=expresiones,
-            variables_libres=tuple(vars_libres_rref),
-            matriz_rref=matriz_rref,
-            matriz_ref=copiar_matriz(matriz)
-        )
-        return pasos, resultado, solucion_general
+    Returns:
+        Tupla (pasos, ResultadoSistema, SolucionGeneral | None)
+    """
+    pasos: list[PasoGauss] = []
+    matriz = copiar_matriz(matriz_inicial)
+    filas = len(matriz)
+    columnas = len(matriz[0]) if filas > 0 else 0
     
-    return pasos, resultado
+    # Paso 0: Matriz inicial
+    pasos.append(PasoGauss("Matriz Aumentada Inicial", copiar_matriz(matriz)))
+    
+    if filas == 0 or columnas == 0:
+        return pasos, SinSolucion(mensaje="La matriz está vacía."), None
+    
+    # === FASE 1: FORMA ESCALONADA (HACIA ADELANTE) ===
+    pivote_fila = 0
+    pivote_col = 0
+    pivotes_encontrados: list[tuple[int, int]] = []  # (fila, col)
+    
+    while pivote_fila < filas and pivote_col < columnas - 1:
+        # Pivoteo parcial
+        max_fila = pivote_fila
+        for i in range(pivote_fila + 1, filas):
+            if abs(matriz[i][pivote_col]) > abs(matriz[max_fila][pivote_col]):
+                max_fila = i
+        
+        if abs(matriz[max_fila][pivote_col]) < 1e-10:
+            pivote_col += 1
+            continue
+            
+        if max_fila != pivote_fila:
+            matriz[pivote_fila], matriz[max_fila] = matriz[max_fila], matriz[pivote_fila]
+            pasos.append(PasoGauss(
+                f"Pivoteo: Intercambio de fila {pivote_fila+1} con fila {max_fila+1}", 
+                copiar_matriz(matriz)
+            ))
+        
+        # Ceros abajo
+        hubo_cambios = False
+        piv_val = matriz[pivote_fila][pivote_col]
+        for i in range(pivote_fila + 1, filas):
+            factor = matriz[i][pivote_col] / piv_val
+            if abs(factor) > 1e-10:
+                for j in range(pivote_col, columnas):
+                    matriz[i][j] -= factor * matriz[pivote_fila][j]
+                hubo_cambios = True
+                
+        if hubo_cambios:
+            pasos.append(PasoGauss(
+                f"Eliminación hacia abajo: Ceros bajo el pivote en Columna {pivote_col+1}", 
+                copiar_matriz(matriz)
+            ))
+        
+        pivotes_encontrados.append((pivote_fila, pivote_col))
+        pivote_fila += 1
+        pivote_col += 1
+    
+    matriz_ref = copiar_matriz(matriz)
+    
+    # === FASE 2: VERIFICACIÓN DE INCONSISTENCIA PREVIA ===
+    for i in range(filas):
+        todo_cero = True
+        for j in range(columnas - 1):
+            if abs(matriz[i][j]) > 1e-10:
+                todo_cero = False
+                break
+        if todo_cero and abs(matriz[i][-1]) > 1e-10:
+            return pasos, SinSolucion(mensaje="El sistema no tiene solución (fila inconsistente 0 = k)."), None
+    
+    # === FASE 3: REDUCCIÓN COMPLETA DE JORDAN (RREF) ===
+    # Procesar pivotes de abajo hacia arriba (o normalizar y eliminar hacia arriba)
+    for p_idx, (r_piv, c_piv) in enumerate(reversed(pivotes_encontrados)):
+        pivote_val = matriz[r_piv][c_piv]
+        
+        # 1. Normalizar pivote a 1 si no lo es
+        if abs(pivote_val - 1.0) > 1e-10 and abs(pivote_val) > 1e-10:
+            for j in range(columnas):
+                matriz[r_piv][j] /= pivote_val
+            matriz[r_piv][c_piv] = 1.0  # Asegurar exactitud
+            pasos.append(PasoGauss(
+                f"Normalización: Fila {r_piv+1} dividida por su pivote ({formatear_fraccion(pivote_val)}) para obtener 1",
+                copiar_matriz(matriz)
+            ))
+        elif abs(pivote_val - 1.0) <= 1e-10:
+            matriz[r_piv][c_piv] = 1.0
+        
+        # 2. Eliminar hacia arriba (filas 0 a r_piv - 1)
+        hubo_arriba = False
+        for r_up in range(r_piv):
+            factor = matriz[r_up][c_piv]
+            if abs(factor) > 1e-10:
+                for j in range(columnas):
+                    matriz[r_up][j] -= factor * matriz[r_piv][j]
+                matriz[r_up][c_piv] = 0.0  # Limpiar posible residuo flotante
+                hubo_arriba = True
+        
+        if hubo_arriba:
+            pasos.append(PasoGauss(
+                f"Eliminación hacia arriba: Ceros sobre el pivote (Fila {r_piv+1}, Columna {c_piv+1})",
+                copiar_matriz(matriz)
+            ))
+    
+    matriz_rref = copiar_matriz(matriz)
+    columnas_pivote = [c for (_, c) in pivotes_encontrados]
+    num_variables = columnas - 1
+    
+    vars_basicas, vars_libres = extraer_variables(matriz_rref)
+    expresiones = parametrizar(matriz_rref, vars_basicas, vars_libres)
+    
+    # Comprobar si hay variables libres
+    filas_no_nulas = sum(1 for i in range(filas) 
+                         if any(abs(matriz_rref[i][j]) > 1e-10 for j in range(num_variables)))
+    
+    if len(columnas_pivote) < num_variables or filas_no_nulas < num_variables:
+        resultado_inf = SolucionInfinita(variables_libres=vars_libres)
+        solucion_general = SolucionGeneral(
+            tipo="Consistente Indeterminado",
+            variables_basicas=expresiones,
+            variables_libres=tuple(vars_libres),
+            matriz_rref=matriz_rref,
+            matriz_ref=matriz_ref
+        )
+        return pasos, resultado_inf, solucion_general
+    
+    # Solución única leída directamente de RREF
+    solucion = [0.0] * num_variables
+    for r in range(min(filas, num_variables)):
+        solucion[r] = round(matriz_rref[r][-1], 4) + 0.0
+    
+    resultado_u = SolucionUnica(variables=solucion)
+    solucion_general = SolucionGeneral(
+        tipo="Consistente Determinado",
+        variables_basicas=expresiones,
+        variables_libres=tuple(vars_libres),
+        matriz_rref=matriz_rref,
+        matriz_ref=matriz_ref
+    )
+    return pasos, resultado_u, solucion_general
 
 
 def verificar_solucion(matriz_original: Matriz, solucion: list[float]) -> bool:

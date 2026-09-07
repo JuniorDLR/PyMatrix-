@@ -33,14 +33,15 @@
     ```bash
     pip install customtkinter
     ```
-3.  Ejecuta el script principal:
+3.  Ejecuta el programa:
     ```bash
-    python "Programa 1_Grupox.py"
+    python main.py
     ```
+    *(o también: `python "Programa 1_Grupox.py"`)*
 
 ## 📂 Arquitectura del Código
 
-*   `Programa 1_Grupox.py`: Entry point principal de la aplicación.
+*   `main.py` / `Programa 1_Grupox.py`: Puntos de entrada principales de la aplicación.
 *   `src/core/domain.py`: Definición de tipos inmutables (`dataclasses`) y tipos de retorno usando _Union Types_.
 *   `src/core/gauss.py`: Algoritmo matemático estricto.
 *   `src/ui/app.py`: Ventana principal y renderizado dinámico de la interfaz.

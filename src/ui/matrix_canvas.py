@@ -3,14 +3,16 @@ import tkinter as tk
 from typing import List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-import math
+from src.core.domain import formatear_fraccion
 
 
 class CellState(Enum):
     NORMAL = "normal"
     PIVOT_CURRENT = "pivot_current"
+    PIVOT_NORMALIZED = "pivot_normalized"
     PIVOT_PREVIOUS = "pivot_previous"
     ZERO_NEW = "zero_new"
+    ZERO_ABOVE = "zero_above"
     ZERO_EXISTING = "zero_existing"
     ROW_PIVOT = "row_pivot"
     INDEPENDENT = "independent"
@@ -31,8 +33,10 @@ class MatrixStep:
     descripcion: str
     pivot_row: int = -1
     pivot_col: int = -1
+    is_normalized: bool = False
     zeros_created: List[Tuple[int, int]] = field(default_factory=list)
-    row_swapped: Tuple[int, int] = None
+    zeros_above_created: List[Tuple[int, int]] = field(default_factory=list)
+    row_swapped: Optional[Tuple[int, int]] = None
 
 
 class MatrixCanvas(ctk.CTkFrame):
@@ -62,11 +66,11 @@ class MatrixCanvas(ctk.CTkFrame):
         self.cell_texts: List[List[int]] = []
         self.cell_states: List[List[CellState]] = []
         
-        self.cell_width = 70
-        self.cell_height = 40
-        self.padding = 8
-        self.header_height = 35
-        self.row_label_width = 50
+        self.cell_width = 76
+        self.cell_height = 42
+        self.padding = 12
+        self.header_height = 36
+        self.row_label_width = 54
         
         self.animation_id = None
         self.is_playing = False
@@ -81,59 +85,73 @@ class MatrixCanvas(ctk.CTkFrame):
         mode = ctk.get_appearance_mode()
         if mode == "Dark":
             return {
-                "canvas_bg": "#1a1a2e",
-                "cell_normal": "#16213e",
-                "cell_normal_fg": "#eaeaea",
-                "pivot_current": "#0f3460",
-                "pivot_current_fg": "#00d9ff",
-                "pivot_previous": "#1a1a2e",
-                "pivot_previous_fg": "#00d9ff",
-                "zero_new": "#0f3460",
-                "zero_new_fg": "#00ff88",
-                "zero_existing": "#16213e",
-                "zero_existing_fg": "#888888",
-                "row_pivot": "#0f3460",
-                "row_pivot_fg": "#ffd700",
-                "independent_bg": "#0f3460",
-                "independent_fg": "#ff6b6b",
-                "header_bg": "#0f3460",
-                "header_fg": "#00d9ff",
-                "grid_color": "#2a2a4a",
-                "border_pivot": "#00d9ff",
-                "border_zero": "#00ff88",
-                "legend_bg": "#16213e",
-                "legend_fg": "#eaeaea",
+                "canvas_bg": "#0f172a",
+                "cell_normal": "#1e293b",
+                "cell_normal_fg": "#f1f5f9",
+                "pivot_current": "#1e3a8a",
+                "pivot_current_fg": "#93c5fd",
+                "pivot_normalized": "#064e3b",
+                "pivot_normalized_fg": "#6ee7b7",
+                "pivot_previous": "#172554",
+                "pivot_previous_fg": "#60a5fa",
+                "zero_new": "#134e4a",
+                "zero_new_fg": "#5eead4",
+                "zero_above": "#312e81",
+                "zero_above_fg": "#c4b5fd",
+                "zero_existing": "#1e293b",
+                "zero_existing_fg": "#64748b",
+                "row_pivot": "#1e293b",
+                "row_pivot_fg": "#fde047",
+                "independent_bg": "#3f1a24",
+                "independent_fg": "#fca5a5",
+                "header_bg": "#1e293b",
+                "header_fg": "#38bdf8",
+                "grid_color": "#334155",
+                "border_pivot": "#3b82f6",
+                "border_normalized": "#10b981",
+                "border_zero": "#14b8a6",
+                "border_above": "#8b5cf6",
+                "border_indep": "#f87171",
+                "legend_bg": "#1e293b",
+                "legend_fg": "#cbd5e1",
             }
         else:
             return {
-                "canvas_bg": "#f0f0f5",
+                "canvas_bg": "#f8fafc",
                 "cell_normal": "#ffffff",
-                "cell_normal_fg": "#1a1a2e",
+                "cell_normal_fg": "#0f172a",
                 "pivot_current": "#dbeafe",
-                "pivot_current_fg": "#1e40af",
+                "pivot_current_fg": "#1d4ed8",
+                "pivot_normalized": "#d1fae5",
+                "pivot_normalized_fg": "#047857",
                 "pivot_previous": "#eff6ff",
-                "pivot_previous_fg": "#1e40af",
-                "zero_new": "#dcfce7",
-                "zero_new_fg": "#166534",
-                "zero_existing": "#f3f4f6",
-                "zero_existing_fg": "#9ca3af",
+                "pivot_previous_fg": "#2563eb",
+                "zero_new": "#ccfbf1",
+                "zero_new_fg": "#0f766e",
+                "zero_above": "#ede9fe",
+                "zero_above_fg": "#6d28d9",
+                "zero_existing": "#f1f5f9",
+                "zero_existing_fg": "#94a3b8",
                 "row_pivot": "#fef3c7",
-                "row_pivot_fg": "#92400e",
+                "row_pivot_fg": "#b45309",
                 "independent_bg": "#fee2e2",
-                "independent_fg": "#dc2626",
-                "header_bg": "#dbeafe",
-                "header_fg": "#1e40af",
-                "grid_color": "#e5e7eb",
-                "border_pivot": "#3b82f6",
-                "border_zero": "#22c55e",
-                "legend_bg": "#f3f4f6",
-                "legend_fg": "#1f2937",
+                "independent_fg": "#b91c1c",
+                "header_bg": "#e2e8f0",
+                "header_fg": "#0369a1",
+                "grid_color": "#cbd5e1",
+                "border_pivot": "#2563eb",
+                "border_normalized": "#059669",
+                "border_zero": "#0d9488",
+                "border_above": "#7c3aed",
+                "border_indep": "#dc2626",
+                "legend_bg": "#ffffff",
+                "legend_fg": "#334155",
             }
     
     def _setup_fonts(self):
         self.font_normal = ("Consolas", 11)
         self.font_bold = ("Consolas", 11, "bold")
-        self.font_header = ("Consolas", 10, "bold")
+        self.font_header = ("Consolas", 11, "bold")
         self.font_legend = ("Consolas", 9)
     
     def _bind_events(self):
@@ -183,31 +201,39 @@ class MatrixCanvas(ctk.CTkFrame):
         
         self.cell_states = [[CellState.NORMAL for _ in range(cols)] for _ in range(rows)]
         
+        # 1. Pivote actual
         if step.pivot_row >= 0 and step.pivot_col >= 0:
-            self.cell_states[step.pivot_row][step.pivot_col] = CellState.PIVOT_CURRENT
+            if step.is_normalized:
+                self.cell_states[step.pivot_row][step.pivot_col] = CellState.PIVOT_NORMALIZED
+            else:
+                self.cell_states[step.pivot_row][step.pivot_col] = CellState.PIVOT_CURRENT
+                
             for c in range(cols):
                 if c != step.pivot_col:
                     self.cell_states[step.pivot_row][c] = CellState.ROW_PIVOT
         
+        # 2. Ceros nuevos abajo
         for (r, c) in step.zeros_created:
             if self.cell_states[r][c] == CellState.NORMAL:
                 self.cell_states[r][c] = CellState.ZERO_NEW
+                
+        # 3. Ceros nuevos arriba (Gauss-Jordan)
+        for (r, c) in step.zeros_above_created:
+            if self.cell_states[r][c] == CellState.NORMAL or self.cell_states[r][c] == CellState.ROW_PIVOT:
+                self.cell_states[r][c] = CellState.ZERO_ABOVE
         
+        # 4. Términos independientes
         for r in range(rows):
-            if self.cell_states[r][num_vars] == CellState.NORMAL:
+            if self.cell_states[r][num_vars] in (CellState.NORMAL, CellState.ROW_PIVOT):
                 self.cell_states[r][num_vars] = CellState.INDEPENDENT
         
+        # 5. Ceros preexistentes
         for r in range(rows):
             for c in range(cols):
                 if self.cell_states[r][c] == CellState.NORMAL:
                     val = matriz[r][c]
                     if abs(val) < 1e-10:
                         self.cell_states[r][c] = CellState.ZERO_EXISTING
-        
-        if step.pivot_row >= 0 and step.pivot_col >= 0:
-            for r in range(step.pivot_row):
-                if self.cell_states[r][step.pivot_col] == CellState.ZERO_EXISTING:
-                    self.cell_states[r][step.pivot_col] = CellState.PIVOT_PREVIOUS
         
         self._draw_matrix(matriz, rows, cols, num_vars, step.descripcion)
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -217,24 +243,23 @@ class MatrixCanvas(ctk.CTkFrame):
     
     def _draw_matrix(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int, descripcion: str):
         x_start = self.padding + self.row_label_width
-        y_start = self.padding + self.header_height
+        y_start = self.padding + self.header_height + 25
         
-        self._draw_header(descripcion, x_start, self.padding, cols, num_vars)
+        self._draw_header(descripcion, x_start, self.padding + 20, cols, num_vars)
         
         for r in range(rows):
             y = y_start + r * (self.cell_height + 1)
-            
             self._draw_row_label(r, self.padding, y)
             
             for c in range(cols):
                 x = x_start + c * (self.cell_width + 1)
                 self._draw_cell(r, c, x, y, matriz[r][c])
         
-        self._draw_legend(x_start, y_start + rows * (self.cell_height + 1) + 15, num_vars)
+        self._draw_legend(x_start, y_start + rows * (self.cell_height + 1) + 20, num_vars)
     
     def _draw_header(self, descripcion: str, x: int, y: int, cols: int, num_vars: int):
         self.canvas.create_text(
-            x, y - 25, text=descripcion, anchor="w",
+            x, y - 28, text=f"• {descripcion}", anchor="w",
             font=("Consolas", 12, "bold"), fill=self._theme_colors["header_fg"]
         )
         
@@ -270,7 +295,7 @@ class MatrixCanvas(ctk.CTkFrame):
         )
         self.canvas.create_text(
             x + self.row_label_width // 2, y + self.cell_height // 2,
-            text=f"R{row+1}", font=self.font_bold, fill=self._theme_colors["header_fg"]
+            text=f"F{row+1}", font=self.font_bold, fill=self._theme_colors["header_fg"]
         )
     
     def _draw_cell(self, row: int, col: int, x: int, y: int, value: float):
@@ -279,7 +304,8 @@ class MatrixCanvas(ctk.CTkFrame):
         
         rect = self.canvas.create_rectangle(
             x, y, x + self.cell_width, y + self.cell_height,
-            fill=style.bg, outline=style.border_color, width=style.border_width
+            fill=style.bg, outline=style.border_color if style.border_color else self._theme_colors["grid_color"],
+            width=style.border_width if style.border_width > 0 else 1
         )
         
         display_val = self._format_value(value)
@@ -301,38 +327,38 @@ class MatrixCanvas(ctk.CTkFrame):
         colors = self._theme_colors
         if state == CellState.PIVOT_CURRENT:
             return CellStyle(colors["pivot_current"], colors["pivot_current_fg"], "bold", colors["border_pivot"], 2)
+        elif state == CellState.PIVOT_NORMALIZED:
+            return CellStyle(colors["pivot_normalized"], colors["pivot_normalized_fg"], "bold", colors["border_normalized"], 2)
         elif state == CellState.PIVOT_PREVIOUS:
             return CellStyle(colors["pivot_previous"], colors["pivot_previous_fg"], "bold", colors["border_pivot"], 1)
         elif state == CellState.ZERO_NEW:
             return CellStyle(colors["zero_new"], colors["zero_new_fg"], "bold", colors["border_zero"], 2)
+        elif state == CellState.ZERO_ABOVE:
+            return CellStyle(colors["zero_above"], colors["zero_above_fg"], "bold", colors["border_above"], 2)
         elif state == CellState.ZERO_EXISTING:
             return CellStyle(colors["zero_existing"], colors["zero_existing_fg"], "normal", "", 0)
         elif state == CellState.ROW_PIVOT:
             return CellStyle(colors["row_pivot"], colors["row_pivot_fg"], "bold", "", 0)
         elif state == CellState.INDEPENDENT:
-            return CellStyle(colors["independent_bg"], colors["independent_fg"], "bold", "", 0)
+            return CellStyle(colors["independent_bg"], colors["independent_fg"], "bold", colors["border_indep"], 1)
         else:
             return CellStyle(colors["cell_normal"], colors["cell_normal_fg"], "normal", colors["grid_color"], 1)
     
     def _format_value(self, value: float) -> str:
-        if abs(value) < 1e-10:
-            return "0"
-        if abs(value - round(value)) < 1e-9:
-            return str(int(round(value)))
-        return f"{value:.3f}".rstrip('0').rstrip('.')
+        return formatear_fraccion(value)
     
     def _draw_legend(self, x: int, y: int, num_vars: int):
         legends = [
-            ("■ Pivote actual", self._theme_colors["pivot_current_fg"]),
-            ("■ Pivote previo", self._theme_colors["pivot_previous_fg"]),
-            ("■ Cero generado", self._theme_colors["zero_new_fg"]),
-            ("■ Cero existente", self._theme_colors["zero_existing_fg"]),
-            ("■ Fila pivote", self._theme_colors["row_pivot_fg"]),
-            ("■ Término indep.", self._theme_colors["independent_fg"]),
+            ("■ Pivote activo (Gauss)", self._theme_colors["pivot_current_fg"]),
+            ("■ Pivote normalizado = 1 (Jordan)", self._theme_colors["pivot_normalized_fg"]),
+            ("■ Cero bajo pivote (REF)", self._theme_colors["zero_new_fg"]),
+            ("■ Cero sobre pivote (RREF)", self._theme_colors["zero_above_fg"]),
+            ("■ Fila del pivote", self._theme_colors["row_pivot_fg"]),
+            ("■ Término independiente", self._theme_colors["independent_fg"]),
         ]
         
-        box_w = 180
-        box_h = len(legends) * 22 + 10
+        box_w = 260
+        box_h = len(legends) * 22 + 14
         
         self.canvas.create_rectangle(
             x - 5, y - 5, x + box_w, y + box_h,
@@ -340,8 +366,8 @@ class MatrixCanvas(ctk.CTkFrame):
         )
         
         for i, (label, color) in enumerate(legends):
-            ly = y + i * 22
-            self.canvas.create_text(x + 10, ly, text=label, anchor="w", font=self.font_legend, fill=color)
+            ly = y + i * 22 + 10
+            self.canvas.create_text(x + 12, ly, text=label, anchor="w", font=self.font_legend, fill=color)
     
     def next_step(self):
         if self.current_step < len(self.steps) - 1:
@@ -375,7 +401,7 @@ class MatrixCanvas(ctk.CTkFrame):
             return
         
         self.next_step()
-        delay = int(1500 / self.play_speed)
+        delay = int(1400 / self.play_speed)
         self.animation_id = self.after(delay, self._animate)
     
     def set_speed(self, speed: float):
@@ -394,33 +420,33 @@ class PlaybackControls(ctk.CTkFrame):
         self._setup_ui()
     
     def _setup_ui(self):
-        self.btn_first = ctk.CTkButton(self, text="⏮", width=40, command=self.canvas.first_step)
+        self.btn_first = ctk.CTkButton(self, text="⏮", width=38, height=32, command=self.canvas.first_step)
         self.btn_first.pack(side="left", padx=2)
         
-        self.btn_prev = ctk.CTkButton(self, text="◀", width=40, command=self.canvas.prev_step)
+        self.btn_prev = ctk.CTkButton(self, text="◀", width=38, height=32, command=self.canvas.prev_step)
         self.btn_prev.pack(side="left", padx=2)
         
-        self.btn_play = ctk.CTkButton(self, text="▶", width=40, command=self._toggle_play)
-        self.btn_play.pack(side="left", padx=2)
+        self.btn_play = ctk.CTkButton(self, text="▶", width=44, height=32, command=self._toggle_play, fg_color="#0284c7", hover_color="#0369a1")
+        self.btn_play.pack(side="left", padx=4)
         
-        self.btn_next = ctk.CTkButton(self, text="▶", width=40, command=self.canvas.next_step)
+        self.btn_next = ctk.CTkButton(self, text="▶|", width=38, height=32, command=self.canvas.next_step)
         self.btn_next.pack(side="left", padx=2)
         
-        self.btn_last = ctk.CTkButton(self, text="⏭", width=40, command=self.canvas.last_step)
+        self.btn_last = ctk.CTkButton(self, text="⏭", width=38, height=32, command=self.canvas.last_step)
         self.btn_last.pack(side="left", padx=2)
         
-        ctk.CTkLabel(self, text="  Velocidad:").pack(side="left", padx=(10, 2))
+        ctk.CTkLabel(self, text="  Velocidad:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 2))
         self.speed_var = ctk.StringVar(value="1.0x")
         self.speed_menu = ctk.CTkOptionMenu(
-            self, values=["0.25x", "0.5x", "1.0x", "1.5x", "2.0x", "3.0x", "4.0x"],
-            variable=self.speed_var, width=70, command=self._on_speed_change
+            self, values=["0.25x", "0.5x", "1.0x", "1.5x", "2.0x", "3.0x"],
+            variable=self.speed_var, width=78, height=32, command=self._on_speed_change
         )
         self.speed_menu.pack(side="left", padx=2)
         
-        self.step_label = ctk.CTkLabel(self, text="Paso 0 / 0", font=("Consolas", 12))
-        self.step_label.pack(side="left", padx=20)
+        self.step_label = ctk.CTkLabel(self, text="Paso 0 / 0", font=ctk.CTkFont(family="Consolas", size=13, weight="bold"))
+        self.step_label.pack(side="left", padx=16)
         
-        self.desc_label = ctk.CTkLabel(self, text="", font=("Consolas", 11), wraplength=400)
+        self.desc_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=12), wraplength=450, anchor="w", justify="left")
         self.desc_label.pack(side="left", padx=10, fill="x", expand=True)
         
         self.canvas.on_step_change = self._on_step_change
@@ -456,44 +482,84 @@ def create_matrix_steps_from_gauss(pasos_gauss, matriz_original) -> List[MatrixS
         
         pivot_row = -1
         pivot_col = -1
+        is_normalized = False
         zeros_created = []
+        zeros_above_created = []
         
-        if "Pivoteo" in desc:
+        # Comparación con matriz anterior para detectar ceros creados
+        if i > 0:
+            prev_m = pasos_gauss[i-1].matriz_estado
+            for r in range(len(matriz)):
+                for c in range(len(matriz[0]) - 1):
+                    if abs(prev_m[r][c]) > 1e-10 and abs(matriz[r][c]) < 1e-10:
+                        if "arriba" in desc.lower():
+                            zeros_above_created.append((r, c))
+                        else:
+                            zeros_created.append((r, c))
+        
+        if "Normalización" in desc:
+            is_normalized = True
+            parts = desc.split("Fila ")
+            if len(parts) > 1:
+                try:
+                    pivot_row = int(parts[1].split(" ")[0]) - 1
+                    for c in range(len(matriz[0]) - 1):
+                        if abs(matriz[pivot_row][c] - 1.0) < 1e-10:
+                            pivot_col = c
+                            break
+                except Exception:
+                    pass
+        elif "Pivoteo" in desc:
             parts = desc.split("fila ")
             if len(parts) > 1:
                 try:
                     pivot_row = int(parts[1].split(" ")[0]) - 1
-                    for c in range(len(matriz[0])):
+                    for c in range(len(matriz[0]) - 1):
                         if abs(matriz[pivot_row][c]) > 1e-10:
                             pivot_col = c
                             break
-                except:
+                except Exception:
+                    pass
+        elif "Eliminación hacia arriba" in desc:
+            parts = desc.split("Fila ")
+            if len(parts) > 1:
+                try:
+                    pivot_row = int(parts[1].split(",")[0]) - 1
+                    col_part = desc.split("Columna ")
+                    if len(col_part) > 1:
+                        pivot_col = int(col_part[1].replace(")", "").strip()) - 1
+                except Exception:
                     pass
         elif "Eliminación" in desc:
-            parts = desc.split("fila ")
+            parts = desc.split("Fila ")
             if len(parts) > 1:
                 try:
-                    pivot_row = int(parts[1].split(" ")[0]) - 1
-                    for c in range(len(matriz[0])):
-                        if abs(matriz[pivot_row][c]) > 1e-10:
-                            pivot_col = c
-                            break
-                    
-                    if i > 0:
-                        prev_matriz = pasos_gauss[i-1].matriz_estado
-                        for r in range(pivot_row + 1, len(matriz)):
-                            for c in range(pivot_col, len(matriz[0])):
-                                if abs(prev_matriz[r][c]) > 1e-10 and abs(matriz[r][c]) < 1e-10:
-                                    zeros_created.append((r, c))
-                except:
+                    pivot_row = int(parts[1].split(",")[0]) - 1
+                    col_part = desc.split("Columna ")
+                    if len(col_part) > 1:
+                        pivot_col = int(col_part[1].replace(")", "").strip()) - 1
+                except Exception:
                     pass
+            if pivot_row == -1:
+                parts2 = desc.split("fila ")
+                if len(parts2) > 1:
+                    try:
+                        pivot_row = int(parts2[1].split(" ")[0]) - 1
+                        for c in range(len(matriz[0]) - 1):
+                            if abs(matriz[pivot_row][c]) > 1e-10:
+                                pivot_col = c
+                                break
+                    except Exception:
+                        pass
         
         steps.append(MatrixStep(
             matriz=matriz,
             descripcion=desc,
             pivot_row=pivot_row,
             pivot_col=pivot_col,
-            zeros_created=zeros_created
+            is_normalized=is_normalized,
+            zeros_created=zeros_created,
+            zeros_above_created=zeros_above_created
         ))
     
     return steps
