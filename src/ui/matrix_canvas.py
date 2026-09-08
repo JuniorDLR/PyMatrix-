@@ -3,7 +3,7 @@ import tkinter as tk
 from typing import List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from src.core.domain import formatear_fraccion, a_subindice
+from src.core.domain import formatear_fraccion, formatear_numero, a_subindice
 
 
 class CellState(Enum):
@@ -44,6 +44,7 @@ class MatrixCanvas(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.force_staircase = False
+        self.modo_numero = "fraccion"
         self._theme_colors = self._get_theme_colors()
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -449,7 +450,13 @@ class MatrixCanvas(ctk.CTkFrame):
             return CellStyle(colors["cell_normal"], colors["cell_normal_fg"], "normal", colors["grid_color"], 1)
     
     def _format_value(self, value: float) -> str:
-        return formatear_fraccion(value)
+        return formatear_numero(value, self.modo_numero)
+    
+    def set_number_mode(self, modo: str):
+        """Cambia el modo de visualización ('fraccion' o 'decimal') y redibuja."""
+        self.modo_numero = modo
+        if self.steps:
+            self.render_step(self.current_step)
     
     def _draw_legend(self, x: int, y: int, num_vars: int, show_staircase: bool = False):
         legends = [

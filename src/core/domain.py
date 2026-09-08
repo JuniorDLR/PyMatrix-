@@ -40,6 +40,45 @@ def formatear_fraccion(valor: float, max_denom: int = 2000) -> str:
     return f"{f.numerator}/{f.denominator}"
 
 
+def formatear_decimal(valor: float, max_decimales: int = 4) -> str:
+    """Convierte un valor float a su representación en formato decimal legible.
+    
+    Si el valor es entero (ej. 3.0, -2.0, 0.0), retorna '3', '-2', '0'.
+    Si el valor es decimal, redondea hasta max_decimales y elimina ceros redundantes.
+    
+    Args:
+        valor: Número en punto flotante
+        max_decimales: Cantidad máxima de cifras decimales (por defecto 4)
+        
+    Returns:
+        Cadena con el número en formato decimal (ej. '0.5', '1.3333', '-2')
+    """
+    if abs(valor) < 1e-10:
+        return "0"
+    
+    val_redondeado = round(valor, max_decimales)
+    if abs(val_redondeado - round(val_redondeado)) < 1e-10:
+        return str(int(round(val_redondeado)))
+    
+    return f"{val_redondeado:.{max_decimales}f}".rstrip("0").rstrip(".")
+
+
+def formatear_numero(valor: float, modo: str = "fraccion", max_decimales: int = 4) -> str:
+    """Formatea un número según el modo activo: 'fraccion' o 'decimal'.
+    
+    Args:
+        valor: Número en punto flotante
+        modo: 'fraccion' para fracciones irreducibles, 'decimal' para números decimales
+        max_decimales: Decimales para el modo decimal
+        
+    Returns:
+        Representación en cadena formateada
+    """
+    if modo == "decimal":
+        return formatear_decimal(valor, max_decimales)
+    return formatear_fraccion(valor)
+
+
 @dataclass(frozen=True)
 class PasoGauss:
     """Representa un estado intermedio durante la eliminación de Gauss-Jordan.
@@ -118,11 +157,12 @@ class ExpresionParametrica:
     constante: float
     terminos: tuple[Termino, ...] = field(default_factory=tuple)
     
-    def a_string(self, var_names: list[str] | None = None) -> str:
-        """Convierte la expresión a string legible con fracciones irreducibles.
+    def a_string(self, var_names: list[str] | None = None, modo: str = "fraccion") -> str:
+        """Convierte la expresión a string legible en fracciones o decimales.
         
         Args:
             var_names: Nombres opcionales para variables libres (ej: ["X1", "X2", "X3", "X4"])
+            modo: 'fraccion' o 'decimal'
             
         Returns:
             String formateado: "2/3 + 3/4·X2 - 1/2·X4" o "X2 (libre)"
@@ -137,11 +177,11 @@ class ExpresionParametrica:
             return f"{var_name} (libre)"
         
         parts = []
-        # Parte constante (término independiente) en fracción
+        # Parte constante (término independiente)
         if abs(self.constante) > 1e-10:
-            parts.append(formatear_fraccion(self.constante))
+            parts.append(formatear_numero(self.constante, modo))
         
-        # Parte parametrica: coeficiente (en fracción) * variable_libre
+        # Parte parametrica: coeficiente * variable_libre
         for t in self.terminos:
             if var_names and t.var_libre_idx < len(var_names):
                 var_name = var_names[t.var_libre_idx]
@@ -149,7 +189,7 @@ class ExpresionParametrica:
                 var_name = f"t{a_subindice(t.var_libre_idx+1)}"
             
             coef_val = t.coef
-            coef_abs_str = formatear_fraccion(abs(coef_val))
+            coef_abs_str = formatear_numero(abs(coef_val), modo)
             
             if abs(coef_val - 1.0) < 1e-10:
                 parts.append(f"+ {var_name}")
@@ -196,11 +236,12 @@ class SolucionGeneral:
     matriz_rref: Matriz
     matriz_ref: Matriz
     
-    def a_strings(self, num_variables: int) -> list[str]:
+    def a_strings(self, num_variables: int, modo: str = "fraccion") -> list[str]:
         """Genera lista de ecuaciones formateadas para todas las variables.
         
         Args:
             num_variables: Total de variables (n)
+            modo: 'fraccion' o 'decimal'
             
         Returns:
             Lista de strings: ["X1 = 2 + 3·X2", "X2 = X2 (libre)", ...]
@@ -211,8 +252,7 @@ class SolucionGeneral:
         for i in range(num_variables):
             if i in self.variables_basicas:
                 expr = self.variables_basicas[i]
-                lines.append(f"{var_names[i]} = {expr.a_string(var_names)}")
+                lines.append(f"{var_names[i]} = {expr.a_string(var_names, modo=modo)}")
             elif i in self.variables_libres:
                 lines.append(f"{var_names[i]} = {var_names[i]} (libre)")
-        
         return lines

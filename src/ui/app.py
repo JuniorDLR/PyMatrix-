@@ -5,7 +5,7 @@ import customtkinter as ctk
 from src.core.gauss import resolver_gauss, resolver_gauss_jordan, verificar_solucion
 from src.core.domain import (
     SolucionUnica, SolucionInfinita, SinSolucion, SolucionGeneral, 
-    formatear_fraccion, a_subindice
+    formatear_fraccion, formatear_numero, formatear_decimal, a_subindice
 )
 from src.ui.matrix_canvas import MatrixCanvas, PlaybackControls, create_matrix_steps_from_gauss
 
@@ -30,6 +30,8 @@ class App(ctk.CTk):
         self.solucion_general: Optional[SolucionGeneral] = None
         self.matriz_entries: List[List[ctk.CTkEntry]] = []
         self.metodo_var = ctk.StringVar(value="Gauss-Jordan")
+        self.modo_numero = "fraccion"
+        self.ultimas_cols_pivote_str = "Ninguna"
         
         self._setup_ui()
     
@@ -83,16 +85,43 @@ class App(ctk.CTk):
         )
         lbl_desc.grid(row=0, column=1, sticky="w", padx=20)
         
+        # Controles superiores a la derecha: Formato numérico y Tema
+        top_controls = ctk.CTkFrame(top_frame, fg_color="transparent")
+        top_controls.grid(row=0, column=2, padx=20)
+        
+        # Toggle de formato de números: Fracción vs Decimal
+        self.btn_formato = ctk.CTkSegmentedButton(
+            top_controls,
+            values=["Fracción", "Decimal"],
+            command=self._change_number_format,
+            width=150,
+            height=28,
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        self.btn_formato.set("Fracción")
+        self.btn_formato.pack(side="left", padx=(0, 10))
+        
         # Toggle de tema (Claro / Oscuro)
         theme_btn = ctk.CTkSegmentedButton(
-            top_frame,
+            top_controls,
             values=["Dark", "Light"],
             command=self._change_theme,
             width=110,
             height=28
         )
         theme_btn.set("Dark")
-        theme_btn.grid(row=0, column=2, padx=20)
+        theme_btn.pack(side="left")
+    
+    def _change_number_format(self, mode_str: str):
+        """Alterna el formato de visualización entre fracciones y decimales."""
+        self.modo_numero = "fraccion" if "frac" in mode_str.lower() else "decimal"
+        if hasattr(self, "matrix_canvas"):
+            self.matrix_canvas.set_number_mode(self.modo_numero)
+        
+        # Si ya se resolvió un sistema, refrescar la conclusión y el registro textual de inmediato
+        if self.resultado is not None and self.matriz_inicial is not None:
+            self._update_conclusion_cards(self.ultimas_cols_pivote_str)
+            self._refresh_text_log()
     
     def _change_theme(self, mode: str):
         ctk.set_appearance_mode(mode)
@@ -540,8 +569,8 @@ class App(ctk.CTk):
         for fila in matriz:
             coefs = fila[:-1]
             ti = fila[-1]
-            coefs_str = "  ".join([f"{formatear_fraccion(c):>8}" for c in coefs])
-            salida += f"  [ {coefs_str} | {formatear_fraccion(ti):>8} ]\n"
+            coefs_str = "  ".join([f"{formatear_numero(c, self.modo_numero):>8}" for c in coefs])
+            salida += f"  [ {coefs_str} | {formatear_numero(ti, self.modo_numero):>8} ]\n"
         return salida
     
     def _log_text(self, texto: str, limpiar: bool = False):
@@ -634,10 +663,45 @@ class App(ctk.CTk):
         self._log_text(f"• Clasificación:     {self.resultado.tipo}\n")
         
         # 6. Actualizar las tarjetas de conclusión final en la interfaz
+        self.ultimas_cols_pivote_str = cols_pivote_str
         self._update_conclusion_cards(cols_pivote_str)
         
         # 7. Cambiar a la pestaña de visualización
         self.tabview.set("  📊 Visualización Paso a Paso  ")
+    
+    def _refresh_text_log(self):
+        """Regenera el registro textual completo con el formato numérico seleccionado (Fracción/Decimal)."""
+        if not self.pasos_gauss or self.matriz_inicial is None:
+            return
+        
+        metodo = self.metodo_var.get()
+        num_vars = len(self.matriz_inicial[0]) - 1
+        var_names = [f"x{a_subindice(i+1)}" for i in range(num_vars)]
+        
+        self._log_text(f"==================================================", limpiar=True)
+        self._log_text(f"  EJECUTANDO: {metodo.upper()} [Modo: {self.modo_numero.capitalize()}]")
+        self._log_text(f"==================================================\n")
+        
+        for paso in self.pasos_gauss:
+            self._log_text(f">> {paso.descripcion}:")
+            self._log_text(self._format_matriz(paso.matriz_estado))
+        
+        if self.solucion_general:
+            self._log_text("--- 1. FORMA ESCALONADA POR FILAS (REF) [ESCALERA DE GAUSS] ---")
+            self._log_text(self._format_matriz(self.solucion_general.matriz_ref))
+            if metodo == "Gauss-Jordan":
+                self._log_text("--- 2. FORMA ESCALONADA REDUCIDA (RREF) [GAUSS-JORDAN FINAL] ---")
+                self._log_text(self._format_matriz(self.solucion_general.matriz_rref))
+        else:
+            matriz_final = self.pasos_gauss[-1].matriz_estado if self.pasos_gauss else self.matriz_inicial
+            nombre_forma = "FORMA ESCALONADA REDUCIDA (RREF)" if metodo == "Gauss-Jordan" else "FORMA ESCALONADA (REF)"
+            self._log_text(f"--- MATRIZ FINAL EN {nombre_forma} ---")
+            self._log_text(self._format_matriz(matriz_final))
+        
+        self._log_text("--- ANÁLISIS DE PIVOTES Y VARIABLES ---")
+        self._log_text(f"• Las columnas pivote son: {self.ultimas_cols_pivote_str}")
+        if self.resultado:
+            self._log_text(f"• Clasificación:     {self.resultado.tipo}\n")
     
     def _formatear_lista_legible(self, elementos: list[str]) -> str:
         """Formatea ['1', '2', '4'] en '1, 2 y 4'."""
@@ -701,7 +765,7 @@ class App(ctk.CTk):
             # Formato de solución general
             lineas_sol = ["Solución General Parametrizada:"]
             if self.solucion_general:
-                for eq in self.solucion_general.a_strings(num_vars):
+                for eq in self.solucion_general.a_strings(num_vars, modo=self.modo_numero):
                     lineas_sol.append(f"  {eq}")
             else:
                 for v in vars_libres_str:
@@ -741,7 +805,7 @@ class App(ctk.CTk):
             
             lineas_sol = ["Solución Única:"]
             for i, v in enumerate(self.resultado.variables):
-                lineas_sol.append(f"  {var_names[i]} = {formatear_fraccion(v)}")
+                lineas_sol.append(f"  {var_names[i]} = {formatear_numero(v, self.modo_numero)}")
             
             self.txt_solucion_display.insert("end", "\n".join(lineas_sol))
         
