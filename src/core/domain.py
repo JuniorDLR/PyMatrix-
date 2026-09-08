@@ -5,17 +5,25 @@ from typing import Literal
 # Alias de tipo: matriz aumentada m x (n+1) donde la última columna son términos independientes
 Matriz = list[list[float]]
 
+SUB_DIGITOS = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
 
-def formatear_fraccion(valor: float, max_denom: int = 10000) -> str:
+
+def a_subindice(num: int) -> str:
+    """Convierte un número entero a su representación en caracteres de subíndice Unicode (ej. 1 -> '₁', 12 -> '₁₂')."""
+    return str(num).translate(SUB_DIGITOS)
+
+
+
+def formatear_fraccion(valor: float, max_denom: int = 2000) -> str:
     """Convierte cualquier valor float a su representación exacta en fracción irreducible.
     
     Usa la librería estándar de Python (fractions.Fraction).
     Si el valor es entero (ej. 3.0, -2.0, 0.0), retorna '3', '-2', '0'.
-    Si el valor es decimal (ej. 0.5, -1.333333333333), retorna '1/2', '-4/3'.
+    Si el valor es decimal (ej. 0.5, 1.6667), retorna '1/2', '5/3'.
     
     Args:
         valor: Número en punto flotante
-        max_denom: Denominador máximo para limitar aproximaciones de redondeo
+        max_denom: Denominador máximo para aproximaciones (2000 evita fracciones raras como 16667/10000)
         
     Returns:
         Cadena con la fracción (ej. '3/4', '-7/2', '5')
@@ -23,8 +31,8 @@ def formatear_fraccion(valor: float, max_denom: int = 10000) -> str:
     if abs(valor) < 1e-10:
         return "0"
     
-    # Redondear a 8 decimales para limpiar residuos infinitesimales de coma flotante
-    val_redondeado = round(valor, 8)
+    # Redondear a 9 decimales para limpiar residuos infinitesimales de coma flotante
+    val_redondeado = round(valor, 9)
     f = Fraction(val_redondeado).limit_denominator(max_denom)
     
     if f.denominator == 1:
@@ -125,7 +133,7 @@ class ExpresionParametrica:
         # Caso variable libre pura: constante=0 y único término con coef=1
         if abs(self.constante) < 1e-10 and len(self.terminos) == 1 and abs(self.terminos[0].coef - 1.0) < 1e-10:
             idx = self.terminos[0].var_libre_idx
-            var_name = var_names[idx] if var_names and idx < len(var_names) else f"t{idx+1}"
+            var_name = var_names[idx] if var_names and idx < len(var_names) else f"t{a_subindice(idx+1)}"
             return f"{var_name} (libre)"
         
         parts = []
@@ -138,7 +146,7 @@ class ExpresionParametrica:
             if var_names and t.var_libre_idx < len(var_names):
                 var_name = var_names[t.var_libre_idx]
             else:
-                var_name = f"t{t.var_libre_idx+1}"
+                var_name = f"t{a_subindice(t.var_libre_idx+1)}"
             
             coef_val = t.coef
             coef_abs_str = formatear_fraccion(abs(coef_val))
@@ -197,7 +205,7 @@ class SolucionGeneral:
         Returns:
             Lista de strings: ["X1 = 2 + 3·X2", "X2 = X2 (libre)", ...]
         """
-        var_names = [f"X{i+1}" for i in range(num_variables)]
+        var_names = [f"x{a_subindice(i+1)}" for i in range(num_variables)]
         lines = []
         
         for i in range(num_variables):

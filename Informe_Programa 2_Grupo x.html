@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Informe Programa 2 - Álgebra Lineal - PyMatrix</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 2cm 1.8cm 2cm 1.8cm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.45;
+            font-size: 10pt;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        
+        /* PORTADA */
+        .portada {
+            text-align: center;
+            padding: 25px 15px 0 15px;
+            height: 100%;
+        }
+        .portada .uni-header {
+            border-bottom: 3px solid #0284c7;
+            padding-bottom: 18px;
+            margin-bottom: 25px;
+        }
+        .portada h1 {
+            font-size: 18pt;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+        .portada h2 {
+            font-size: 12pt;
+            color: #475569;
+            margin: 6px 0 0 0;
+            font-weight: 600;
+        }
+        .portada h3 {
+            font-size: 11pt;
+            color: #0284c7;
+            margin: 4px 0 0 0;
+            font-weight: 600;
+        }
+        .portada .actividad-badge {
+            display: inline-block;
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+            color: #0369a1;
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 10pt;
+            font-weight: 700;
+            margin: 20px 0 15px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .portada .titulo-trabajo {
+            font-size: 15pt;
+            color: #0f172a;
+            font-weight: 800;
+            line-height: 1.3;
+            margin: 10px auto 5px auto;
+            max-width: 600px;
+        }
+        .portada .subtitulo-trabajo {
+            font-size: 11pt;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .portada .datos-tabla-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 18px 24px;
+            margin: 0 auto;
+            max-width: 540px;
+            text-align: left;
+        }
+        .portada .datos-tabla-box table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .portada .datos-tabla-box td {
+            padding: 5px 8px;
+            font-size: 10pt;
+            vertical-align: top;
+        }
+        .portada .datos-tabla-box td.label {
+            font-weight: 700;
+            color: #334155;
+            width: 30%;
+        }
+        .portada .datos-tabla-box td.val {
+            color: #0f172a;
+        }
+        .portada .fecha-footer {
+            margin-top: 40px;
+            font-size: 9.5pt;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        /* SECCIONES */
+        h2.seccion {
+            color: #0f172a;
+            font-size: 12.5pt;
+            font-weight: 700;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        h2.seccion span.num {
+            background-color: #0284c7;
+            color: white;
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-size: 10pt;
+            margin-right: 6px;
+        }
+        h3.subseccion {
+            color: #0369a1;
+            font-size: 10.5pt;
+            font-weight: 700;
+            margin-top: 12px;
+            margin-bottom: 6px;
+        }
+        p {
+            margin-top: 0;
+            margin-bottom: 8px;
+            text-align: justify;
+        }
+        ul, ol {
+            margin-top: 0;
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+
+        /* ELEMENTOS MATEMÁTICOS Y CÓDIGO */
+        .info-card {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0284c7;
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            margin: 10px 0;
+            font-size: 9.5pt;
+        }
+        .math-box {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 14px;
+            margin: 8px 0;
+            font-family: 'Cambria Math', 'Times New Roman', serif;
+            font-size: 10pt;
+            text-align: center;
+        }
+        .code-snippet {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 8.5pt;
+            line-height: 1.35;
+            margin: 8px 0;
+            white-space: pre-wrap;
+        }
+        .code-snippet .keyword { color: #f43f5e; font-weight: bold; }
+        .code-snippet .func { color: #38bdf8; }
+        .code-snippet .comment { color: #64748b; font-style: italic; }
+
+        /* SISTEMAS DE ECUACIONES ESTILIZADOS */
+        .sistema-flex {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 6px 0;
+            font-family: 'Cambria Math', serif;
+            font-size: 10pt;
+        }
+        .sistema-brace {
+            font-size: 32pt;
+            font-weight: 200;
+            line-height: 1;
+            margin-right: 6px;
+            color: #0284c7;
+        }
+        .sistema-eqs {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            text-align: left;
+        }
+
+        /* CASOS DE PRUEBA */
+        .caso-box {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .caso-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        .caso-header .titulo {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .badge-tipo {
+            font-size: 8.5pt;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+        .badge-verde { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-ambar { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .badge-rojo { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        .app-output-mockup {
+            background-color: #0b1120;
+            color: #f8fafc;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-family: 'Consolas', monospace;
+            font-size: 8.5pt;
+            line-height: 1.35;
+            margin: 8px 0;
+            border: 1px solid #1e293b;
+        }
+        .app-output-mockup .hl-cyan { color: #38bdf8; font-weight: bold; }
+        .app-output-mockup .hl-green { color: #4ade80; font-weight: bold; }
+        .app-output-mockup .hl-amber { color: #fbbf24; font-weight: bold; }
+        .app-output-mockup .hl-rose { color: #fb7185; font-weight: bold; }
+        .app-output-mockup .hl-dim { color: #94a3b8; }
+
+        .check-list {
+            list-style: none;
+            padding-left: 0;
+            margin: 6px 0;
+        }
+        .check-list li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 4px;
+        }
+        .check-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: #10b981;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== PÁGINA 1: PORTADA OFICIAL ==================== -->
+    <div class="portada">
+        <div class="uni-header">
+            <h1>Universidad Americana</h1>
+            <h2>Facultad de Ingeniería y Arquitectura (FIA)</h2>
+            <h3>Asignatura: Álgebra Lineal (MTM0120)</h3>
+        </div>
+
+        <div class="actividad-badge">
+            Actividad de Programación en Python • Primer Corte Evaluativo
+        </div>
+
+        <div class="titulo-trabajo">
+            PROGRAMA 2: Reducción a Forma Escalonada Reducida (Gauss-Jordan) e Identificación de Columnas Pivote
+        </div>
+        <div class="subtitulo-trabajo">
+            Proyecto Integrador: Calculadora de Álgebra Lineal (PyMatrix)
+        </div>
+
+        <div class="datos-tabla-box">
+            <table>
+                <tr>
+                    <td class="label">Docente:</td>
+                    <td class="val">[Nombre de tu Profesor]</td>
+                </tr>
+                <tr>
+                    <td class="label">Integrantes:</td>
+                    <td class="val">
+                        • [Tu Nombre y Apellidos]<br>
+                        • [Nombre del Integrante 2]<br>
+                        • [Nombre del Integrante 3]<br>
+                        • [Nombre del Integrante 4]
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">Carrera:</td>
+                    <td class="val">[Tu Carrera, ej. Ingeniería en Sistemas de Información]</td>
+                </tr>
+                <tr>
+                    <td class="label">Grupo:</td>
+                    <td class="val">[Tu Grupo, ej. Grupo 1 / Grupo A]</td>
+                </tr>
+                <tr>
+                    <td class="label">Modalidad:</td>
+                    <td class="val">Grupal (Máximo 4 estudiantes) con defensa individual</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="fecha-footer">
+            Managua, Nicaragua • Semestre Académico 2026
+        </div>
+    </div>
+
+    <!-- ==================== PÁGINA 2: INTRODUCCIÓN Y ALGORITMO (PARTE 1) ==================== -->
+    <div class="page-break"></div>
+
+    <h2 class="seccion"><span class="num">1</span> Introducción y Normas Técnicas</h2>
+    <p>
+        El presente informe expone el diseño, desarrollo e implementación del <strong>Programa 2</strong> para el 
+        Proyecto Integrador <em>"Calculadora de Álgebra Lineal (PyMatrix)"</em> de la Universidad Americana (UAM). 
+        El propósito central consiste en transformar matrices aumentadas [A | b] a su <strong>Forma Escalonada Reducida 
+        por Filas (RREF)</strong> mediante el algoritmo de <strong>Gauss-Jordan</strong>, identificando de manera 
+        automática las <strong>columnas pivote</strong> y clasificando las variables en <strong>básicas y libres</strong>.
+    </p>
+
+    <div class="info-card">
+        <strong>Cumplimiento del Contrato Didáctico del Sílabo:</strong><br>
+        En estricto cumplimiento de las normas de la actividad, se prohibió el uso de librerías externas como 
+        <code>NumPy</code>, <code>SciPy</code> o funciones de álgebra lineal de <code>math</code>. El código opera 
+        exclusivamente sobre <strong>listas anidadas estándar</strong> (<code>list[list[float]]</code>), ciclos y 
+        condicionales nativos, junto con <code>fractions.Fraction</code> para la representación exacta en fracciones irreducibles.
+    </div>
+
+    <h3 class="subseccion">Condiciones Canónicas de la Forma Escalonada Reducida (RREF)</h3>
+    <ol>
+        <li>Cualquier fila formada exclusivamente por ceros se sitúa en la parte inferior de la matriz.</li>
+        <li>En cada fila no nula, el primer coeficiente distinto de cero es exactamente <strong>1</strong> (pivote unitario).</li>
+        <li>El pivote de una fila inferior se ubica estrictamente a la derecha del pivote de la fila superior inmediata.</li>
+        <li>En toda columna donde reside un pivote, los demás elementos son rigurosamente <strong>ceros</strong> (tanto por debajo como por encima del pivote).</li>
+    </ol>
+
+    <h2 class="seccion"><span class="num">2</span> Explicación del Algoritmo (Lógica Teórica de Gauss-Jordan)</h2>
+    <p>
+        El algoritmo se estructura en etapas sucesivas implementadas en el módulo <code>src/core/gauss.py</code> 
+        mediante la función <code>resolver_gauss_jordan()</code>:
+    </p>
+
+    <h3 class="subseccion">A. Eliminación hacia Adelante (Forma Escalonada - REF) y Pivoteo Parcial</h3>
+    <p>
+        El algoritmo recorre la matriz columna a columna buscando entradas no nulas. Para maximizar la estabilidad 
+        numérica y prevenir divisiones por cero, implementa <strong>Pivoteo Parcial</strong>: localiza el elemento 
+        con mayor valor absoluto |A[i][col]| desde la fila activa hacia abajo y lo intercambia con la fila del pivote actual. 
+        Luego, calcula el multiplicador <em>m = A[k][col] / A[pivote][col]</em> y resta dicho múltiplo escalado en cada 
+        fila inferior (<em>F_k ← F_k - m · F_pivote</em>), produciendo ceros debajo de cada pivote.
+    </p>
+
+    <h3 class="subseccion">B. Detección Previa de Inconsistencia (Teorema de Rouché-Frobenius)</h3>
+    <p>
+        Al concluir la reducción hacia adelante, se verifica si existe alguna fila donde todos los coeficientes de las 
+        variables sean nulos mientras que el término independiente sea distinto de cero:
+    </p>
+    <div class="math-box">
+        [ 0 &nbsp; 0 &nbsp; … &nbsp; 0 &nbsp; | &nbsp; k ] &nbsp; con &nbsp; k ≠ 0 &nbsp; ⟹ &nbsp; 0 = k &nbsp; (Absurdo)
+    </div>
+    <p>
+        Si esta condición se cumple, el sistema se cataloga inmediatamente como <strong>Inconsistente (Sin Solución, S = ∅)</strong>.
+    </p>
+
+    <!-- ==================== PÁGINA 3: ALGORITMO (PARTE 2) ==================== -->
+    <div class="page-break"></div>
+
+    <h3 class="subseccion">C. Lógica para Hacer Ceros por Encima del Pivote y Normalización (Reducción de Jordan)</h3>
+    <p>
+        Para alcanzar la forma RREF, el algoritmo procesa la lista de pivotes encontrados (<em>pivotes_encontrados</em>) 
+        recorriéndolos <strong>en orden inverso</strong> (de abajo hacia arriba y de derecha a izquierda):
+    </p>
+
+    <div class="code-snippet"><span class="comment"># Procesar pivotes de abajo hacia arriba (de derecha a izquierda)</span>
+<span class="keyword">for</span> r_piv, c_piv <span class="keyword">in</span> <span class="func">reversed</span>(pivotes_encontrados):
+    pivote_val = matriz[r_piv][c_piv]
+    
+    <span class="comment"># 1. Normalización: Dividir la fila completa entre el valor del pivote para obtener 1</span>
+    <span class="keyword">if</span> abs(pivote_val - 1.0) &gt; 1e-10:
+        <span class="keyword">for</span> j <span class="keyword">in</span> range(columnas):
+            matriz[r_piv][j] /= pivote_val
+        matriz[r_piv][c_piv] = 1.0  <span class="comment"># Asegurar 1.0 exacto</span>
+    
+    <span class="comment"># 2. Eliminación hacia Arriba: Ceros en todas las filas superiores (r_up < r_piv)</span>
+    <span class="keyword">for</span> r_up <span class="keyword">in</span> range(r_piv):
+        factor = matriz[r_up][c_piv]
+        <span class="keyword">if</span> abs(factor) &gt; 1e-10:
+            <span class="keyword">for</span> j <span class="keyword">in</span> range(columnas):
+                matriz[r_up][j] -= factor * matriz[r_piv][j]
+            matriz[r_up][c_piv] = 0.0  <span class="comment"># Cero exacto por encima del pivote</span></div>
+
+    <p><strong>Razón de la Efectividad del Recorrido Inverso:</strong></p>
+    <p>
+        Dado que la fila pivote <em>r_piv</em> ya contiene un <strong>1</strong> en la columna del pivote y exclusivamente 
+        <strong>ceros a su izquierda</strong>, la operación elemental <em>F_up ← F_up - factor · F_pivote</em> anula a cero 
+        el elemento situado por encima del pivote sin perturbar ninguna de las columnas ya escalonadas a la izquierda.
+    </p>
+
+    <h3 class="subseccion">D. Identificación de Columnas Pivote, Variables Básicas y Variables Libres</h3>
+    <p>
+        Con la matriz en su estado RREF final, el algoritmo ejecuta la función <code>extraer_variables()</code>:
+    </p>
+    <ul>
+        <li><strong>Columnas Pivote:</strong> Son los índices de columna que contienen el primer elemento no nulo (el 1 principal) de cada fila.</li>
+        <li><strong>Variables Básicas:</strong> Son aquellas variables <em>X_j</em> cuya columna corresponde a una columna pivote. Poseen un valor determinado.</li>
+        <li><strong>Variables Libres:</strong> Aquellas incógnitas que no tienen pivote en su columna. Actúan como parámetros libres (<em>t ∈ ℝ</em>).</li>
+    </ul>
+
+    <h3 class="subseccion">E. Parametrización de la Solución General</h3>
+    <p>
+        Cuando el sistema admite variables libres, la función <code>parametrizar()</code> despeja cada variable básica 
+        en términos de las variables libres:
+    </p>
+    <div class="math-box">
+        X_básica = Término_Independiente - ∑ ( Coeficiente · X_libre )
+    </div>
+    <p>
+        Cada coeficiente se expresa en fracciones simplificadas con <code>fractions.Fraction</code>, generando la solución general formal.
+    </p>
+
+    <!-- ==================== PÁGINA 4: CASOS DE PRUEBA 1 Y 2 ==================== -->
+    <div class="page-break"></div>
+
+    <h2 class="seccion"><span class="num">3</span> Casos de Prueba (Evidencia de Ejecución)</h2>
+
+    <!-- CASO 1 -->
+    <div class="caso-box">
+        <div class="caso-header">
+            <span class="titulo">Caso 1: Sistema con Solución Única (3 ecuaciones × 3 variables)</span>
+            <span class="badge-tipo badge-verde">Consistente Determinado</span>
+        </div>
+        
+        <p><strong>Sistema de Ecuaciones:</strong></p>
+        <div class="sistema-flex">
+            <span class="sistema-brace">{</span>
+            <span class="sistema-eqs">
+                <span>2X₁ + X₂ - X₃ = 8</span>
+                <span>-3X₁ - X₂ + 2X₃ = -11</span>
+                <span>-2X₁ + X₂ + 2X₃ = -3</span>
+            </span>
+        </div>
+
+        <div class="app-output-mockup">
+<span class="hl-dim">[Matriz Aumentada Inicial]</span>
+  [   2    1   -1  |    8 ]
+  [  -3   -1    2  |  -11 ]
+  [  -2    1    2  |   -3 ]
+
+<span class="hl-cyan">>> Reducción Gauss-Jordan:</span>
+  • Pivoteo parcial e intercambio F1 con F2 (mayor |A| = 3)
+  • Ceros bajo pivote en Columna 1 y Columna 2
+  • Normalización y ceros hacia arriba sobre Columna 3 y Columna 2
+
+<span class="hl-green">--- MATRIZ FINAL EN FORMA ESCALONADA REDUCIDA (RREF) ---</span>
+  [   1    0    0  |    2 ]
+  [   0    1    0  |    3 ]
+  [   0    0    1  |   -1 ]</div>
+
+        <ul class="check-list">
+            <li><strong>Las columnas pivote son:</strong> 1, 2 y 3.</li>
+            <li><strong>Variables Básicas:</strong> X₁, X₂, X₃ (Todas).</li>
+            <li><strong>Variables Libres:</strong> Ninguna (0 variables libres).</li>
+            <li><strong>Solución Final:</strong> X₁ = 2, &nbsp; X₂ = 3, &nbsp; X₃ = -1.</li>
+            <li><strong>Verificación Numérica:</strong> A · x = b satisface exactamente las 3 ecuaciones originales ✓.</li>
+        </ul>
+    </div>
+
+    <!-- CASO 2 -->
+    <div class="caso-box">
+        <div class="caso-header">
+            <span class="titulo">Caso 2: Sistema con Infinitas Soluciones (3 ecuaciones × 4 variables)</span>
+            <span class="badge-tipo badge-ambar">Consistente Indeterminado</span>
+        </div>
+        
+        <p><strong>Sistema de Ecuaciones:</strong></p>
+        <div class="sistema-flex">
+            <span class="sistema-brace">{</span>
+            <span class="sistema-eqs">
+                <span>X₁ + 2X₂ - X₃ + X₄ = 3</span>
+                <span>2X₁ + 4X₂ - 2X₃ + 2X₄ = 6</span>
+                <span>X₁ + 2X₂ + 0X₃ - X₄ = 1</span>
+            </span>
+        </div>
+
+        <div class="app-output-mockup">
+<span class="hl-dim">[Matriz Aumentada Inicial]</span>
+  [   1    2   -1    1  |   3 ]
+  [   2    4   -2    2  |   6 ]
+  [   1    2    0   -1  |   1 ]
+
+<span class="hl-cyan">>> Reducción Gauss-Jordan:</span>
+  • Ceros bajo pivote en Columna 1 (Fila 2 es proporcional y se anula por completo)
+  • Detección del siguiente pivote no nulo en Columna 3 (Fila 2 tras reordenar)
+  • Anulación hacia arriba sobre el pivote de la Columna 3
+
+<span class="hl-green">--- MATRIZ FINAL EN FORMA ESCALONADA REDUCIDA (RREF) ---</span>
+  [   1    2    0   -1  |   1 ]
+  [   0    0    1   -2  |  -2 ]
+  [   0    0    0    0  |   0 ]</div>
+
+        <ul class="check-list">
+            <li><strong>Las columnas pivote son:</strong> 1 y 3.</li>
+            <li><strong>Variables Básicas:</strong> X₁, X₃.</li>
+            <li><strong>Variables Libres:</strong> X₂, X₄ (2 grados de libertad).</li>
+            <li><strong>Solución General Parametrizada:</strong>
+                <div class="math-box" style="text-align: left; margin: 4px 0; padding: 4px 10px;">
+                    X₁ = 1 - 2·X₂ + X₄<br>
+                    X₂ = X₂ (libre)<br>
+                    X₃ = -2 + 2·X₄<br>
+                    X₄ = X₄ (libre)
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <!-- ==================== PÁGINA 5: CASO 3 Y CONCLUSIONES ==================== -->
+    <div class="page-break"></div>
+
+    <!-- CASO 3 -->
+    <div class="caso-box">
+        <div class="caso-header">
+            <span class="titulo">Caso 3: Sistema Inconsistente / Sin Solución (3 ecuaciones × 3 variables)</span>
+            <span class="badge-tipo badge-rojo">Inconsistente</span>
+        </div>
+        
+        <p><strong>Sistema de Ecuaciones:</strong></p>
+        <div class="sistema-flex">
+            <span class="sistema-brace">{</span>
+            <span class="sistema-eqs">
+                <span>X₁ + X₂ + X₃ = 2</span>
+                <span>0X₁ + X₂ - X₃ = 1</span>
+                <span>X₁ + 2X₂ + 0X₃ = 5</span>
+            </span>
+        </div>
+
+        <div class="app-output-mockup">
+<span class="hl-dim">[Matriz Aumentada Inicial]</span>
+  [   1    1    1  |   2 ]
+  [   0    1   -1  |   1 ]
+  [   1    2    0  |   5 ]
+
+<span class="hl-cyan">>> Reducción Gauss-Jordan:</span>
+  • Eliminación bajo pivote: F3 ← F3 - F1 ⟹ [ 0  1 -1 | 3 ]
+  • Eliminación bajo pivote: F3 ← F3 - F2 ⟹ [ 0  0  0 | 2 ]
+
+<span class="hl-rose">--- FILA CONTRADICTORIA DETECTADA ---</span>
+  Fila 3: [ 0   0   0 | 2 ] ⟹ 0·X₁ + 0·X₂ + 0·X₃ = 2 ⟹ 0 = 2  (Falso / Absurdo)</div>
+
+        <ul class="check-list">
+            <li><strong>Las columnas pivote son:</strong> Ninguna válida (sistema contradictorio).</li>
+            <li><strong>Variables Básicas / Libres:</strong> No aplica al no existir intersección geométrica común.</li>
+            <li><strong>Diagnóstico Final:</strong> Sistema <strong>Inconsistente (Sin Solución)</strong>. Conjunto solución vacío: <strong>S = ∅</strong>.</li>
+        </ul>
+    </div>
+
+    <h2 class="seccion"><span class="num">4</span> Conclusiones</h2>
+    <p>
+        1. <strong>Dominio Algorítmico y Restricción Estricta:</strong> La implementación pura en Python estándar permitió 
+        desarrollar un entendimiento cabal de la aritmética de matrices y la lógica computacional de Gauss-Jordan, 
+        evitando cajas negras como NumPy.
+    </p>
+    <p>
+        2. <strong>Eficiencia de la Eliminación hacia Arriba:</strong> El procesamiento de pivotes en orden inverso 
+        garantiza que cada operación elemental de fila actúe de manera independiente y limpia, produciendo ceros 
+        por encima del pivote sin perturbar coeficientes normalizados previos.
+    </p>
+    <p>
+        3. <strong>Clasificación Rigurosa y Salida Completa:</strong> El programa cumple con totalidad las especificaciones 
+        didácticas al identificar las columnas pivote, separar con precisión variables básicas de variables libres, 
+        y presentar las soluciones paramétricas en fracciones irreducibles exactas.
+    </p>
+
+</body>
+</html>

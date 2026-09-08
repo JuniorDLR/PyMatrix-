@@ -3,7 +3,7 @@ import tkinter as tk
 from typing import List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from src.core.domain import formatear_fraccion
+from src.core.domain import formatear_fraccion, a_subindice
 
 
 class CellState(Enum):
@@ -42,8 +42,9 @@ class MatrixStep:
 class MatrixCanvas(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
-        
         self._theme_colors = self._get_theme_colors()
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
         
         self.canvas = tk.Canvas(
             self,
@@ -51,14 +52,13 @@ class MatrixCanvas(ctk.CTkFrame):
             highlightthickness=0,
             bd=0
         )
-        self.canvas.pack(fill="both", expand=True, padx=10, pady=10)
+        self.canvas.grid(row=0, column=0, sticky="nsew", padx=6, pady=6)
         
-        self.scroll_x = ctk.CTkScrollbar(self, orientation="horizontal", command=self.canvas.xview)
-        self.scroll_x.pack(fill="x", padx=10, pady=(0, 10))
         self.scroll_y = ctk.CTkScrollbar(self, orientation="vertical", command=self.canvas.yview)
-        self.scroll_y.pack(side="right", fill="y", padx=(0, 10), pady=10)
-        
+        self.scroll_x = ctk.CTkScrollbar(self, orientation="horizontal", command=self.canvas.xview)
         self.canvas.configure(xscrollcommand=self.scroll_x.set, yscrollcommand=self.scroll_y.set)
+
+
         
         self.steps: List[MatrixStep] = []
         self.current_step = 0
@@ -167,8 +167,34 @@ class MatrixCanvas(ctk.CTkFrame):
         if self.steps:
             self.render_step(self.current_step)
     
+    def _update_scrollbars(self):
+        bbox = self.canvas.bbox("all")
+        if not bbox:
+            self.scroll_x.grid_remove()
+            self.scroll_y.grid_remove()
+            return
+        
+        cw = self.canvas.winfo_width()
+        ch = self.canvas.winfo_height()
+        
+        # Mostrar barra horizontal solo si el contenido desborda el ancho visible
+        if bbox[2] + 30 > cw and cw > 50:
+            self.scroll_x.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
+        else:
+            self.scroll_x.grid_remove()
+            
+        # Mostrar barra vertical solo si el contenido desborda la altura visible
+        if bbox[3] + 30 > ch and ch > 50:
+            self.scroll_y.grid(row=0, column=1, sticky="ns", padx=(0, 6), pady=6)
+        else:
+            self.scroll_y.grid_remove()
+            
+        sr_w = max(cw, bbox[2] + 30)
+        sr_h = max(ch, bbox[3] + 30)
+        self.canvas.configure(scrollregion=(0, 0, sr_w, sr_h))
+
     def _on_resize(self, event):
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        self._update_scrollbars()
     
     def _on_mousewheel(self, event):
         if event.num == 4 or event.delta > 0:
@@ -236,16 +262,17 @@ class MatrixCanvas(ctk.CTkFrame):
                         self.cell_states[r][c] = CellState.ZERO_EXISTING
         
         self._draw_matrix(matriz, rows, cols, num_vars, step.descripcion)
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        self._update_scrollbars()
         
         if self.on_step_change:
             self.on_step_change(step_index, step)
     
     def _draw_matrix(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int, descripcion: str):
         x_start = self.padding + self.row_label_width
-        y_start = self.padding + self.header_height + 25
+        y_header = self.padding + 34
+        y_start = y_header + self.header_height + 2
         
-        self._draw_header(descripcion, x_start, self.padding + 20, cols, num_vars)
+        self._draw_header(descripcion, x_start, y_header, cols, num_vars)
         
         for r in range(rows):
             y = y_start + r * (self.cell_height + 1)
@@ -259,14 +286,14 @@ class MatrixCanvas(ctk.CTkFrame):
     
     def _draw_header(self, descripcion: str, x: int, y: int, cols: int, num_vars: int):
         self.canvas.create_text(
-            x, y - 28, text=f"• {descripcion}", anchor="w",
+            x, y - 18, text=f"• {descripcion}", anchor="w",
             font=("Consolas", 12, "bold"), fill=self._theme_colors["header_fg"]
         )
         
         for c in range(cols):
             cx = x + c * (self.cell_width + 1) + self.cell_width // 2
             if c < num_vars:
-                label = f"X{c+1}"
+                label = f"x{a_subindice(c+1)}"
                 color = self._theme_colors["header_fg"]
             else:
                 label = "="
@@ -295,7 +322,7 @@ class MatrixCanvas(ctk.CTkFrame):
         )
         self.canvas.create_text(
             x + self.row_label_width // 2, y + self.cell_height // 2,
-            text=f"F{row+1}", font=self.font_bold, fill=self._theme_colors["header_fg"]
+            text=f"F{a_subindice(row+1)}", font=self.font_bold, fill=self._theme_colors["header_fg"]
         )
     
     def _draw_cell(self, row: int, col: int, x: int, y: int, value: float):

@@ -141,9 +141,9 @@ def parametrizar(matriz_rref: Matriz, vars_basicas: list[int], vars_libres: list
         for var_l in vars_libres:
             coef = -matriz_rref[fila_pivote][var_l]
             if abs(coef) > 1e-10:
-                terminos.append(Termino(round(coef, 4), var_l))
+                terminos.append(Termino(round(coef, 9), var_l))
         
-        expresiones[var_b] = ExpresionParametrica(round(const, 4), tuple(terminos))
+        expresiones[var_b] = ExpresionParametrica(round(const, 9), tuple(terminos))
     
     # Variables libres: identidad x = 1*x
     for var_l in vars_libres:
@@ -266,7 +266,7 @@ def resolver_gauss(matriz_inicial: Matriz) -> tuple[list[PasoGauss], ResultadoSi
         
         solucion[i] = suma / pivote
     
-    solucion = [round(x, 4) + 0.0 for x in solucion]
+    solucion = [round(x, 9) + 0.0 for x in solucion]
     resultado_u = SolucionUnica(variables=solucion)
     
     solucion_general = SolucionGeneral(
@@ -417,7 +417,7 @@ def resolver_gauss_jordan(matriz_inicial: Matriz) -> tuple[list[PasoGauss], Resu
     # Solución única leída directamente de RREF
     solucion = [0.0] * num_variables
     for r in range(min(filas, num_variables)):
-        solucion[r] = round(matriz_rref[r][-1], 4) + 0.0
+        solucion[r] = round(matriz_rref[r][-1], 9) + 0.0
     
     resultado_u = SolucionUnica(variables=solucion)
     solucion_general = SolucionGeneral(

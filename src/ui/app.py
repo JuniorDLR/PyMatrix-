@@ -3,7 +3,10 @@ from typing import Optional, List
 import customtkinter as ctk
 
 from src.core.gauss import resolver_gauss, resolver_gauss_jordan, verificar_solucion
-from src.core.domain import SolucionUnica, SolucionInfinita, SinSolucion, SolucionGeneral, formatear_fraccion
+from src.core.domain import (
+    SolucionUnica, SolucionInfinita, SinSolucion, SolucionGeneral, 
+    formatear_fraccion, a_subindice
+)
 from src.ui.matrix_canvas import MatrixCanvas, PlaybackControls, create_matrix_steps_from_gauss
 
 
@@ -412,8 +415,8 @@ class App(ctk.CTk):
         for j in range(n + 1):
             if j < n:
                 lbl = ctk.CTkLabel(
-                    header_frame, text=f"X{j+1}", 
-                    font=ctk.CTkFont(size=11, weight="bold"), 
+                    header_frame, text=f"x{a_subindice(j+1)}", 
+                    font=ctk.CTkFont(size=12, weight="bold"), 
                     width=50, 
                     text_color=("#0284c7", "#38bdf8")
                 )
@@ -433,8 +436,8 @@ class App(ctk.CTk):
             
             fila_entries = []
             lbl_row = ctk.CTkLabel(
-                row_frame, text=f"F{i+1}", width=32, 
-                font=ctk.CTkFont(size=11, weight="bold"), 
+                row_frame, text=f"F{a_subindice(i+1)}", width=32, 
+                font=ctk.CTkFont(size=12, weight="bold"), 
                 text_color=("gray40", "gray60")
             )
             lbl_row.grid(row=0, column=0, padx=2)
@@ -572,7 +575,7 @@ class App(ctk.CTk):
         self.matriz_inicial = matriz_inicial
         metodo = self.metodo_var.get()
         num_vars = len(matriz_inicial[0]) - 1
-        var_names = [f"X{i+1}" for i in range(num_vars)]
+        var_names = [f"x{a_subindice(i+1)}" for i in range(num_vars)]
         
         self._log_text(f"==================================================", limpiar=True)
         self._log_text(f"  EJECUTANDO: {metodo.upper()}")
@@ -640,7 +643,7 @@ class App(ctk.CTk):
     def _update_conclusion_cards(self, cols_pivote_str: str):
         """Actualiza las 3 tarjetas inferiores con la información estructurada de la solución."""
         num_vars = len(self.matriz_inicial[0]) - 1
-        var_names = [f"X{i+1}" for i in range(num_vars)]
+        var_names = [f"x{a_subindice(i+1)}" for i in range(num_vars)]
         
         self.txt_solucion_display.configure(state="normal")
         self.txt_solucion_display.delete("1.0", "end")
