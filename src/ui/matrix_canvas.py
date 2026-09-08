@@ -37,11 +37,13 @@ class MatrixStep:
     zeros_created: List[Tuple[int, int]] = field(default_factory=list)
     zeros_above_created: List[Tuple[int, int]] = field(default_factory=list)
     row_swapped: Optional[Tuple[int, int]] = None
+    show_staircase: bool = False
 
 
 class MatrixCanvas(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        self.force_staircase = False
         self._theme_colors = self._get_theme_colors()
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -114,6 +116,7 @@ class MatrixCanvas(ctk.CTkFrame):
                 "border_indep": "#f87171",
                 "legend_bg": "#1e293b",
                 "legend_fg": "#cbd5e1",
+                "staircase": "#f59e0b",
             }
         else:
             return {
@@ -146,6 +149,7 @@ class MatrixCanvas(ctk.CTkFrame):
                 "border_indep": "#dc2626",
                 "legend_bg": "#ffffff",
                 "legend_fg": "#334155",
+                "staircase": "#d97706",
             }
     
     def _setup_fonts(self):
@@ -167,6 +171,12 @@ class MatrixCanvas(ctk.CTkFrame):
         if self.steps:
             self.render_step(self.current_step)
     
+    def toggle_staircase(self) -> bool:
+        self.force_staircase = not self.force_staircase
+        if self.steps:
+            self.render_step(self.current_step)
+        return self.force_staircase
+
     def _update_scrollbars(self):
         bbox = self.canvas.bbox("all")
         if not bbox:
@@ -261,13 +271,13 @@ class MatrixCanvas(ctk.CTkFrame):
                     if abs(val) < 1e-10:
                         self.cell_states[r][c] = CellState.ZERO_EXISTING
         
-        self._draw_matrix(matriz, rows, cols, num_vars, step.descripcion)
+        self._draw_matrix(matriz, rows, cols, num_vars, step.descripcion, show_staircase=step.show_staircase)
         self._update_scrollbars()
         
         if self.on_step_change:
             self.on_step_change(step_index, step)
     
-    def _draw_matrix(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int, descripcion: str):
+    def _draw_matrix(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int, descripcion: str, show_staircase: bool = False):
         x_start = self.padding + self.row_label_width
         y_header = self.padding + 34
         y_start = y_header + self.header_height + 2
@@ -282,7 +292,74 @@ class MatrixCanvas(ctk.CTkFrame):
                 x = x_start + c * (self.cell_width + 1)
                 self._draw_cell(r, c, x, y, matriz[r][c])
         
-        self._draw_legend(x_start, y_start + rows * (self.cell_height + 1) + 20, num_vars)
+        draw_stair = show_staircase or self.force_staircase
+        if draw_stair:
+            self._draw_staircase(matriz, rows, cols, num_vars)
+            
+        self._draw_legend(x_start, y_start + rows * (self.cell_height + 1) + 20, num_vars, show_staircase=draw_stair)
+
+    def _draw_staircase(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int):
+        """Dibuja la línea de la escalera (patrón escalonado) con un color ámbar/dorado llamativo."""
+        pivotes: List[Tuple[int, int]] = []
+        for r in range(rows):
+            for c in range(num_vars):
+                if abs(matriz[r][c]) > 1e-10:
+                    pivotes.append((r, c))
+                    break
+        
+        if not pivotes:
+            return
+            
+        x_start = self.padding + self.row_label_width
+        y_header = self.padding + 34
+        y_start = y_header + self.header_height + 2
+        stair_color = self._theme_colors.get("staircase", "#f59e0b")
+        
+        points: List[Tuple[int, int]] = []
+        first_r, first_c = pivotes[0]
+        
+        px_first = x_start + first_c * (self.cell_width + 1)
+        py_first = y_start + first_r * (self.cell_height + 1)
+        
+        if first_c > 0:
+            points.append((x_start, py_first))
+            points.append((px_first, py_first))
+        else:
+            points.append((px_first, py_first))
+            
+        for i, (r, c) in enumerate(pivotes):
+            px = x_start + c * (self.cell_width + 1)
+            py_top = y_start + r * (self.cell_height + 1)
+            py_bot = py_top + self.cell_height + 1
+            
+            # Línea vertical: baja por el lado izquierdo de la celda pivote
+            points.append((px, py_bot))
+            
+            # Línea horizontal: se extiende bajo el pivote hasta la columna del siguiente o fin de vars
+            if i + 1 < len(pivotes):
+                next_px = x_start + pivotes[i + 1][1] * (self.cell_width + 1)
+                points.append((next_px, py_bot))
+            else:
+                end_px = x_start + num_vars * (self.cell_width + 1)
+                points.append((end_px, py_bot))
+                
+        # Trazar la escalera con línea ancha destacada (ancho=4)
+        for i in range(len(points) - 1):
+            p1 = points[i]
+            p2 = points[i + 1]
+            self.canvas.create_line(
+                p1[0], p1[1], p2[0], p2[1],
+                fill=stair_color, width=4, capstyle="round", joinstyle="round"
+            )
+            
+        # Marcadores redondeados en el vértice superior izquierdo de cada escalón
+        for (r, c) in pivotes:
+            cx = x_start + c * (self.cell_width + 1)
+            cy = y_start + r * (self.cell_height + 1)
+            self.canvas.create_oval(
+                cx - 3, cy - 3, cx + 4, cy + 4,
+                fill="#ffffff", outline=stair_color, width=2
+            )
     
     def _draw_header(self, descripcion: str, x: int, y: int, cols: int, num_vars: int):
         self.canvas.create_text(
@@ -374,7 +451,7 @@ class MatrixCanvas(ctk.CTkFrame):
     def _format_value(self, value: float) -> str:
         return formatear_fraccion(value)
     
-    def _draw_legend(self, x: int, y: int, num_vars: int):
+    def _draw_legend(self, x: int, y: int, num_vars: int, show_staircase: bool = False):
         legends = [
             ("■ Pivote activo (Gauss)", self._theme_colors["pivot_current_fg"]),
             ("■ Pivote normalizado = 1 (Jordan)", self._theme_colors["pivot_normalized_fg"]),
@@ -383,8 +460,10 @@ class MatrixCanvas(ctk.CTkFrame):
             ("■ Fila del pivote", self._theme_colors["row_pivot_fg"]),
             ("■ Término independiente", self._theme_colors["independent_fg"]),
         ]
+        if show_staircase:
+            legends.insert(0, ("▬▬ Escalera de Gauss (Forma Escalonada)", self._theme_colors["staircase"]))
         
-        box_w = 260
+        box_w = 285 if show_staircase else 260
         box_h = len(legends) * 22 + 14
         
         self.canvas.create_rectangle(
@@ -471,12 +550,54 @@ class PlaybackControls(ctk.CTkFrame):
         self.speed_menu.pack(side="left", padx=2)
         
         self.step_label = ctk.CTkLabel(self, text="Paso 0 / 0", font=ctk.CTkFont(family="Consolas", size=13, weight="bold"))
-        self.step_label.pack(side="left", padx=16)
+        self.step_label.pack(side="left", padx=14)
         
-        self.desc_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=12), wraplength=450, anchor="w", justify="left")
-        self.desc_label.pack(side="left", padx=10, fill="x", expand=True)
+        # Botones de salto directo a Forma Escalonada (REF) y Reducida (RREF)
+        self.btn_rref = ctk.CTkButton(
+            self, text="🎯 RREF (Final)", width=105, height=30,
+            command=self._go_to_rref,
+            fg_color=("#059669", "#047857"), hover_color=("#047857", "#065f46"),
+            font=ctk.CTkFont(size=11, weight="bold")
+        )
+        self.btn_rref.pack(side="right", padx=3)
+
+        self.btn_ref = ctk.CTkButton(
+            self, text="🪜 REF (Escalonada)", width=125, height=30,
+            command=self._go_to_ref,
+            fg_color=("#d97706", "#b45309"), hover_color=("#b45309", "#92400e"),
+            font=ctk.CTkFont(size=11, weight="bold")
+        )
+        self.btn_ref.pack(side="right", padx=3)
+
+        self.btn_toggle_stair = ctk.CTkButton(
+            self, text="🪜 Escalera: AUTO", width=110, height=30,
+            command=self._toggle_staircase,
+            fg_color=("#334155", "#1e293b"), hover_color=("#475569", "#334155"),
+            font=ctk.CTkFont(size=11)
+        )
+        self.btn_toggle_stair.pack(side="right", padx=3)
+
+        self.desc_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=12), wraplength=380, anchor="w", justify="left")
+        self.desc_label.pack(side="left", padx=8, fill="x", expand=True)
         
         self.canvas.on_step_change = self._on_step_change
+
+    def _go_to_ref(self):
+        for idx, step in enumerate(self.canvas.steps):
+            if "Forma Escalonada por Filas" in step.descripcion or "(REF)" in step.descripcion:
+                self.canvas.render_step(idx)
+                return
+        self.canvas.first_step()
+        
+    def _go_to_rref(self):
+        self.canvas.last_step()
+        
+    def _toggle_staircase(self):
+        is_on = self.canvas.toggle_staircase()
+        self.btn_toggle_stair.configure(
+            text=f"🪜 Escalera: {'ON' if is_on else 'OFF'}",
+            fg_color=("#b45309", "#d97706") if is_on else ("#334155", "#1e293b")
+        )
     
     def _toggle_play(self):
         if self.canvas.is_playing:
@@ -579,6 +700,14 @@ def create_matrix_steps_from_gauss(pasos_gauss, matriz_original) -> List[MatrixS
                     except Exception:
                         pass
         
+        show_staircase = (
+            "Escalonada" in desc or
+            "REF" in desc or
+            "RREF" in desc or
+            "Escalera" in desc or
+            i == len(pasos_gauss) - 1
+        )
+        
         steps.append(MatrixStep(
             matriz=matriz,
             descripcion=desc,
@@ -586,7 +715,8 @@ def create_matrix_steps_from_gauss(pasos_gauss, matriz_original) -> List[MatrixS
             pivot_col=pivot_col,
             is_normalized=is_normalized,
             zeros_created=zeros_created,
-            zeros_above_created=zeros_above_created
+            zeros_above_created=zeros_above_created,
+            show_staircase=show_staircase
         ))
     
     return steps

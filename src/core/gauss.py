@@ -220,6 +220,10 @@ def resolver_gauss(matriz_inicial: Matriz) -> tuple[list[PasoGauss], ResultadoSi
         pivote_col += 1
     
     matriz_ref = copiar_matriz(matriz)
+    pasos.append(PasoGauss(
+        "Forma Escalonada por Filas (REF) - Escalera de Gauss alcanzada", 
+        copiar_matriz(matriz_ref)
+    ))
     
     # === FASE 2: CLASIFICACIÓN DEL SISTEMA ===
     # 1. Inconsistente: [0 0 ... 0 | k] con k ≠ 0
@@ -348,6 +352,10 @@ def resolver_gauss_jordan(matriz_inicial: Matriz) -> tuple[list[PasoGauss], Resu
         pivote_col += 1
     
     matriz_ref = copiar_matriz(matriz)
+    pasos.append(PasoGauss(
+        "Forma Escalonada por Filas (REF) - Escalera de Gauss alcanzada", 
+        copiar_matriz(matriz_ref)
+    ))
     
     # === FASE 2: VERIFICACIÓN DE INCONSISTENCIA PREVIA ===
     for i in range(filas):
@@ -393,6 +401,10 @@ def resolver_gauss_jordan(matriz_inicial: Matriz) -> tuple[list[PasoGauss], Resu
             ))
     
     matriz_rref = copiar_matriz(matriz)
+    pasos.append(PasoGauss(
+        "Forma Escalonada Reducida (RREF) - Gauss-Jordan Final", 
+        copiar_matriz(matriz_rref)
+    ))
     columnas_pivote = [c for (_, c) in pivotes_encontrados]
     num_variables = columnas - 1
     

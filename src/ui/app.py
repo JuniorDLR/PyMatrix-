@@ -596,11 +596,18 @@ class App(ctk.CTk):
             self._log_text(f">> {paso.descripcion}:")
             self._log_text(self._format_matriz(paso.matriz_estado))
         
-        # 4. Mostrar matriz final
-        matriz_final = self.pasos_gauss[-1].matriz_estado if self.pasos_gauss else matriz_inicial
-        nombre_forma = "FORMA ESCALONADA REDUCIDA (RREF)" if metodo == "Gauss-Jordan" else "FORMA ESCALONADA (REF)"
-        self._log_text(f"--- MATRIZ FINAL EN {nombre_forma} ---")
-        self._log_text(self._format_matriz(matriz_final))
+        # 4. Mostrar matrices de forma escalonada (REF) y reducida (RREF)
+        if self.solucion_general:
+            self._log_text("--- 1. FORMA ESCALONADA POR FILAS (REF) [ESCALERA DE GAUSS] ---")
+            self._log_text(self._format_matriz(self.solucion_general.matriz_ref))
+            if metodo == "Gauss-Jordan":
+                self._log_text("--- 2. FORMA ESCALONADA REDUCIDA (RREF) [GAUSS-JORDAN FINAL] ---")
+                self._log_text(self._format_matriz(self.solucion_general.matriz_rref))
+        else:
+            matriz_final = self.pasos_gauss[-1].matriz_estado if self.pasos_gauss else matriz_inicial
+            nombre_forma = "FORMA ESCALONADA REDUCIDA (RREF)" if metodo == "Gauss-Jordan" else "FORMA ESCALONADA (REF)"
+            self._log_text(f"--- MATRIZ FINAL EN {nombre_forma} ---")
+            self._log_text(self._format_matriz(matriz_final))
         
         # 5. Extraer y listar columnas pivote identificadas (1-based para usuario)
         if isinstance(self.resultado, SinSolucion):
