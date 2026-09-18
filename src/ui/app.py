@@ -8,17 +8,26 @@ from src.core.domain import (
     formatear_fraccion, formatear_numero, formatear_decimal, a_subindice
 )
 from src.ui.matrix_canvas import MatrixCanvas, PlaybackControls, create_matrix_steps_from_gauss
+from src.ui.vectors_view import VectorsView
+from src.ui.matrix_ops_view import MatrixOpsView
+
 
 
 class App(ctk.CTk):
-    """Ventana principal de la calculadora PyMatrix con soporte para Gauss y Gauss-Jordan."""
+    """Ventana principal de la calculadora PyMatrix.
+    
+    Módulos disponibles:
+    - Sistemas de Ecuaciones (Gauss y Gauss-Jordan)
+    - Vectores en ℝⁿ (Operaciones, Combinación Lineal, Independencia Lineal)
+    - Operaciones Matriciales y Ecuaciones Matriciales (Ax = b)
+    """
     
     def __init__(self):
         super().__init__()
 
-        self.title("PyMatrix - Calculadora de Álgebra Lineal (Gauss & Gauss-Jordan)")
-        self.geometry("1360x880")
-        self.minsize(1150, 720)
+        self.title("PyMatrix - Calculadora de Álgebra Lineal")
+        self.geometry("1380x900")
+        self.minsize(1200, 740)
         
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
@@ -32,23 +41,27 @@ class App(ctk.CTk):
         self.metodo_var = ctk.StringVar(value="Gauss-Jordan")
         self.modo_numero = "fraccion"
         self.ultimas_cols_pivote_str = "Ninguna"
+        self._modulo_activo = "gauss"
         
         self._setup_ui()
     
     def _setup_ui(self):
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
         
         self._create_top_bar()
-        self._create_main_split()
+        self._create_module_nav()
+        self._create_content_area()
         self._create_bottom_conclusion()
         
         # Generar matriz inicial por defecto (3x3)
         self.generar_matriz()
+        self._show_module("gauss")
+
     
     def _create_top_bar(self):
         top_frame = ctk.CTkFrame(self, height=64, corner_radius=0, fg_color=("#1e293b", "#0f172a"))
-        top_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        top_frame.grid(row=0, column=0, sticky="ew")
         top_frame.grid_columnconfigure(1, weight=1)
         top_frame.grid_propagate(False)
         
@@ -66,7 +79,7 @@ class App(ctk.CTk):
         
         lbl_badge = ctk.CTkLabel(
             title_frame,
-            text="v2.0 • Gauss & Gauss-Jordan",
+            text="v3.0 • Gauss · Vectores · Matrices",
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=("#0284c7", "#0369a1"),
             corner_radius=6,
@@ -79,7 +92,7 @@ class App(ctk.CTk):
         # Descripción corta
         lbl_desc = ctk.CTkLabel(
             top_frame,
-            text="Resolución interactiva paso a paso con detección automática de consistencia y variables libres",
+            text="Calculadora de Álgebra Lineal • Gauss-Jordan, Vectores en ℝⁿ y Operaciones Matriciales",
             font=ctk.CTkFont(size=12),
             text_color=("gray60", "gray70")
         )
@@ -111,12 +124,19 @@ class App(ctk.CTk):
         )
         theme_btn.set("Dark")
         theme_btn.pack(side="left")
+
     
     def _change_number_format(self, mode_str: str):
         """Alterna el formato de visualización entre fracciones y decimales."""
         self.modo_numero = "fraccion" if "frac" in mode_str.lower() else "decimal"
         if hasattr(self, "matrix_canvas"):
             self.matrix_canvas.set_number_mode(self.modo_numero)
+        
+        # Refrescar vistas de vectores y matrices si existen
+        if hasattr(self, "vectors_view"):
+            self.vectors_view.refresh_format()
+        if hasattr(self, "matrix_ops_view"):
+            self.matrix_ops_view.refresh_format()
         
         # Si ya se resolvió un sistema, refrescar la conclusión y el registro textual de inmediato
         if self.resultado is not None and self.matriz_inicial is not None:
@@ -127,13 +147,121 @@ class App(ctk.CTk):
         ctk.set_appearance_mode(mode)
         if hasattr(self, "matrix_canvas"):
             self.matrix_canvas._refresh_theme()
-    
+
+    # =========================================================================
+    # BARRA DE NAVEGACIÓN ENTRE MÓDULOS
+    # =========================================================================
+    def _create_module_nav(self):
+        """Crea la barra de navegación horizontal para seleccionar el módulo activo."""
+        self.nav_frame = ctk.CTkFrame(self, height=50, corner_radius=0,
+                                      fg_color=("#0f172a", "#050d1a"))
+        self.nav_frame.grid(row=1, column=0, sticky="ew")
+        self.nav_frame.grid_propagate(False)
+        self.nav_frame.grid_columnconfigure(10, weight=1)
+
+        # Etiqueta "MÓDULO:"
+        ctk.CTkLabel(
+            self.nav_frame, text="MÓDULO:", font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("gray60", "gray50")
+        ).grid(row=0, column=0, padx=(16, 8), pady=12)
+
+        # Botones de módulo como segmento visual (se cambia color activo)
+        self._nav_btns = {}
+        modulos = [
+            ("gauss",    "🔢 Sistemas Gauss/Jordan"),
+            ("vectores", "↗ Vectores en ℝⁿ"),
+            ("matrices", "✖ Operaciones Matriciales"),
+        ]
+        for idx, (key, label) in enumerate(modulos):
+            btn = ctk.CTkButton(
+                self.nav_frame, text=label,
+                width=195, height=32,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                command=lambda k=key: self._show_module(k),
+                corner_radius=8,
+                fg_color=("#1e293b", "#1e293b"),
+                hover_color=("#334155", "#334155"),
+                text_color=("gray70", "gray60")
+            )
+            btn.grid(row=0, column=idx + 1, padx=4, pady=9)
+            self._nav_btns[key] = btn
+
+    def _show_module(self, modulo: str):
+        """Muestra el panel del módulo seleccionado y oculta los demás."""
+        self._modulo_activo = modulo
+
+        # Actualizar color de botones de navegación
+        nav_colors = {
+            "gauss":    ("#1d4ed8", "#1e40af"),
+            "vectores": ("#0d9488", "#0f766e"),
+            "matrices": ("#7c3aed", "#6d28d9"),
+        }
+        inactive_fg = ("#1e293b", "#1e293b")
+        inactive_txt = ("gray70", "gray60")
+
+        for key, btn in self._nav_btns.items():
+            if key == modulo:
+                btn.configure(fg_color=nav_colors[key], text_color=("white", "white"))
+            else:
+                btn.configure(fg_color=inactive_fg, text_color=inactive_txt)
+
+        # Mostrar/ocultar frames de módulo
+        panels = {
+            "gauss":    self.gauss_panel,
+            "vectores": self.vectors_view,
+            "matrices": self.matrix_ops_view,
+        }
+        for key, panel in panels.items():
+            if key == modulo:
+                panel.grid(row=2, column=0, sticky="nsew")
+            else:
+                panel.grid_remove()
+
+        # La barra de conclusión solo aplica al módulo Gauss
+        if modulo == "gauss":
+            self.results_frame.grid(row=3, column=0, sticky="ew")
+        else:
+            self.results_frame.grid_remove()
+
+    # =========================================================================
+    # ÁREA DE CONTENIDO (CONTENEDOR PRINCIPAL)
+    # =========================================================================
+    def _create_content_area(self):
+        """Crea el contenedor principal que aloja los 3 módulos intercambiables."""
+        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(3, weight=0)
+
+        # --- Módulo 1: Gauss/Gauss-Jordan (panel split original) ---
+        self.gauss_panel = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.gauss_panel.grid_columnconfigure(1, weight=1)
+        self.gauss_panel.grid_rowconfigure(0, weight=1)
+        self._create_main_split_inside(self.gauss_panel)
+
+        # --- Módulo 2: Vectores en ℝⁿ ---
+        self.vectors_view = VectorsView(
+            self, get_modo_numero_cb=lambda: self.modo_numero,
+            corner_radius=0, fg_color="transparent"
+        )
+
+        # --- Módulo 3: Operaciones Matriciales ---
+        self.matrix_ops_view = MatrixOpsView(
+            self, get_modo_numero_cb=lambda: self.modo_numero,
+            corner_radius=0, fg_color="transparent"
+        )
+
+
     def _create_main_split(self):
+        """Alias de compatibilidad: ahora el split va dentro de gauss_panel."""
+        pass  # Llamado en _setup_ui antes de que exista gauss_panel; ya no hace nada.
+
+    def _create_main_split_inside(self, parent):
+        """Construye los paneles izquierdo/derecho del módulo Gauss dentro de parent."""
+
         # =========================================================================
         # PANEL IZQUIERDO: FLUJO DE ENTRADA Y ACCIÓN (Ancho fijo 410px)
         # =========================================================================
-        self.left_panel = ctk.CTkFrame(self, width=410, corner_radius=0, fg_color=("#f1f5f9", "#111827"))
-        self.left_panel.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
+        self.left_panel = ctk.CTkFrame(parent, width=410, corner_radius=0, fg_color=("#f1f5f9", "#111827"))
+        self.left_panel.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         self.left_panel.grid_propagate(False)
         self.left_panel.grid_rowconfigure(2, weight=1)
         self.left_panel.grid_columnconfigure(0, weight=1)
@@ -244,8 +372,8 @@ class App(ctk.CTk):
         # =========================================================================
         # PANEL DERECHO: VISUALIZACIÓN + DETALLE
         # =========================================================================
-        self.right_panel = ctk.CTkFrame(self, corner_radius=0, fg_color=("#e2e8f0", "#0b1120"))
-        self.right_panel.grid(row=1, column=1, sticky="nsew", padx=0, pady=0)
+        self.right_panel = ctk.CTkFrame(parent, corner_radius=0, fg_color=("#e2e8f0", "#0b1120"))
+        self.right_panel.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
         self.right_panel.grid_rowconfigure(0, weight=1)
         self.right_panel.grid_columnconfigure(0, weight=1)
         
@@ -276,11 +404,12 @@ class App(ctk.CTk):
         )
         self.txt_resultados.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         self.txt_resultados.configure(state="disabled")
+
     
     def _create_bottom_conclusion(self):
         """Bloque de conclusión y resumen final de la solución."""
         self.results_frame = ctk.CTkFrame(self, height=195, corner_radius=0, fg_color=("#1e293b", "#0f172a"))
-        self.results_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=0, pady=0)
+        self.results_frame.grid(row=3, column=0, sticky="ew", padx=0, pady=0)
         self.results_frame.grid_propagate(False)
         self.results_frame.grid_columnconfigure((0, 1, 2), weight=1)
         self.results_frame.grid_rowconfigure(1, weight=1)
