@@ -139,9 +139,10 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"), text_color=("#38bdf8", "#38bdf8")
         ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
 
-        self.txt_res_ops = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="none")
+        self.txt_res_ops = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
         self.txt_res_ops.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_ops.configure(state="disabled")
+
 
         # Variables internas
         self.entries_A: List[List[ctk.CTkEntry]] = []
@@ -432,9 +433,10 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"), text_color=("#38bdf8", "#38bdf8")
         ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
 
-        self.txt_res_axb = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="none")
+        self.txt_res_axb = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
         self.txt_res_axb.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_axb.configure(state="disabled")
+
 
         # Estado interno
         self.entries_axb: List[List[ctk.CTkEntry]] = []
@@ -604,21 +606,31 @@ class MatrixOpsView(ctk.CTkFrame):
             return
 
         lineas = [
-            "==========================================================",
-            "   RESOLUCIÓN DE LA ECUACIÓN MATRICIAL: A x = b          ",
-            "==========================================================\n",
+            "==================================================",
+            "   RESOLUCIÓN DE LA ECUACIÓN MATRICIAL: A x = b   ",
+            "==================================================\n",
             "Teorema Fundamental:",
             "  Ax = b  ⟺  x₁a₁ + x₂a₂ + ... + xₙaₙ = b  ⟺  [A | b]\n",
             f"A ({m}×{n}):\n{self._fmt_mat(A, modo)}",
             f"b = [{', '.join([formatear_numero(bi, modo) for bi in b])}]ᵀ\n",
-            "--- MATRIZ AUMENTADA [A | b] ---",
+            "--- 1. MATRIZ AUMENTADA INICIAL [A | b] ---",
             self._fmt_mat_aumentada(res.matriz_aumentada, modo),
-            "--- FORMA ESCALONADA REDUCIDA (RREF) ---",
-            self._fmt_mat_aumentada(res.matriz_rref, modo),
-            "--- CLASIFICACIÓN Y SOLUCIÓN ---",
-            res.resumen_explicativo
         ]
+        
+        if res.pasos_gauss and len(res.pasos_gauss) > 1:
+            lineas.append("--- 2. PROCESO DE REDUCCIÓN PASO A PASO (GAUSS-JORDAN) ---")
+            for num_p, paso in enumerate(res.pasos_gauss[1:], 1):
+                lineas.append(f">> Paso {num_p}: {paso.descripcion}")
+                lineas.append(self._fmt_mat_aumentada(paso.matriz_estado, modo))
+
+        lineas.extend([
+            "--- 3. FORMA ESCALONADA REDUCIDA (RREF) ---",
+            self._fmt_mat_aumentada(res.matriz_rref, modo),
+            "--- 4. CLASIFICACIÓN Y SOLUCIÓN ---",
+            res.resumen_explicativo
+        ])
         self._log_axb("\n".join(lineas), limpiar=True)
+
 
     def _fmt_mat_aumentada(self, mat: Matriz, modo: str) -> str:
         s = ""

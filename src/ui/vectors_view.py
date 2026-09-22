@@ -360,9 +360,10 @@ class VectorsView(ctk.CTkFrame):
         )
         lbl_res_c.grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
         
-        self.txt_res_comb = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="none")
+        self.txt_res_comb = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
         self.txt_res_comb.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_comb.configure(state="disabled")
+
         
         self.grid_entries_comb: List[List[ctk.CTkEntry]] = []
         self._generar_grid_comb()
@@ -495,9 +496,9 @@ class VectorsView(ctk.CTkFrame):
         
         # Formatear reporte completo
         lineas = []
-        lineas.append("=================================================================")
-        lineas.append("   EVALUACIÓN DE COMBINACIÓN LINEAL EN ℝⁿ (TEOREMA VECTORIAL)   ")
-        lineas.append("=================================================================\n")
+        lineas.append("==================================================")
+        lineas.append("  EVALUACIÓN DE COMBINACIÓN LINEAL EN ℝⁿ")
+        lineas.append("==================================================\n")
         
         lineas.append(f"• Conjunto generador de {k} vectores en ℝ{a_subindice(n)}:")
         for j, vec in enumerate(vectores):
@@ -506,16 +507,77 @@ class VectorsView(ctk.CTkFrame):
         b_fmt = "[" + ", ".join([formatear_numero(x, modo) for x in b]) + "]ᵀ"
         lineas.append(f"• Vector objetivo b = {b_fmt}\n")
         
-        lineas.append("--- MATRIZ AUMENTADA INICIAL [v₁ ... vₖ | b] ---")
+        lineas.append("--- 1. MATRIZ AUMENTADA INICIAL [v₁ ... vₖ | b] ---")
         lineas.append(self._formatear_matriz(resultado.matriz_aumentada_inicial, modo))
         
-        lineas.append("--- MATRIZ EN FORMA ESCALONADA REDUCIDA (RREF) ---")
+        # Proceso de reducción paso a paso
+        if resultado.pasos_gauss and len(resultado.pasos_gauss) > 1:
+            lineas.append("--- 2. PROCESO DE RESOLUCIÓN PASO A PASO (GAUSS-JORDAN) ---")
+            for num_p, paso in enumerate(resultado.pasos_gauss[1:], 1):
+                lineas.append(f">> Paso {num_p}: {paso.descripcion}")
+                lineas.append(self._formatear_matriz(paso.matriz_estado, modo))
+        
+        lineas.append("--- 3. MATRIZ EN FORMA ESCALONADA (RREF) ---")
         lineas.append(self._formatear_matriz(resultado.matriz_rref, modo))
         
-        lineas.append("--- CONCLUSIÓN Y DIAGNÓSTICO ALGEBRAICO ---")
-        lineas.append(resultado.explicacion)
+        lineas.append("--- 4. DIAGNÓSTICO ALGEBRAICO Y CONCLUSIÓN ---")
+        if not resultado.es_combinacion:
+            # Buscar la fila inconsistente del tipo [0 0 ... 0 | k] con k != 0
+            fila_inconsistente = None
+            val_k_str = "k"
+            mat_final = resultado.matriz_rref
+            for idx_f, fila in enumerate(mat_final):
+                coefs = fila[:-1]
+                ti = fila[-1]
+                if all(abs(c) < 1e-10 for c in coefs) and abs(ti) > 1e-10:
+                    fila_inconsistente = idx_f + 1
+                    val_k_str = formatear_numero(ti, modo)
+                    break
+            
+            lineas.append("🔴 RESULTADO: EL VECTOR b NO ES COMBINACIÓN LINEAL.")
+            lineas.append("")
+            if fila_inconsistente is not None:
+                lineas.append(f"⚠️ DETECCIÓN DE INCONSISTENCIA EN LA FILA {fila_inconsistente}:")
+                eq_terms = " + ".join([f"0·c{a_subindice(j+1)}" for j in range(k)])
+                lineas.append(f"   Ecuación: {eq_terms} = {val_k_str}")
+                lineas.append(f"   Forma reducida: 0 = {val_k_str}  (¡CONTRADICCIÓN MATEMÁTICA!)")
+                lineas.append("")
+                lineas.append("• ¿Cómo se llega a esta conclusión paso a paso?")
+                lineas.append(f"  1. Se planteó la ecuación vectorial c₁v₁ + ... + c{a_subindice(k)}v{a_subindice(k)} = b.")
+                lineas.append(f"  2. Se construyó la matriz aumentada [v₁ ... v{a_subindice(k)} | b] y se aplicaron operaciones elementales de fila.")
+                lineas.append(f"  3. En la Fila {fila_inconsistente}, todos los coeficientes de los vectores se anularon (sumaron 0), mientras que el término independiente resultó ser {val_k_str} ≠ 0.")
+                lineas.append(f"  4. La igualdad '0 = {val_k_str}' es falsa e imposible de satisfacer para cualquier valor real de los escalares cᵢ.")
+                lineas.append("")
+                lineas.append("• Conclusión Teórica (Teorema de Existencia):")
+                lineas.append("  Al ser el sistema lineal inconsistente (sin solución), no existen escalares que permitan formar el vector b.")
+                lineas.append(f"  Por lo tanto, el vector b NO pertenece al subespacio generado por los vectores dados (b ∉ Gen{{v₁, ..., v{a_subindice(k)}}}).")
+            else:
+                lineas.append(resultado.explicacion)
+        elif resultado.pesos is not None:
+            pesos = resultado.pesos
+            terminos_comb = []
+            for i, p in enumerate(pesos):
+                p_str = formatear_numero(p, modo)
+                terminos_comb.append(f"({p_str})·v{a_subindice(i+1)}")
+            ecuacion = "b = " + " + ".join(terminos_comb)
+            
+            lineas.append("🟢 RESULTADO: EL VECTOR b SÍ ES COMBINACIÓN LINEAL ÚNICA.")
+            lineas.append("")
+            lineas.append("• Ecuación vectorial obtenida:")
+            lineas.append(f"  {ecuacion}\n")
+            lineas.append("• Valores de los pesos (escalares):")
+            for i, p in enumerate(pesos):
+                lineas.append(f"  c{a_subindice(i+1)} = {formatear_numero(p, modo)}")
+            lineas.append("")
+            lineas.append("• Justificación:")
+            lineas.append("  Al reducir la matriz a RREF, cada columna de coeficientes tiene un pivote único y no surge ninguna contradicción, garantizando una solución consistente determinada.")
+        else:
+            lineas.append("🟡 RESULTADO: EL VECTOR b SÍ ES COMBINACIÓN LINEAL (INFINITAS MANERAS).")
+            lineas.append("")
+            lineas.append(resultado.explicacion)
         
         self._log_comb("\n".join(lineas), limpiar=True)
+
 
     def _log_comb(self, texto: str, limpiar: bool = False):
         self.txt_res_comb.configure(state="normal")
@@ -588,9 +650,10 @@ class VectorsView(ctk.CTkFrame):
         )
         lbl_res_i.grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
         
-        self.txt_res_indep = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="none")
+        self.txt_res_indep = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
         self.txt_res_indep.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_indep.configure(state="disabled")
+
         
         self.grid_entries_indep: List[List[ctk.CTkEntry]] = []
         self._generar_grid_indep()
@@ -706,9 +769,9 @@ class VectorsView(ctk.CTkFrame):
         resultado = evaluar_independencia_lineal(vectores, modo=modo)
         
         lineas = []
-        lineas.append("=================================================================")
-        lineas.append("   ANÁLISIS DE INDEPENDENCIA Y DEPENDENCIA LINEAL EN ℝⁿ   ")
-        lineas.append("=================================================================\n")
+        lineas.append("==================================================")
+        lineas.append("  ANÁLISIS DE INDEPENDENCIA Y DEPENDENCIA LINEAL")
+        lineas.append("==================================================\n")
         
         lineas.append(f"• Conjunto de {k} vectores en ℝ{a_subindice(n)}:")
         for j, vec in enumerate(vectores):
@@ -716,13 +779,20 @@ class VectorsView(ctk.CTkFrame):
             lineas.append(f"    v{a_subindice(j+1)} = {vec_fmt}")
         lineas.append("")
         
-        lineas.append("--- MATRIZ DEL SISTEMA HOMOGÉNEO [v₁ ... vₖ | 0] ---")
+        lineas.append("--- 1. MATRIZ DEL SISTEMA HOMOGÉNEO [v₁ ... vₖ | 0] ---")
         lineas.append(self._formatear_matriz(resultado.matriz_homogenea_inicial, modo))
         
-        lineas.append("--- MATRIZ EN FORMA ESCALONADA REDUCIDA (RREF) ---")
+        # Proceso de reducción paso a paso si se resolvió por Gauss-Jordan
+        if resultado.pasos_gauss and len(resultado.pasos_gauss) > 1:
+            lineas.append("--- 2. PROCESO DE RESOLUCIÓN PASO A PASO (GAUSS-JORDAN) ---")
+            for num_p, paso in enumerate(resultado.pasos_gauss[1:], 1):
+                lineas.append(f">> Paso {num_p}: {paso.descripcion}")
+                lineas.append(self._formatear_matriz(paso.matriz_estado, modo))
+        
+        lineas.append("--- 3. MATRIZ EN FORMA ESCALONADA REDUCIDA (RREF) ---")
         lineas.append(self._formatear_matriz(resultado.matriz_rref, modo))
         
-        lineas.append("--- DIAGNÓSTICO Y CONCLUSIÓN ---")
+        lineas.append("--- 4. DIAGNÓSTICO Y CONCLUSIÓN ---")
         estado_badge = "✅ LINEALMENTE INDEPENDIENTE" if resultado.es_linealmente_independiente else "⚠️ LINEALMENTE DEPENDIENTE"
         lineas.append(f"Resultado: {estado_badge}")
         lineas.append(f"Criterio / Justificación: {resultado.criterio_utilizado}\n")
@@ -732,6 +802,7 @@ class VectorsView(ctk.CTkFrame):
             lineas.append(f"\nRelación no trivial verificable:\n  {resultado.relacion_dependencia}")
             
         self._log_indep("\n".join(lineas), limpiar=True)
+
 
     def _log_indep(self, texto: str, limpiar: bool = False):
         self.txt_res_indep.configure(state="normal")

@@ -47,12 +47,13 @@ class App(ctk.CTk):
     
     def _setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
         
         self._create_top_bar()
         self._create_module_nav()
         self._create_content_area()
         self._create_bottom_conclusion()
+
         
         # Generar matriz inicial por defecto (3x3)
         self.generar_matriz()
@@ -399,9 +400,10 @@ class App(ctk.CTk):
         self.txt_resultados = ctk.CTkTextbox(
             self.tab_text, 
             font=ctk.CTkFont(family="Consolas", size=12),
-            wrap="none",
+            wrap="word",
             corner_radius=8
         )
+
         self.txt_resultados.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         self.txt_resultados.configure(state="disabled")
 
