@@ -17,11 +17,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.core.vectors import (
     sumar_vectores, restar_vectores, multiplicar_vector_escalar,
+    sumar_multiples_vectores, restar_multiples_vectores, combinacion_lineal_ponderada,
     producto_punto, norma_vector, son_proporcionales_2_vectores,
     evaluar_combinacion_lineal, evaluar_independencia_lineal
 )
 from src.core.matrix_ops import (
     sumar_matrices, restar_matrices, multiplicar_matriz_escalar,
+    combinacion_matrices,
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial
 )
 
@@ -52,6 +54,31 @@ def test_operaciones_vectoriales_basicas():
     pp = producto_punto([1.0, 2.0, 3.0], [4.0, -5.0, 6.0])
     assert pp == 12.0, f"Fallo producto punto: {pp}"
     print("✓ Producto punto [1, 2, 3] · [4, -5, 6] = 12")
+
+    # Múltiples vectores (k = 3 en ℝ³)
+    v1 = [1.0, 2.0, 3.0]
+    v2 = [4.0, 5.0, 6.0]
+    v3 = [7.0, 8.0, 9.0]
+    
+    # Suma de todos
+    sum_all = sumar_multiples_vectores([v1, v2, v3])
+    assert sum_all == [12.0, 15.0, 18.0], f"Fallo suma múltiple: {sum_all}"
+    print("✓ Suma acumulada de 3 vectores [12, 15, 18]")
+
+    # Resta sucesiva v1 - v2 - v3
+    sub_all = restar_multiples_vectores([v1, v2, v3])
+    # 1 - 4 - 7 = -10, 2 - 5 - 8 = -11, 3 - 6 - 9 = -12
+    assert sub_all == [-10.0, -11.0, -12.0], f"Fallo resta múltiple: {sub_all}"
+    print("✓ Resta sucesiva de 3 vectores [-10, -11, -12]")
+
+    # Combinación lineal ponderada c₁v₁ + c₂v₂ + c₃v₃ con c = [2, -1, 3]
+    # 2*[1,2,3] - [4,5,6] + 3*[7,8,9]
+    # x: 2(1) - 4 + 3(7) = 2 - 4 + 21 = 19
+    # y: 2(2) - 5 + 3(8) = 4 - 5 + 24 = 23
+    # z: 2(3) - 6 + 3(9) = 6 - 6 + 27 = 27
+    comb_pond = combinacion_lineal_ponderada([2.0, -1.0, 3.0], [v1, v2, v3])
+    assert comb_pond == [19.0, 23.0, 27.0], f"Fallo combinación ponderada: {comb_pond}"
+    print("✓ Combinación lineal ponderada de 3 vectores con escalares independientes [19, 23, 27]")
 
 
 def test_combinacion_lineal():
@@ -142,6 +169,12 @@ def test_operaciones_matriciales():
     assert E == [[3.0, 6.0], [9.0, 12.0]]
     print("✓ Multiplicación de matriz por escalar 3·A correcta")
 
+    # Combinación lineal matricial c_A·A + c_B·B con c_A=2, c_B=-1
+    # 2*[[1, 2], [3, 4]] - [[5, 6], [7, 8]] = [[2-5, 4-6], [6-7, 8-8]] = [[-3, -2], [-1, 0]]
+    comb_mat = combinacion_matrices(2.0, A, -1.0, B)
+    assert comb_mat == [[-3.0, -2.0], [-1.0, 0.0]]
+    print("✓ Combinación lineal matricial 2·A - 1·B correcta")
+
     # Multiplicación matricial: A (2x3) y B (3x2)
     # A = [[1, 2, -1], [0, -5, 3]]
     # B = [[4, 1], [3, 0], [7, 2]]
@@ -155,6 +188,20 @@ def test_operaciones_matriciales():
     # C22 = 0*1 + (-5)*0 + 3*2 = 6
     assert res_mult.matriz_resultado == [[3.0, -1.0], [6.0, 6.0]]
     print("✓ Multiplicación matricial A · B con bucles anidados verificada")
+
+    # Multiplicación matricial B · A: (3x2) x (2x3) -> (3x3)
+    # B = [[4, 1], [3, 0], [7, 2]], A = [[1, 2, -1], [0, -5, 3]]
+    # fila 1: [4(1)+1(0), 4(2)+1(-5), 4(-1)+1(3)] = [4, 3, -1]
+    # fila 2: [3(1)+0(0), 3(2)+0(-5), 3(-1)+0(3)] = [3, 6, -3]
+    # fila 3: [7(1)+2(0), 7(2)+2(-5), 7(-1)+2(3)] = [7, 4, -1]
+    res_mult_ba = multiplicar_matrices(M_B, M_A)
+    assert res_mult_ba.dimensiones_resultado == (3, 3)
+    assert res_mult_ba.matriz_resultado == [
+        [4.0, 3.0, -1.0],
+        [3.0, 6.0, -3.0],
+        [7.0, 4.0, -1.0]
+    ]
+    print("✓ Multiplicación matricial B · A (3x3) verificada")
 
     # Validación de dimensiones incompatibles
     try:

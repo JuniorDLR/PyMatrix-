@@ -98,6 +98,72 @@ def multiplicar_vector_escalar(c: float, v: Vector) -> Vector:
     return resultado
 
 
+def sumar_multiples_vectores(vectores: List[Vector]) -> Vector:
+    """Calcula la suma acumulada de k vectores en ℝⁿ: v₁ + v₂ + ... + vₖ.
+    
+    Procedimiento algebraico:
+    (v₁ + v₂ + ... + vₖ)ᵢ = ∑_{j=1}^{k} v_{j, i} para cada componente i.
+    """
+    if not vectores:
+        raise ValueError("Debe proporcionar al menos un vector.")
+    dim = len(vectores[0])
+    for j, v in enumerate(vectores):
+        if len(v) != dim:
+            raise ValueError(f"El vector v{j+1} tiene dimensión {len(v)}, pero se esperaba {dim}.")
+    
+    resultado: Vector = [0.0] * dim
+    for v in vectores:
+        for i in range(dim):
+            resultado[i] += v[i]
+    return [round(x, 9) for x in resultado]
+
+
+def restar_multiples_vectores(vectores: List[Vector]) -> Vector:
+    """Calcula la resta sucesiva de k vectores en ℝⁿ: v₁ - v₂ - ... - vₖ.
+    
+    Procedimiento algebraico:
+    (v₁ - v₂ - ... - vₖ)ᵢ = v_{1, i} - ∑_{j=2}^{k} v_{j, i}.
+    """
+    if not vectores:
+        raise ValueError("Debe proporcionar al menos un vector.")
+    dim = len(vectores[0])
+    for j, v in enumerate(vectores):
+        if len(v) != dim:
+            raise ValueError(f"El vector v{j+1} tiene dimensión {len(v)}, pero se esperaba {dim}.")
+    
+    resultado: Vector = list(vectores[0])
+    for v in vectores[1:]:
+        for i in range(dim):
+            resultado[i] -= v[i]
+    return [round(x, 9) for x in resultado]
+
+
+def combinacion_lineal_ponderada(escalares: List[float], vectores: List[Vector]) -> Vector:
+    """Calcula la combinación lineal c₁v₁ + c₂v₂ + ... + cₖvₖ en ℝⁿ.
+    
+    Procedimiento algebraico:
+    Cada vector vⱼ se escala por cⱼ y se suman las componentes correspondientes:
+    (c₁v₁ + ... + cₖvₖ)ᵢ = ∑_{j=1}^{k} (cⱼ · v_{j, i}).
+    """
+    if not vectores or not escalares:
+        raise ValueError("Debe proporcionar listas no vacías de vectores y escalares.")
+    if len(escalares) != len(vectores):
+        raise ValueError(
+            f"La cantidad de escalares ({len(escalares)}) debe ser igual a la cantidad de vectores ({len(vectores)})."
+        )
+    dim = len(vectores[0])
+    for j, v in enumerate(vectores):
+        if len(v) != dim:
+            raise ValueError(f"El vector v{j+1} tiene dimensión {len(v)}, pero se esperaba {dim}.")
+            
+    resultado: Vector = [0.0] * dim
+    for c, v in zip(escalares, vectores):
+        for i in range(dim):
+            resultado[i] += c * v[i]
+    return [round(x, 9) for x in resultado]
+
+
+
 def producto_punto(u: Vector, v: Vector) -> float:
     """Calcula el producto escalar (producto punto) u · v.
     

@@ -119,6 +119,26 @@ def multiplicar_matriz_escalar(c: float, A: Matriz) -> Matriz:
     return C
 
 
+def combinacion_matrices(c_A: float, A: Matriz, c_B: float, B: Matriz, restar: bool = False) -> Matriz:
+    """Calcula la combinación lineal de dos matrices C = c_A·A + c_B·B (o c_A·A - c_B·B si restar=True).
+    
+    Procedimiento algebraico:
+    Dadas A, B ∈ M_{m × n}(ℝ) y escalares c_A, c_B ∈ ℝ:
+    C_{ij} = c_A·A_{ij} ± c_B·B_{ij} para todo 1 ≤ i ≤ m, 1 ≤ j ≤ n.
+    """
+    m, n = validar_dimensiones_matrices_iguales(A, B, "combinación lineal matricial")
+    signo = -1.0 if restar else 1.0
+    C: Matriz = []
+    for i in range(m):
+        fila: List[float] = []
+        for j in range(n):
+            val = round(c_A * A[i][j] + signo * c_B * B[i][j], 9)
+            fila.append(val)
+        C.append(fila)
+    return C
+
+
+
 # =========================================================================
 # 3. MULTIPLICACIÓN DE MATRICES (A_m×n · B_n×p)
 # =========================================================================

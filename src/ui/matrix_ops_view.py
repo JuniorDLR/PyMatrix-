@@ -12,10 +12,11 @@ from typing import List, Optional
 import customtkinter as ctk
 
 from src.core.matrix_ops import (
-    sumar_matrices, restar_matrices, multiplicar_matriz_escalar,
+    sumar_matrices, restar_matrices, multiplicar_matriz_escalar, combinacion_matrices,
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
     ResultadoMultiplicacionMatricial, ResultadoProductoMatrizVector, ResultadoEcuacionMatricial
 )
+
 from src.core.vectors import Vector
 from src.core.domain import Matriz, formatear_numero, a_subindice
 
@@ -99,34 +100,50 @@ class MatrixOpsView(ctk.CTkFrame):
             fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563")
         ).pack(side="left", padx=4)
 
-        # Escalar
+        # Escalares independientes para cada matriz
         esc_row = ctk.CTkFrame(left, fg_color="transparent")
         esc_row.pack(fill="x", padx=14, pady=4)
-        ctk.CTkLabel(esc_row, text="Escalar (c):", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
-        self.entry_ops_escalar = ctk.CTkEntry(esc_row, width=60, justify="center")
-        self.entry_ops_escalar.pack(side="left", padx=6)
-        self.entry_ops_escalar.insert(0, "2")
+        ctk.CTkLabel(esc_row, text="Escalar c_A:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#38bdf8", "#38bdf8")).pack(side="left")
+        self.entry_ops_cA = ctk.CTkEntry(esc_row, width=48, justify="center")
+        self.entry_ops_cA.pack(side="left", padx=3)
+        self.entry_ops_cA.insert(0, "2")
+        
+        ctk.CTkLabel(esc_row, text="Escalar c_B:", font=ctk.CTkFont(size=11, weight="bold"), text_color=("#34d399", "#34d399")).pack(side="left", padx=(8, 0))
+        self.entry_ops_cB = ctk.CTkEntry(esc_row, width=48, justify="center")
+        self.entry_ops_cB.pack(side="left", padx=3)
+        self.entry_ops_cB.insert(0, "3")
 
         # Scroll con cuadrículas de A y B
-        self.scroll_ops = ctk.CTkScrollableFrame(left, height=240)
+        self.scroll_ops = ctk.CTkScrollableFrame(left, height=230)
         self.scroll_ops.pack(fill="both", expand=True, padx=14, pady=4)
 
         # Botones de operación
         op_grid = ctk.CTkFrame(left, fg_color="transparent")
-        op_grid.pack(fill="x", padx=14, pady=(6, 12))
+        op_grid.pack(fill="x", padx=14, pady=(4, 10))
         op_grid.grid_columnconfigure((0, 1), weight=1)
 
         ctk.CTkButton(op_grid, text="A + B", command=lambda: self._calc_op("suma"),
-                      fg_color=("#0284c7", "#0369a1")).grid(row=0, column=0, padx=3, pady=3, sticky="ew")
-        ctk.CTkButton(op_grid, text="A − B", command=lambda: self._calc_op("resta"),
-                      fg_color=("#0284c7", "#0369a1")).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
-        ctk.CTkButton(op_grid, text="c · A", command=lambda: self._calc_op("esc_A"),
-                      fg_color=("#0d9488", "#0f766e")).grid(row=1, column=0, padx=3, pady=3, sticky="ew")
-        ctk.CTkButton(op_grid, text="c · B", command=lambda: self._calc_op("esc_B"),
-                      fg_color=("#0d9488", "#0f766e")).grid(row=1, column=1, padx=3, pady=3, sticky="ew")
-        ctk.CTkButton(op_grid, text="A × B  (Producto Matricial)", command=lambda: self._calc_op("prod"),
-                      fg_color=("#7c3aed", "#6d28d9"), font=ctk.CTkFont(size=12, weight="bold")
-                      ).grid(row=2, column=0, columnspan=2, padx=3, pady=3, sticky="ew")
+                      fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=11)).grid(row=0, column=0, padx=2, pady=2, sticky="ew")
+        ctk.CTkButton(op_grid, text="c_A·A + c_B·B  (Combinación)", command=lambda: self._calc_op("comb_suma"),
+                      fg_color=("#059669", "#10b981"), font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=1, padx=2, pady=2, sticky="ew")
+
+        ctk.CTkButton(op_grid, text="A − B", command=lambda: self._calc_op("resta_AB"),
+                      fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=11)).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
+        ctk.CTkButton(op_grid, text="B − A", command=lambda: self._calc_op("resta_BA"),
+                      fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=11)).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
+
+        ctk.CTkButton(op_grid, text="c_A · A", command=lambda: self._calc_op("esc_A"),
+                      fg_color=("#0d9488", "#0f766e"), font=ctk.CTkFont(size=11)).grid(row=2, column=0, padx=2, pady=2, sticky="ew")
+        ctk.CTkButton(op_grid, text="c_B · B", command=lambda: self._calc_op("esc_B"),
+                      fg_color=("#0d9488", "#0f766e"), font=ctk.CTkFont(size=11)).grid(row=2, column=1, padx=2, pady=2, sticky="ew")
+
+        ctk.CTkButton(op_grid, text="A × B  (Producto A·B)", command=lambda: self._calc_op("prod_AB"),
+                      fg_color=("#7c3aed", "#6d28d9"), font=ctk.CTkFont(size=11, weight="bold")
+                      ).grid(row=3, column=0, padx=2, pady=2, sticky="ew")
+        ctk.CTkButton(op_grid, text="B × A  (Producto B·A)", command=lambda: self._calc_op("prod_BA"),
+                      fg_color=("#6d28d9", "#5b21b6"), font=ctk.CTkFont(size=11, weight="bold")
+                      ).grid(row=3, column=1, padx=2, pady=2, sticky="ew")
+
 
         # Panel derecho: resultados
         right = ctk.CTkFrame(tab, corner_radius=10)
@@ -246,14 +263,16 @@ class MatrixOpsView(ctk.CTkFrame):
                 "mA": 3, "nA": 3, "mB": 3, "nB": 3,
                 "A": [[2, 3, 4], [1, -2, 0], [3, 1, -1]],
                 "B": [[1, 0, 2], [3, -1, 0], [0, 4, 1]],
-                "c": -1, "desc": "Producto Matricial A(3×3) × B(3×3)"
+                "cA": -1, "cB": 2,
+                "desc": "Matrices 3×3: Compara A×B vs B×A (Demostración de No Conmutatividad)"
             },
-            # Dimensiones incompatibles para mostrar error
+            # Dimensiones compatibles en una sola dirección
             {
                 "mA": 2, "nA": 3, "mB": 2, "nB": 2,
                 "A": [[1, 2, 3], [4, 5, 6]],
                 "B": [[1, 0], [0, 1]],
-                "c": 5, "desc": "⚠️ A(2×3) × B(2×2) — Dimensiones incompatibles para multiplicación"
+                "cA": 1, "cB": 1,
+                "desc": "A(2×3) y B(2×2): A×B es incompatible, ¡pero B(2×2) × A(2×3) sí es compatible!"
             }
         ]
         ej = random.choice(ejemplos)
@@ -262,7 +281,8 @@ class MatrixOpsView(ctk.CTkFrame):
         self.entry_ops_mB.delete(0, "end"); self.entry_ops_mB.insert(0, str(ej["mB"]))
         self.entry_ops_nB.delete(0, "end"); self.entry_ops_nB.insert(0, str(ej["nB"]))
         self._generar_matrices_ops()
-        self.entry_ops_escalar.delete(0, "end"); self.entry_ops_escalar.insert(0, str(ej["c"]))
+        self.entry_ops_cA.delete(0, "end"); self.entry_ops_cA.insert(0, str(ej.get("cA", 2)))
+        self.entry_ops_cB.delete(0, "end"); self.entry_ops_cB.insert(0, str(ej.get("cB", 3)))
 
         for i, fila in enumerate(ej["A"]):
             for j, val in enumerate(fila):
@@ -280,28 +300,40 @@ class MatrixOpsView(ctk.CTkFrame):
         try:
             A = self._leer_matriz_entries(self.entries_A)
             B = self._leer_matriz_entries(self.entries_B)
-            c_str = self.entry_ops_escalar.get().strip()
-            c = float(c_str) if "/" not in c_str else float(c_str.split("/")[0]) / float(c_str.split("/")[1])
+            cA_str = self.entry_ops_cA.get().strip()
+            cB_str = self.entry_ops_cB.get().strip()
+            cA = float(cA_str) if "/" not in cA_str else float(cA_str.split("/")[0]) / float(cA_str.split("/")[1])
+            cB = float(cB_str) if "/" not in cB_str else float(cB_str.split("/")[0]) / float(cB_str.split("/")[1])
         except ValueError as e:
             self._log_ops(f"❌ Error de entrada: {e}", limpiar=True)
             return
 
         mA, nA = len(A), len(A[0])
         mB, nB = len(B), len(B[0])
-        c_fmt = formatear_numero(c, modo)
+        cA_fmt = formatear_numero(cA, modo)
+        cB_fmt = formatear_numero(cB, modo)
         lineas = []
 
         try:
             if op == "suma":
                 R = sumar_matrices(A, B)
                 lineas.append(">> SUMA DE MATRICES: A + B")
-                lineas.append(f"Condición: Ambas matrices deben ser {mA}×{nA}.")
+                lineas.append(f"Condición: Ambas matrices deben tener la misma dimensión ({mA}×{nA}).")
                 lineas.append(f"\nA ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
                 lineas.append(f"B ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
                 lineas.append("Procedimiento: C_ij = A_ij + B_ij para cada posición.")
                 lineas.append(f"\nResultado C = A + B ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
 
-            elif op == "resta":
+            elif op == "comb_suma":
+                R = combinacion_matrices(cA, A, cB, B, restar=False)
+                lineas.append(f">> COMBINACIÓN LINEAL MATRICIAL: ({cA_fmt})·A + ({cB_fmt})·B")
+                lineas.append(f"Condición: Ambas matrices deben ser del mismo orden ({mA}×{nA}).")
+                lineas.append(f"\nA ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
+                lineas.append(f"B ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
+                lineas.append(f"Procedimiento: C_ij = ({cA_fmt})·A_ij + ({cB_fmt})·B_ij entrada a entrada.")
+                lineas.append(f"\nResultado ({cA_fmt})·A + ({cB_fmt})·B ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
+
+            elif op == "resta_AB":
                 R = restar_matrices(A, B)
                 lineas.append(">> RESTA DE MATRICES: A − B")
                 lineas.append(f"\nA ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
@@ -309,23 +341,31 @@ class MatrixOpsView(ctk.CTkFrame):
                 lineas.append("Procedimiento: C_ij = A_ij − B_ij para cada posición.")
                 lineas.append(f"\nResultado C = A − B ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
 
-            elif op == "esc_A":
-                R = multiplicar_matriz_escalar(c, A)
-                lineas.append(f">> PRODUCTO ESCALAR: {c_fmt} · A")
-                lineas.append(f"\nEscalar c = {c_fmt}")
+            elif op == "resta_BA":
+                R = restar_matrices(B, A)
+                lineas.append(">> RESTA DE MATRICES: B − A")
+                lineas.append(f"\nB ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
                 lineas.append(f"A ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
-                lineas.append("Procedimiento: (c·A)_ij = c · A_ij para cada posición.")
-                lineas.append(f"\nResultado {c_fmt}·A ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
+                lineas.append("Procedimiento: C_ij = B_ij − A_ij para cada posición.")
+                lineas.append(f"\nResultado C = B − A ({mB}×{nB}):\n{self._fmt_mat(R, modo)}")
+
+            elif op == "esc_A":
+                R = multiplicar_matriz_escalar(cA, A)
+                lineas.append(f">> PRODUCTO ESCALAR: {cA_fmt} · A")
+                lineas.append(f"\nEscalar c_A = {cA_fmt}")
+                lineas.append(f"A ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
+                lineas.append("Procedimiento: (c_A·A)_ij = c_A · A_ij para cada posición.")
+                lineas.append(f"\nResultado {cA_fmt}·A ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
 
             elif op == "esc_B":
-                R = multiplicar_matriz_escalar(c, B)
-                lineas.append(f">> PRODUCTO ESCALAR: {c_fmt} · B")
-                lineas.append(f"\nEscalar c = {c_fmt}")
+                R = multiplicar_matriz_escalar(cB, B)
+                lineas.append(f">> PRODUCTO ESCALAR: {cB_fmt} · B")
+                lineas.append(f"\nEscalar c_B = {cB_fmt}")
                 lineas.append(f"B ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
-                lineas.append("Procedimiento: (c·B)_ij = c · B_ij para cada posición.")
-                lineas.append(f"\nResultado {c_fmt}·B ({mB}×{nB}):\n{self._fmt_mat(R, modo)}")
+                lineas.append("Procedimiento: (c_B·B)_ij = c_B · B_ij para cada posición.")
+                lineas.append(f"\nResultado {cB_fmt}·B ({mB}×{nB}):\n{self._fmt_mat(R, modo)}")
 
-            elif op == "prod":
+            elif op == "prod_AB":
                 res = multiplicar_matrices(A, B, modo=modo)
                 mR, pR = res.dimensiones_resultado
                 lineas.append(">> MULTIPLICACIÓN MATRICIAL: A × B")
@@ -340,10 +380,26 @@ class MatrixOpsView(ctk.CTkFrame):
                     lineas.append(f"  {paso}")
                 lineas.append(f"\nResultado C = A × B ({mR}×{pR}):\n{self._fmt_mat(res.matriz_resultado, modo)}")
 
+            elif op == "prod_BA":
+                res = multiplicar_matrices(B, A, modo=modo)
+                mR, pR = res.dimensiones_resultado
+                lineas.append(">> MULTIPLICACIÓN MATRICIAL: B × A")
+                lineas.append(f"Condición de Compatibilidad: cols(B) = filas(A)")
+                lineas.append(f"  B es {mB}×{nB}, A es {mA}×{nA}")
+                lineas.append(f"  cols(B) = {nB}  |  filas(A) = {mA}  → {'✓ Compatible' if nB == mA else '✗ Incompatible'}")
+                lineas.append(f"\nB ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
+                lineas.append(f"A ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
+                lineas.append("\nProcedimiento — Triple bucle anidado for i, for j, for k:")
+                lineas.append("  c_ij = Σ B_ik · A_kj  (suma de productos fila-por-columna)\n")
+                for paso in res.desglose_pasos:
+                    lineas.append(f"  {paso}")
+                lineas.append(f"\nResultado C = B × A ({mR}×{pR}):\n{self._fmt_mat(res.matriz_resultado, modo)}")
+
         except ValueError as e:
             lineas = [f"❌ Error de cálculo: {e}"]
 
         self._log_ops("\n".join(lineas), limpiar=True)
+
 
     def _fmt_mat(self, mat: Matriz, modo: str) -> str:
         s = ""
