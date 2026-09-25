@@ -14,7 +14,9 @@ import customtkinter as ctk
 from src.core.matrix_ops import (
     sumar_matrices, restar_matrices, multiplicar_matriz_escalar, combinacion_matrices,
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
-    ResultadoMultiplicacionMatricial, ResultadoProductoMatrizVector, ResultadoEcuacionMatricial
+    ResultadoMultiplicacionMatricial, ResultadoProductoMatrizVector, ResultadoEcuacionMatricial,
+    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax,
+    VerificacionPropiedadAditivaAx, VerificacionPropiedadEscalarAx
 )
 
 from src.core.vectors import Vector
@@ -39,9 +41,12 @@ class MatrixOpsView(ctk.CTkFrame):
 
         self.tab_ops = self.tabview.add("  ➕➖✖️ Operaciones con Matrices  ")
         self.tab_axb = self.tabview.add("  📐 Ax = b (Ecuación Matricial)  ")
+        self.tab_props = self.tabview.add("  🔬 Propiedades de Ax  ")
 
         self._setup_tab_ops()
         self._setup_tab_axb()
+        self._setup_tab_propiedades()
+
 
     def refresh_format(self):
         """Refresca salidas cuando cambia el formato global."""
@@ -651,3 +656,340 @@ class MatrixOpsView(ctk.CTkFrame):
             self.txt_res_axb.delete("1.0", "end")
         self.txt_res_axb.insert("end", texto + "\n")
         self.txt_res_axb.configure(state="disabled")
+
+    # =========================================================================
+    # SUB-PESTAÑA 3: PROPIEDADES DEL PRODUCTO MATRIZ-VECTOR Ax
+    # =========================================================================
+    def _setup_tab_propiedades(self):
+        tab = self.tab_props
+        tab.grid_columnconfigure(0, weight=0)
+        tab.grid_columnconfigure(1, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
+
+        # ── Panel izquierdo ────────────────────────────────────────────────
+        left = ctk.CTkFrame(tab, width=460, corner_radius=10)
+        left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        left.grid_propagate(False)
+        left.grid_columnconfigure(0, weight=1)
+
+        # Encabezado teórico
+        ctk.CTkLabel(
+            left,
+            text="Propiedades del Producto Matriz-Vector  A·x",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("gray20", "gray90"),
+        ).pack(anchor="w", padx=14, pady=(12, 2))
+        ctk.CTkLabel(
+            left,
+            text="Teorema: Si A es m×n, u y v son vectores en ℝⁿ, y c es un escalar:\n"
+                 "   a) A(u + v) = Au + Av\n"
+                 "   b) A(cu) = c(Au)",
+            font=ctk.CTkFont(size=11),
+            text_color=("gray50", "gray60"),
+            justify="left",
+        ).pack(anchor="w", padx=18, pady=(0, 8))
+
+        # Controles de dimensión
+        ctrl = ctk.CTkFrame(left, fg_color="transparent")
+        ctrl.pack(fill="x", padx=14, pady=(4, 2))
+
+        ctk.CTkLabel(ctrl, text="Filas A (m):", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, padx=2)
+        self.entry_prop_m = ctk.CTkEntry(ctrl, width=40, justify="center")
+        self.entry_prop_m.grid(row=0, column=1, padx=4)
+        self.entry_prop_m.insert(0, "2")
+
+        ctk.CTkLabel(ctrl, text="Columnas A (n):", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=2, padx=2)
+        self.entry_prop_n = ctk.CTkEntry(ctrl, width=40, justify="center")
+        self.entry_prop_n.grid(row=0, column=3, padx=4)
+        self.entry_prop_n.insert(0, "2")
+
+        # Botones Generar / Ejemplo
+        btn_row_p = ctk.CTkFrame(left, fg_color="transparent")
+        btn_row_p.pack(fill="x", padx=14, pady=4)
+        ctk.CTkButton(
+            btn_row_p, text="Generar Grilla", width=110,
+            command=self._generar_prop
+        ).pack(side="left", padx=2)
+        ctk.CTkButton(
+            btn_row_p, text="🎲 Ejemplo", width=80,
+            command=self._cargar_ejemplo_prop,
+            fg_color=("gray50", "#374151"), hover_color=("gray40", "#4b5563")
+        ).pack(side="left", padx=4)
+
+        # Campo escalar c
+        esc_row = ctk.CTkFrame(left, fg_color="transparent")
+        esc_row.pack(fill="x", padx=14, pady=(2, 4))
+        ctk.CTkLabel(esc_row, text="Escalar  c =", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+        self.entry_prop_c = ctk.CTkEntry(esc_row, width=60, justify="center")
+        self.entry_prop_c.pack(side="left", padx=6)
+        self.entry_prop_c.insert(0, "3")
+        ctk.CTkLabel(
+            esc_row, text="(usado en la propiedad b)",
+            font=ctk.CTkFont(size=10), text_color=("gray50", "gray60")
+        ).pack(side="left", padx=4)
+
+        # Scrollable frame para A, u, v
+        self.scroll_prop = ctk.CTkScrollableFrame(left, height=230)
+        self.scroll_prop.pack(fill="both", expand=True, padx=14, pady=4)
+
+        # Botones de verificación
+        btns_p = ctk.CTkFrame(left, fg_color="transparent")
+        btns_p.pack(fill="x", padx=14, pady=(6, 12))
+        btns_p.grid_columnconfigure((0, 1), weight=1)
+
+        ctk.CTkButton(
+            btns_p,
+            text="✓  Verificar A(u+v) = Au+Av",
+            command=self._calc_propiedad_aditiva,
+            fg_color=("gray30", "#0f766e"),
+            hover_color=("gray20", "#0d9488"),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=34,
+        ).grid(row=0, column=0, padx=3, pady=3, sticky="ew")
+
+        ctk.CTkButton(
+            btns_p,
+            text="✓  Verificar A(cu) = c(Au)",
+            command=self._calc_propiedad_escalar,
+            fg_color=("gray30", "#1d4ed8"),
+            hover_color=("gray20", "#2563eb"),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            height=34,
+        ).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
+
+        # ── Panel derecho ──────────────────────────────────────────────────
+        right = ctk.CTkFrame(tab, corner_radius=10)
+        right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            right,
+            text="🔬 Verificación Paso a Paso",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("gray20", "#38bdf8"),
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
+
+        self.txt_res_prop = ctk.CTkTextbox(
+            right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word"
+        )
+        self.txt_res_prop.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+        self.txt_res_prop.configure(state="disabled")
+
+        # Estado interno
+        self.entries_prop_A: List[List[ctk.CTkEntry]] = []
+        self.entries_prop_u: List[ctk.CTkEntry] = []
+        self.entries_prop_v: List[ctk.CTkEntry] = []
+        self._generar_prop()
+
+    def _generar_prop(self):
+        """Genera las cuadrículas de A (m×n), u y v (n componentes)."""
+        try:
+            m = max(1, min(8, int(self.entry_prop_m.get())))
+            n = max(1, min(8, int(self.entry_prop_n.get())))
+        except ValueError:
+            return
+
+        for w in self.scroll_prop.winfo_children():
+            w.destroy()
+        self.entries_prop_A = []
+        self.entries_prop_u = []
+        self.entries_prop_v = []
+
+        # ── Sección: Matriz A ──
+        ctk.CTkLabel(
+            self.scroll_prop,
+            text=f"  Matriz  A  ({m}×{n})",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        ).pack(anchor="w", pady=(6, 2))
+
+        # Cabecera columnas
+        hdr_A = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        hdr_A.pack(fill="x")
+        ctk.CTkLabel(hdr_A, text="", width=30).pack(side="left")
+        for j in range(n):
+            ctk.CTkLabel(
+                hdr_A, text=f"col{a_subindice(j+1)}", width=52,
+                font=ctk.CTkFont(size=10), text_color=("gray50", "gray60")
+            ).pack(side="left", padx=2)
+
+        for i in range(m):
+            row_f = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+            row_f.pack(fill="x", pady=1)
+            ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=30).pack(side="left")
+            fila_entries = []
+            for j in range(n):
+                e = ctk.CTkEntry(row_f, width=52, height=26, justify="center")
+                e.pack(side="left", padx=2)
+                e.insert(0, "0")
+                fila_entries.append(e)
+            self.entries_prop_A.append(fila_entries)
+
+        # ── Sección: Vectores u y v ──
+        ctk.CTkLabel(
+            self.scroll_prop,
+            text=f"  Vectores  u  y  v  (en ℝ{a_subindice(n)})",
+            font=ctk.CTkFont(size=12, weight="bold"),
+        ).pack(anchor="w", pady=(12, 2))
+
+        hdr_uv = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        hdr_uv.pack(fill="x")
+        ctk.CTkLabel(hdr_uv, text="", width=30).pack(side="left")
+        ctk.CTkLabel(
+            hdr_uv, text="u", width=60, font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("gray30", "gray80")
+        ).pack(side="left", padx=(2, 10))
+        ctk.CTkLabel(
+            hdr_uv, text="v", width=60, font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("gray30", "gray80")
+        ).pack(side="left", padx=2)
+
+        for i in range(n):
+            row_uv = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+            row_uv.pack(fill="x", pady=1)
+            ctk.CTkLabel(row_uv, text=f"x{a_subindice(i+1)}", width=30).pack(side="left")
+
+            eu = ctk.CTkEntry(row_uv, width=60, height=26, justify="center")
+            eu.pack(side="left", padx=(2, 10))
+            eu.insert(0, "0")
+            self.entries_prop_u.append(eu)
+
+            ev = ctk.CTkEntry(row_uv, width=60, height=26, justify="center")
+            ev.pack(side="left", padx=2)
+            ev.insert(0, "0")
+            self.entries_prop_v.append(ev)
+
+    def _leer_prop(self):
+        """Lee A, u, v desde las entradas. Retorna (A, u, v)."""
+        A: List[List[float]] = []
+        for i, fila in enumerate(self.entries_prop_A):
+            row_A = []
+            for j, e in enumerate(fila):
+                val = e.get().strip()
+                try:
+                    row_A.append(float(val) if "/" not in val
+                                 else float(val.split("/")[0]) / float(val.split("/")[1]))
+                except Exception:
+                    raise ValueError(f"Valor inválido en A, fila {i+1}, col {j+1}: '{val}'")
+            A.append(row_A)
+
+        u: List[float] = []
+        for i, e in enumerate(self.entries_prop_u):
+            val = e.get().strip()
+            try:
+                u.append(float(val) if "/" not in val
+                         else float(val.split("/")[0]) / float(val.split("/")[1]))
+            except Exception:
+                raise ValueError(f"Valor inválido en u, componente {i+1}: '{val}'")
+
+        v: List[float] = []
+        for i, e in enumerate(self.entries_prop_v):
+            val = e.get().strip()
+            try:
+                v.append(float(val) if "/" not in val
+                         else float(val.split("/")[0]) / float(val.split("/")[1]))
+            except Exception:
+                raise ValueError(f"Valor inválido en v, componente {i+1}: '{val}'")
+
+        return A, u, v
+
+    def _leer_c_prop(self) -> float:
+        val = self.entry_prop_c.get().strip()
+        try:
+            return float(val) if "/" not in val \
+                else float(val.split("/")[0]) / float(val.split("/")[1])
+        except Exception:
+            raise ValueError(f"Escalar c inválido: '{val}'")
+
+    def _cargar_ejemplo_prop(self):
+        """Carga un ejemplo ilustrativo de las propiedades."""
+        ejemplos = [
+            {
+                "m": 2, "n": 2,
+                "A": [[1, 2], [3, 4]],
+                "u": [1, 0],
+                "v": [0, 1],
+                "c": 2,
+            },
+            {
+                "m": 3, "n": 2,
+                "A": [[2, -1], [0, 3], [1, 1]],
+                "u": [2, 1],
+                "v": [-1, 3],
+                "c": -2,
+            },
+            {
+                "m": 2, "n": 3,
+                "A": [[1, 0, -1], [2, 1, 0]],
+                "u": [1, 2, 3],
+                "v": [-1, 0, 1],
+                "c": 3,
+            },
+        ]
+        import random as _r
+        ej = _r.choice(ejemplos)
+
+        self.entry_prop_m.delete(0, "end"); self.entry_prop_m.insert(0, str(ej["m"]))
+        self.entry_prop_n.delete(0, "end"); self.entry_prop_n.insert(0, str(ej["n"]))
+        self._generar_prop()
+
+        for i, fila in enumerate(ej["A"]):
+            for j, val in enumerate(fila):
+                self.entries_prop_A[i][j].delete(0, "end")
+                self.entries_prop_A[i][j].insert(0, str(val))
+
+        for i, val in enumerate(ej["u"]):
+            self.entries_prop_u[i].delete(0, "end")
+            self.entries_prop_u[i].insert(0, str(val))
+
+        for i, val in enumerate(ej["v"]):
+            self.entries_prop_v[i].delete(0, "end")
+            self.entries_prop_v[i].insert(0, str(val))
+
+        self.entry_prop_c.delete(0, "end")
+        self.entry_prop_c.insert(0, str(ej["c"]))
+
+        self._log_prop("🎲 Ejemplo cargado. Presione uno de los botones 'Verificar' para ver el procedimiento.", limpiar=True)
+
+    def _calc_propiedad_aditiva(self):
+        """Calcula y muestra la verificación paso a paso de A(u+v) = Au+Av."""
+        modo = self.get_modo_numero()
+        try:
+            A, u, v = self._leer_prop()
+        except ValueError as e:
+            self._log_prop(f"❌ {e}", limpiar=True)
+            return
+
+        try:
+            resultado = verificar_propiedad_aditiva_ax(A, u, v, modo=modo)
+        except ValueError as e:
+            self._log_prop(f"❌ {e}", limpiar=True)
+            return
+
+        self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
+
+    def _calc_propiedad_escalar(self):
+        """Calcula y muestra la verificación paso a paso de A(cu) = c(Au)."""
+        modo = self.get_modo_numero()
+        try:
+            A, u, _ = self._leer_prop()
+            c = self._leer_c_prop()
+        except ValueError as e:
+            self._log_prop(f"❌ {e}", limpiar=True)
+            return
+
+        try:
+            resultado = verificar_propiedad_escalar_ax(A, u, c, modo=modo)
+        except ValueError as e:
+            self._log_prop(f"❌ {e}", limpiar=True)
+            return
+
+        self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
+
+    def _log_prop(self, texto: str, limpiar: bool = False):
+        self.txt_res_prop.configure(state="normal")
+        if limpiar:
+            self.txt_res_prop.delete("1.0", "end")
+        self.txt_res_prop.insert("end", texto + "\n")
+        self.txt_res_prop.configure(state="disabled")
+

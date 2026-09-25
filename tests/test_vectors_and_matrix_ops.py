@@ -24,7 +24,8 @@ from src.core.vectors import (
 from src.core.matrix_ops import (
     sumar_matrices, restar_matrices, multiplicar_matriz_escalar,
     combinacion_matrices,
-    multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial
+    multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
+    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax
 )
 
 
@@ -235,12 +236,34 @@ def test_ecuaciones_matriciales():
     print("✓ Resolución computacional de Ax = b consistente comprobada")
 
 
+def test_propiedades_producto_ax():
+    print("\n=== Test 6: Propiedades del Producto Matriz - Vector Ax ===")
+    # Matriz A (2x3), u y v en R^3, escalar c = 3.0
+    A = [[1.0, 2.0, -1.0], [0.0, -5.0, 3.0]]
+    u = [2.0, 1.0, 4.0]
+    v = [-1.0, 3.0, 0.0]
+    c = 3.0
+
+    # Propiedad a: A(u + v) = Au + Av
+    res_a = verificar_propiedad_aditiva_ax(A, u, v)
+    assert res_a.se_cumple is True
+    assert res_a.lado_izq_A_u_mas_v == res_a.lado_der_Au_mas_Av
+    print("✓ Propiedad a) A(u + v) = Au + Av demostrada y verificada con éxito")
+
+    # Propiedad b: A(cu) = c(Au)
+    res_b = verificar_propiedad_escalar_ax(A, u, c)
+    assert res_b.se_cumple is True
+    assert res_b.lado_izq_A_cu == res_b.lado_der_c_Au
+    print("✓ Propiedad b) A(cu) = c(Au) demostrada y verificada con éxito")
+
+
 if __name__ == "__main__":
     test_operaciones_vectoriales_basicas()
     test_combinacion_lineal()
     test_independencia_lineal()
     test_operaciones_matriciales()
     test_ecuaciones_matriciales()
+    test_propiedades_producto_ax()
     print("\n=======================================================")
     print("   TODAS LAS PRUEBAS MATEMÁTICAS PASARON CON ÉXITO!   ")
     print("=======================================================")

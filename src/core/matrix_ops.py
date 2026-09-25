@@ -404,3 +404,216 @@ def resolver_ecuacion_matricial(A: Matriz, b: Vector, modo: str = "fraccion") ->
             pasos_gauss=pasos,
             resumen_explicativo=explicacion
         )
+
+
+# =========================================================================
+# 6. PROPIEDADES DEL PRODUCTO MATRIZ - VECTOR Ax (TEOREMA DE LINEALIDAD)
+# =========================================================================
+
+@dataclass
+class VerificacionPropiedadAditivaAx:
+    """Demostración y verificación paso a paso de A(u + v) = Au + Av."""
+    u: Vector
+    v: Vector
+    u_mas_v: Vector
+    lado_izq_A_u_mas_v: Vector
+    Au: Vector
+    Av: Vector
+    lado_der_Au_mas_Av: Vector
+    se_cumple: bool
+    desglose_pasos: List[str]
+
+
+@dataclass
+class VerificacionPropiedadEscalarAx:
+    """Demostración y verificación paso a paso de A(cu) = c(Au)."""
+    c: float
+    u: Vector
+    c_u: Vector
+    lado_izq_A_cu: Vector
+    Au: Vector
+    lado_der_c_Au: Vector
+    se_cumple: bool
+    desglose_pasos: List[str]
+
+
+def verificar_propiedad_aditiva_ax(A: Matriz, u: Vector, v: Vector, modo: str = "fraccion") -> VerificacionPropiedadAditivaAx:
+    """Verifica paso a paso la propiedad distributiva: A(u + v) = Au + Av.
+    
+    Teorema: Si A es una matriz m × n, y u, v son vectores en ℝⁿ:
+      Lado Izquierdo (L.I.): Primero suma u + v, luego multiplica A · (u + v).
+      Lado Derecho   (L.D.): Multiplica A·u y A·v por separado, y luego suma Au + Av.
+      Conclusión: L.I. == L.D.
+    """
+    if not A or not A[0]:
+        raise ValueError("La matriz A no puede estar vacía.")
+    m = len(A)
+    n = len(A[0])
+    if len(u) != n or len(v) != n:
+        raise ValueError(
+            f"Dimensión incompatible: La matriz A tiene {n} columnas, pero u tiene {len(u)} componentes "
+            f"y v tiene {len(v)} componentes. Ambos vectores deben pertenecer a ℝ{a_subindice(n)}."
+        )
+
+    # 1. Lado Izquierdo: A(u + v)
+    u_mas_v = [round(ui + vi, 9) for ui, vi in zip(u, v)]
+    res_A_u_mas_v = multiplicar_matriz_vector(A, u_mas_v, modo=modo)
+    lado_izq = res_A_u_mas_v.vector_resultado
+
+    # 2. Lado Derecho: Au + Av
+    res_Au = multiplicar_matriz_vector(A, u, modo=modo)
+    res_Av = multiplicar_matriz_vector(A, v, modo=modo)
+    lado_der = [round(au + av, 9) for au, av in zip(res_Au.vector_resultado, res_Av.vector_resultado)]
+
+    # 3. Comprobación de igualdad numérica
+    se_cumple = all(abs(izq - der) < 1e-7 for izq, der in zip(lado_izq, lado_der))
+
+    # 4. Desglose detallado
+    pasos: List[str] = []
+    pasos.append("======================================================================")
+    pasos.append("  PROPIEDAD a) DEL PRODUCTO MATRIZ-VECTOR: A(u + v) = Au + Av")
+    pasos.append("======================================================================\n")
+    pasos.append(f"Teorema: Si A es una matriz de {m}×{n} y u, v son vectores en ℝ{a_subindice(n)},")
+    pasos.append("la multiplicación matriz-vector se distribuye sobre la suma de vectores.\n")
+    
+    pasos.append("--- [1] DESARROLLO DEL LADO IZQUIERDO: A(u + v) ---")
+    u_str = "[" + ", ".join([formatear_numero(x, modo) for x in u]) + "]ᵀ"
+    v_str = "[" + ", ".join([formatear_numero(x, modo) for x in v]) + "]ᵀ"
+    u_mas_v_str = "[" + ", ".join([formatear_numero(x, modo) for x in u_mas_v]) + "]ᵀ"
+    pasos.append(f"  Vector u = {u_str}")
+    pasos.append(f"  Vector v = {v_str}")
+    pasos.append("  Paso 1.1: Sumar vectores w = u + v componente a componente:")
+    for i, (ui, vi, wi) in enumerate(zip(u, v, u_mas_v)):
+        pasos.append(f"    w{a_subindice(i+1)} = ({formatear_numero(ui, modo)}) + ({formatear_numero(vi, modo)}) = {formatear_numero(wi, modo)}")
+    pasos.append(f"  Vector suma (u + v) = {u_mas_v_str}\n")
+    
+    pasos.append("  Paso 1.2: Multiplicar A por el vector suma (u + v):")
+    for linea in res_A_u_mas_v.desglose_filas:
+        pasos.append(f"    {linea}")
+    izq_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_izq]) + "]ᵀ"
+    pasos.append(f"  => Vector L.I. = A(u + v) = {izq_str}\n")
+
+    pasos.append("--- [2] DESARROLLO DEL LADO DERECHO: Au + Av ---")
+    pasos.append("  Paso 2.1: Multiplicar A · u:")
+    for linea in res_Au.desglose_filas:
+        pasos.append(f"    {linea}")
+    Au_str = "[" + ", ".join([formatear_numero(x, modo) for x in res_Au.vector_resultado]) + "]ᵀ"
+    pasos.append(f"    Au = {Au_str}\n")
+
+    pasos.append("  Paso 2.2: Multiplicar A · v:")
+    for linea in res_Av.desglose_filas:
+        pasos.append(f"    {linea}")
+    Av_str = "[" + ", ".join([formatear_numero(x, modo) for x in res_Av.vector_resultado]) + "]ᵀ"
+    pasos.append(f"    Av = {Av_str}\n")
+
+    pasos.append("  Paso 2.3: Sumar los vectores resultantes Au + Av:")
+    for i, (au_i, av_i, der_i) in enumerate(zip(res_Au.vector_resultado, res_Av.vector_resultado, lado_der)):
+        pasos.append(f"    Fila {i+1}: ({formatear_numero(au_i, modo)}) + ({formatear_numero(av_i, modo)}) = {formatear_numero(der_i, modo)}")
+    der_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_der]) + "]ᵀ"
+    pasos.append(f"  => Vector L.D. = Au + Av = {der_str}\n")
+
+    pasos.append("--- [3] CONCLUSIÓN Y VERIFICACIÓN TEÓRICA ---")
+    pasos.append(f"  Lado Izquierdo A(u + v) = {izq_str}")
+    pasos.append(f"  Lado Derecho   Au + Av  = {der_str}")
+    if se_cumple:
+        pasos.append("\n  ✓ ¡PROPIEDAD VERIFICADA CON ÉXITO!")
+        pasos.append("    Se cumple idénticamente que A(u + v) = Au + Av para cada componente.")
+    else:
+        pasos.append("\n  ✗ Discrepancia encontrada en la verificación numérica.")
+
+    return VerificacionPropiedadAditivaAx(
+        u=u, v=v, u_mas_v=u_mas_v,
+        lado_izq_A_u_mas_v=lado_izq,
+        Au=res_Au.vector_resultado,
+        Av=res_Av.vector_resultado,
+        lado_der_Au_mas_Av=lado_der,
+        se_cumple=se_cumple,
+        desglose_pasos=pasos
+    )
+
+
+def verificar_propiedad_escalar_ax(A: Matriz, u: Vector, c: float, modo: str = "fraccion") -> VerificacionPropiedadEscalarAx:
+    """Verifica paso a paso la propiedad de homogeneidad escalar: A(cu) = c(Au).
+    
+    Teorema: Si A es una matriz m × n, u es un vector en ℝⁿ, y c es un escalar:
+      Lado Izquierdo (L.I.): Primero escala el vector cu, luego multiplica A · (cu).
+      Lado Derecho   (L.D.): Primero multiplica A · u, luego escala el resultado c · (Au).
+      Conclusión: L.I. == L.D.
+    """
+    if not A or not A[0]:
+        raise ValueError("La matriz A no puede estar vacía.")
+    m = len(A)
+    n = len(A[0])
+    if len(u) != n:
+        raise ValueError(
+            f"Dimensión incompatible: La matriz A tiene {n} columnas, pero el vector u tiene {len(u)} componentes."
+        )
+
+    c_fmt = formatear_numero(c, modo)
+
+    # 1. Lado Izquierdo: A(cu)
+    cu = [round(c * ui, 9) for ui in u]
+    res_A_cu = multiplicar_matriz_vector(A, cu, modo=modo)
+    lado_izq = res_A_cu.vector_resultado
+
+    # 2. Lado Derecho: c(Au)
+    res_Au = multiplicar_matriz_vector(A, u, modo=modo)
+    c_Au = [round(c * aui, 9) for aui in res_Au.vector_resultado]
+
+    # 3. Comprobación de igualdad numérica
+    se_cumple = all(abs(izq - der) < 1e-7 for izq, der in zip(lado_izq, c_Au))
+
+    # 4. Desglose detallado
+    pasos: List[str] = []
+    pasos.append("======================================================================")
+    pasos.append("  PROPIEDAD b) DEL PRODUCTO MATRIZ-VECTOR: A(cu) = c(Au)")
+    pasos.append("======================================================================\n")
+    pasos.append(f"Teorema: Si A es una matriz de {m}×{n}, u es un vector en ℝ{a_subindice(n)}, y c = {c_fmt} es un escalar,")
+    pasos.append("el escalar puede operar antes o después de la multiplicación matriz-vector.\n")
+
+    pasos.append("--- [1] DESARROLLO DEL LADO IZQUIERDO: A(cu) ---")
+    u_str = "[" + ", ".join([formatear_numero(x, modo) for x in u]) + "]ᵀ"
+    cu_str = "[" + ", ".join([formatear_numero(x, modo) for x in cu]) + "]ᵀ"
+    pasos.append(f"  Vector u = {u_str}")
+    pasos.append(f"  Escalar c = {c_fmt}")
+    pasos.append("  Paso 1.1: Multiplicar escalar por vector w = c · u:")
+    for i, (ui, c_ui) in enumerate(zip(u, cu)):
+        pasos.append(f"    w{a_subindice(i+1)} = ({c_fmt}) · ({formatear_numero(ui, modo)}) = {formatear_numero(c_ui, modo)}")
+    pasos.append(f"  Vector escalado (cu) = {cu_str}\n")
+
+    pasos.append("  Paso 1.2: Multiplicar A por el vector escalado (cu):")
+    for linea in res_A_cu.desglose_filas:
+        pasos.append(f"    {linea}")
+    izq_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_izq]) + "]ᵀ"
+    pasos.append(f"  => Vector L.I. = A(cu) = {izq_str}\n")
+
+    pasos.append("--- [2] DESARROLLO DEL LADO DERECHO: c(Au) ---")
+    pasos.append("  Paso 2.1: Multiplicar A · u:")
+    for linea in res_Au.desglose_filas:
+        pasos.append(f"    {linea}")
+    Au_str = "[" + ", ".join([formatear_numero(x, modo) for x in res_Au.vector_resultado]) + "]ᵀ"
+    pasos.append(f"    Au = {Au_str}\n")
+
+    pasos.append(f"  Paso 2.2: Multiplicar el resultado Au por el escalar c = {c_fmt}:")
+    for i, (au_i, c_au_i) in enumerate(zip(res_Au.vector_resultado, c_Au)):
+        pasos.append(f"    Fila {i+1}: ({c_fmt}) · ({formatear_numero(au_i, modo)}) = {formatear_numero(c_au_i, modo)}")
+    der_str = "[" + ", ".join([formatear_numero(x, modo) for x in c_Au]) + "]ᵀ"
+    pasos.append(f"  => Vector L.D. = c(Au) = {der_str}\n")
+
+    pasos.append("--- [3] CONCLUSIÓN Y VERIFICACIÓN TEÓRICA ---")
+    pasos.append(f"  Lado Izquierdo A(cu) = {izq_str}")
+    pasos.append(f"  Lado Derecho   c(Au) = {der_str}")
+    if se_cumple:
+        pasos.append("\n  ✓ ¡PROPIEDAD VERIFICADA CON ÉXITO!")
+        pasos.append("    Se cumple idénticamente que A(cu) = c(Au) para cada componente.")
+    else:
+        pasos.append("\n  ✗ Discrepancia encontrada en la verificación numérica.")
+
+    return VerificacionPropiedadEscalarAx(
+        c=c, u=u, c_u=cu,
+        lado_izq_A_cu=lado_izq,
+        Au=res_Au.vector_resultado,
+        lado_der_c_Au=c_Au,
+        se_cumple=se_cumple,
+        desglose_pasos=pasos
+    )
