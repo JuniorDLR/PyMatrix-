@@ -100,12 +100,20 @@ class VectorsView(ctk.CTkFrame):
         lbl_hint.pack(anchor="w", padx=14, pady=(2, 4))
         
         # Scrollable frame para los vectores v₁ ... vₖ y sus escalares
-        self.scroll_basicas = ctk.CTkScrollableFrame(left_frame, height=210)
+        self.scroll_basicas = ctk.CTkScrollableFrame(left_frame, height=190)
         self.scroll_basicas.pack(fill="both", expand=True, padx=12, pady=4)
+        
+        # Selector de vectores a operar
+        self.frame_sel_vecs = ctk.CTkFrame(left_frame, fg_color="transparent")
+        self.frame_sel_vecs.pack(fill="x", padx=12, pady=(4, 2))
+        ctk.CTkLabel(self.frame_sel_vecs, text="Vectores a operar:", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=(0, 6))
+        self.box_chk_vecs = ctk.CTkFrame(self.frame_sel_vecs, fg_color="transparent")
+        self.box_chk_vecs.pack(side="left", fill="x", expand=True)
+        self.chks_basicas: List[ctk.CTkCheckBox] = []
         
         # Fila de selección de producto punto v_i · v_j
         dot_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
-        dot_frame.pack(fill="x", padx=12, pady=(4, 2))
+        dot_frame.pack(fill="x", padx=12, pady=(2, 4))
         ctk.CTkLabel(dot_frame, text="Producto Punto:", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=(0, 4))
         self.combo_dot_1 = ctk.CTkOptionMenu(dot_frame, values=["v₁", "v₂", "v₃"], width=70)
         self.combo_dot_1.pack(side="left", padx=2)
@@ -113,44 +121,34 @@ class VectorsView(ctk.CTkFrame):
         self.combo_dot_2 = ctk.CTkOptionMenu(dot_frame, values=["v₁", "v₂", "v₃"], width=70)
         self.combo_dot_2.pack(side="left", padx=2)
         ctk.CTkButton(
-            dot_frame, text="Calcular vᵢ · vⱼ", width=120, command=self._calc_producto_punto_par,
-            fg_color=("#7c3aed", "#6d28d9")
+            dot_frame, text="Calcular", width=80, command=self._calc_producto_punto_par,
+            fg_color=("#7c3aed", "#6d28d9"), font=ctk.CTkFont(size=11, weight="bold")
         ).pack(side="left", padx=(6, 2))
         
-        # Botones de Operación
+        # Botones de Operación (nombres claros y concisos)
         btn_grid = ctk.CTkFrame(left_frame, fg_color="transparent")
         btn_grid.pack(fill="x", padx=12, pady=(4, 10))
         btn_grid.grid_columnconfigure((0, 1), weight=1)
         
         ctk.CTkButton(
-            btn_grid, text="c₁v₁ + ... + cₖvₖ  (Ponderada)", command=lambda: self._calc_basica("comb_ponderada"),
-            fg_color=("#059669", "#10b981"), font=ctk.CTkFont(size=11, weight="bold")
+            btn_grid, text="➕ Sumar", command=lambda: self._calc_basica("suma"),
+            fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=12, weight="bold"), height=32
         ).grid(row=0, column=0, padx=2, pady=2, sticky="ew")
         
         ctk.CTkButton(
-            btn_grid, text="v₁ + ... + vₖ  (Suma de todos)", command=lambda: self._calc_basica("suma_todos"),
-            fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=11)
+            btn_grid, text="➖ Restar", command=lambda: self._calc_basica("resta"),
+            fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=12, weight="bold"), height=32
         ).grid(row=0, column=1, padx=2, pady=2, sticky="ew")
         
         ctk.CTkButton(
-            btn_grid, text="v₁ − v₂ − ...  (Resta sucesiva)", command=lambda: self._calc_basica("resta_todos"),
-            fg_color=("#0284c7", "#0369a1"), font=ctk.CTkFont(size=11)
+            btn_grid, text="✖️ Escalar × Vector", command=lambda: self._calc_basica("escalar"),
+            fg_color=("#0d9488", "#0f766e"), font=ctk.CTkFont(size=11, weight="bold"), height=32
         ).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
         
         ctk.CTkButton(
-            btn_grid, text="cᵢ · vᵢ  (Escalar a cada vector)", command=lambda: self._calc_basica("escalar_todos"),
-            fg_color=("#0d9488", "#0f766e"), font=ctk.CTkFont(size=11)
+            btn_grid, text="➕ Suma con Escalares", command=lambda: self._calc_basica("comb_escalares"),
+            fg_color=("#059669", "#10b981"), font=ctk.CTkFont(size=11, weight="bold"), height=32
         ).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
-        
-        ctk.CTkButton(
-            btn_grid, text="||vᵢ||  (Normas de todos)", command=lambda: self._calc_basica("normas_todos"),
-            fg_color=("#b45309", "#92400e"), font=ctk.CTkFont(size=11)
-        ).grid(row=2, column=0, padx=2, pady=2, sticky="ew")
-        
-        ctk.CTkButton(
-            btn_grid, text="Todos los Productos Punto", command=lambda: self._calc_basica("puntos_todos"),
-            fg_color=("#6d28d9", "#5b21b6"), font=ctk.CTkFont(size=11)
-        ).grid(row=2, column=1, padx=2, pady=2, sticky="ew")
         
         # Panel derecho: Registro de resultados
         right_frame = ctk.CTkFrame(tab, corner_radius=10)
@@ -194,6 +192,20 @@ class VectorsView(ctk.CTkFrame):
             self.combo_dot_1.set(nombres_vecs[0])
             self.combo_dot_2.configure(values=nombres_vecs)
             self.combo_dot_2.set(nombres_vecs[1 if k > 1 else 0])
+            
+        # Actualizar casillas de selección de vectores
+        if hasattr(self, "box_chk_vecs"):
+            for w in self.box_chk_vecs.winfo_children():
+                w.destroy()
+            self.chks_basicas = []
+            for j in range(k):
+                chk = ctk.CTkCheckBox(
+                    self.box_chk_vecs, text=f"v{a_subindice(j+1)}", width=46,
+                    font=ctk.CTkFont(size=11, weight="bold")
+                )
+                chk.pack(side="left", padx=2)
+                chk.select()
+                self.chks_basicas.append(chk)
         
         # Cabecera
         header = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
@@ -353,86 +365,81 @@ class VectorsView(ctk.CTkFrame):
     def _calc_basica(self, op_tipo: str):
         modo = self.get_modo_numero()
         try:
-            vectores, escalares = self._leer_vectores_y_escalares_basicas()
+            todos_vectores, todos_escalares = self._leer_vectores_y_escalares_basicas()
         except ValueError as e:
             self._log_basicas(f"❌ Error de entrada: {e}", limpiar=True)
             return
-        
+
+        # Filtrar qué vectores están seleccionados mediante las casillas
+        indices = [j for j, chk in enumerate(self.chks_basicas) if chk.get() == 1] if hasattr(self, "chks_basicas") and self.chks_basicas else list(range(len(todos_vectores)))
+        if not indices:
+            self._log_basicas("⚠️ Debe seleccionar al menos un vector en 'Vectores a operar'.", limpiar=True)
+            return
+
+        vectores = [todos_vectores[j] for j in indices]
+        escalares = [todos_escalares[j] for j in indices]
         n = len(vectores[0])
-        k = len(vectores)
-        
+        cant_sel = len(vectores)
+        nombres = [f"v{a_subindice(j+1)}" for j in indices]
+
         lineas = []
-        lineas.append(f"• Vectores y escalares en ℝ{a_subindice(n)} ({k} vectores):")
-        for j, (vec, c) in enumerate(zip(vectores, escalares)):
+        lineas.append(f"• Vectores seleccionados en ℝ{a_subindice(n)} ({cant_sel} de {len(todos_vectores)} vectores):")
+        for nom, vec, c in zip(nombres, vectores, escalares):
             vec_fmt = "[" + ", ".join([formatear_numero(x, modo) for x in vec]) + "]ᵀ"
-            lineas.append(f"    v{a_subindice(j+1)} = {vec_fmt}  |  Escalar c{a_subindice(j+1)} = {formatear_numero(c, modo)}")
+            lineas.append(f"    {nom} = {vec_fmt}  |  Escalar = {formatear_numero(c, modo)}")
         lineas.append("")
-        
-        if op_tipo == "comb_ponderada":
+
+        if op_tipo in ("suma", "suma_todos"):
+            if cant_sel < 2:
+                self._log_basicas("⚠️ Debe seleccionar al menos 2 vectores para realizar la suma.", limpiar=True)
+                return
+            res = sumar_multiples_vectores(vectores)
+            eq_formula = " + ".join(nombres)
+            lineas.append(f">> SUMA DE VECTORES: {eq_formula}")
+            lineas.append("Regla: Se suman las coordenadas homólogas componente a componente:\n")
+            for i in range(n):
+                terminos_i = [f"({formatear_numero(v[i], modo)})" for v in vectores]
+                lineas.append(f"  Comp {i+1}: {' + '.join(terminos_i)} = {formatear_numero(res[i], modo)}")
+            res_str = "[" + ", ".join([formatear_numero(x, modo) for x in res]) + "]ᵀ"
+            lineas.append(f"\nResultado: {eq_formula} = {res_str}")
+
+        elif op_tipo in ("resta", "resta_todos"):
+            if cant_sel < 2:
+                self._log_basicas("⚠️ Debe seleccionar al menos 2 vectores para realizar la resta.", limpiar=True)
+                return
+            res = restar_multiples_vectores(vectores)
+            eq_formula = nombres[0] + "".join([f" − {nom}" for nom in nombres[1:]])
+            lineas.append(f">> RESTA DE VECTORES: {eq_formula}")
+            lineas.append("Regla: Se restan sucesivamente las coordenadas a partir del primer vector seleccionado:\n")
+            for i in range(n):
+                terminos_i = f"({formatear_numero(vectores[0][i], modo)})" + "".join([f" − ({formatear_numero(vectores[j][i], modo)})" for j in range(1, cant_sel)])
+                lineas.append(f"  Comp {i+1}: {terminos_i} = {formatear_numero(res[i], modo)}")
+            res_str = "[" + ", ".join([formatear_numero(x, modo) for x in res]) + "]ᵀ"
+            lineas.append(f"\nResultado: {eq_formula} = {res_str}")
+
+        elif op_tipo in ("escalar", "escalar_todos"):
+            lineas.append(">> MULTIPLICACIÓN POR ESCALAR (c · v)")
+            lineas.append("Regla: Cada coordenada se multiplica por el escalar propio del vector:\n")
+            for nom, v, c in zip(nombres, vectores, escalares):
+                c_fmt = formatear_numero(c, modo)
+                v_scaled = multiplicar_vector_escalar(c, v)
+                desglose = [f"{c_fmt}·({formatear_numero(x, modo)})" for x in v]
+                res_v = "[" + ", ".join([formatear_numero(x, modo) for x in v_scaled]) + "]ᵀ"
+                lineas.append(f"  • {c_fmt} · {nom} = [ {', '.join(desglose)} ]ᵀ = {res_v}")
+
+        elif op_tipo in ("comb_escalares", "comb_ponderada"):
             res = combinacion_lineal_ponderada(escalares, vectores)
-            eq_formula = " + ".join([f"c{a_subindice(j+1)}·v{a_subindice(j+1)}" for j in range(k)])
-            eq_valores = " + ".join([f"({formatear_numero(c, modo)})·v{a_subindice(j+1)}" for j, c in enumerate(escalares)])
-            lineas.append(f">> COMBINACIÓN LINEAL PONDERADA: {eq_formula}")
-            lineas.append(f"Expresión: {eq_valores}\n")
+            eq_formula = " + ".join([f"c·{nom}" for nom in nombres])
+            eq_valores = " + ".join([f"({formatear_numero(c, modo)})·{nom}" for nom, c in zip(nombres, escalares)])
+            lineas.append(f">> SUMA CON ESCALARES: {eq_valores}")
+            lineas.append("Regla: Cada vector se escala por su valor c y se suman componente a componente:\n")
             lineas.append("Procedimiento coordenada a coordenada:")
             for i in range(n):
                 terminos_i = [f"({formatear_numero(c, modo)})·({formatear_numero(v[i], modo)})" for c, v in zip(escalares, vectores)]
                 lineas.append(f"  Comp {i+1}: {' + '.join(terminos_i)} = {formatear_numero(res[i], modo)}")
             res_str = "[" + ", ".join([formatear_numero(x, modo) for x in res]) + "]ᵀ"
-            lineas.append(f"\nResultado del vector resultante: {res_str}")
-            
-        elif op_tipo == "suma_todos":
-            res = sumar_multiples_vectores(vectores)
-            eq_formula = " + ".join([f"v{a_subindice(j+1)}" for j in range(k)])
-            lineas.append(f">> SUMA DE TODOS LOS VECTORES: {eq_formula}")
-            lineas.append("Regla: (∑ vⱼ)ᵢ = ∑ v_{j, i} (sumar coordenadas homólogas)\n")
-            for i in range(n):
-                terminos_i = [f"({formatear_numero(v[i], modo)})" for v in vectores]
-                lineas.append(f"  Comp {i+1}: {' + '.join(terminos_i)} = {formatear_numero(res[i], modo)}")
-            res_str = "[" + ", ".join([formatear_numero(x, modo) for x in res]) + "]ᵀ"
-            lineas.append(f"\nResultado: ∑ vⱼ = {res_str}")
-            
-        elif op_tipo == "resta_todos":
-            res = restar_multiples_vectores(vectores)
-            eq_formula = f"v₁" + "".join([f" − v{a_subindice(j+1)}" for j in range(1, k)])
-            lineas.append(f">> RESTA SUCESIVA DE VECTORES: {eq_formula}")
-            lineas.append("Regla: restar sucesivamente cada vector a partir del primero v₁\n")
-            for i in range(n):
-                terminos_i = f"({formatear_numero(vectores[0][i], modo)})" + "".join([f" − ({formatear_numero(vectores[j][i], modo)})" for j in range(1, k)])
-                lineas.append(f"  Comp {i+1}: {terminos_i} = {formatear_numero(res[i], modo)}")
-            res_str = "[" + ", ".join([formatear_numero(x, modo) for x in res]) + "]ᵀ"
-            lineas.append(f"\nResultado: {eq_formula} = {res_str}")
-            
-        elif op_tipo == "escalar_todos":
-            lineas.append(">> MULTIPLICACIÓN DE CADA VECTOR POR SU PROPIO ESCALAR (cⱼ · vⱼ)")
-            lineas.append("Regla: cada coordenada se multiplica por el escalar propio del vector:\n")
-            for j, (v, c) in enumerate(zip(vectores, escalares)):
-                c_fmt = formatear_numero(c, modo)
-                v_scaled = multiplicar_vector_escalar(c, v)
-                desglose = [f"{c_fmt}·({formatear_numero(x, modo)})" for x in v]
-                res_v = "[" + ", ".join([formatear_numero(x, modo) for x in v_scaled]) + "]ᵀ"
-                lineas.append(f"  • {c_fmt} · v{a_subindice(j+1)} = [ {', '.join(desglose)} ]ᵀ = {res_v}")
-                
-        elif op_tipo == "normas_todos":
-            lineas.append(">> NORMAS EUCLIDIANAS (LONGITUDES O MAGNITUDES ||vⱼ||)")
-            lineas.append("Regla: ||v|| = √(∑ vᵢ²) para cada vector:\n")
-            for j, v in enumerate(vectores):
-                nv = norma_vector(v)
-                sq_terms = " + ".join([f"({formatear_numero(x, modo)})²" for x in v])
-                lineas.append(f"  • ||v{a_subindice(j+1)}|| = √({sq_terms}) = {nv}")
-                
-        elif op_tipo == "puntos_todos":
-            lineas.append(">> TODOS LOS PRODUCTOS PUNTO ENTRE PARES DE VECTORES (vᵢ · vⱼ)")
-            lineas.append("Regla: vᵢ · vⱼ = ∑ v_{i,m} · v_{j,m}\n")
-            for i_idx in range(k):
-                for j_idx in range(i_idx, k):
-                    pp = producto_punto(vectores[i_idx], vectores[j_idx])
-                    etiq = f"v{a_subindice(i_idx+1)} · v{a_subindice(j_idx+1)}"
-                    if i_idx == j_idx:
-                        lineas.append(f"  • {etiq} = ||v{a_subindice(i_idx+1)}||² = {formatear_numero(pp, modo)}")
-                    else:
-                        lineas.append(f"  • {etiq} = {formatear_numero(pp, modo)}")
-                        
+            lineas.append(f"\nResultado: {res_str}")
+
         self._log_basicas("\n".join(lineas), limpiar=True)
 
 
