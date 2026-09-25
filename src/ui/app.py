@@ -5,7 +5,8 @@ import customtkinter as ctk
 from src.core.gauss import resolver_gauss, resolver_gauss_jordan, verificar_solucion
 from src.core.domain import (
     SolucionUnica, SolucionInfinita, SinSolucion, SolucionGeneral, 
-    formatear_fraccion, formatear_numero, formatear_decimal, a_subindice
+    formatear_fraccion, formatear_numero, formatear_decimal, a_subindice,
+    convertir_texto_a_modo
 )
 from src.ui.matrix_canvas import MatrixCanvas, PlaybackControls, create_matrix_steps_from_gauss
 from src.ui.vectors_view import VectorsView
@@ -133,13 +134,27 @@ class App(ctk.CTk):
         if hasattr(self, "matrix_canvas"):
             self.matrix_canvas.set_number_mode(self.modo_numero)
         
-        # Refrescar vistas de vectores y matrices si existen
+        # 1. Convertir celdas de entrada del módulo Gauss
+        if hasattr(self, "matriz_entries"):
+            for fila in self.matriz_entries:
+                for entry in fila:
+                    try:
+                        if entry is not None and entry.winfo_exists():
+                            val_actual = entry.get()
+                            nuevo_val = convertir_texto_a_modo(val_actual, self.modo_numero)
+                            if nuevo_val != val_actual:
+                                entry.delete(0, "end")
+                                entry.insert(0, nuevo_val)
+                    except Exception:
+                        pass
+
+        # 2. Refrescar vistas de vectores y matrices si existen
         if hasattr(self, "vectors_view"):
             self.vectors_view.refresh_format()
         if hasattr(self, "matrix_ops_view"):
             self.matrix_ops_view.refresh_format()
         
-        # Si ya se resolvió un sistema, refrescar la conclusión y el registro textual de inmediato
+        # 3. Si ya se resolvió un sistema, refrescar la conclusión y el registro textual de inmediato
         if self.resultado is not None and self.matriz_inicial is not None:
             self._update_conclusion_cards(self.ultimas_cols_pivote_str)
             self._refresh_text_log()
@@ -688,9 +703,9 @@ class App(ctk.CTk):
             for j, entry in enumerate(fila):
                 val_str = entry.get().strip()
                 try:
-                    val = float(val_str)
+                    val = float(val_str) if "/" not in val_str else float(val_str.split("/")[0]) / float(val_str.split("/")[1])
                     fila_valores.append(val)
-                except ValueError:
+                except Exception:
                     raise ValueError(f"Valor no numérico '{val_str}' en Fila {i+1}, Columna {j+1}")
             matriz.append(fila_valores)
         return matriz

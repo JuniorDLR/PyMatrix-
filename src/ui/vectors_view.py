@@ -18,7 +18,7 @@ from src.core.vectors import (
     producto_punto, norma_vector, evaluar_combinacion_lineal,
     evaluar_independencia_lineal, ResultadoCombinacionLineal, ResultadoIndependenciaLineal
 )
-from src.core.domain import formatear_numero, a_subindice
+from src.core.domain import formatear_numero, a_subindice, convertir_texto_a_modo
 
 
 
@@ -28,6 +28,9 @@ class VectorsView(ctk.CTkFrame):
     def __init__(self, master, get_modo_numero_cb, **kwargs):
         super().__init__(master, **kwargs)
         self.get_modo_numero = get_modo_numero_cb
+        self._ultimo_calc_basica = None
+        self._ultimo_calc_comb = False
+        self._ultimo_calc_indep = False
         
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -48,8 +51,53 @@ class VectorsView(ctk.CTkFrame):
         self._setup_tab_indep()
         
     def refresh_format(self):
-        """Refresca las salidas de texto cuando el usuario cambia el formato global (Fracción/Decimal)."""
-        pass
+        """Refresca las entradas y salidas de texto cuando el usuario cambia el formato global (Fracción/Decimal)."""
+        modo = self.get_modo_numero()
+
+        def _convertir(entry):
+            try:
+                if entry is not None and entry.winfo_exists():
+                    val = entry.get()
+                    nuevo = convertir_texto_a_modo(val, modo)
+                    if nuevo != val:
+                        entry.delete(0, "end")
+                        entry.insert(0, nuevo)
+            except Exception:
+                pass
+
+        # Tab 1: Operaciones Básicas
+        if hasattr(self, "entries_grid_basicas"):
+            for fila in self.entries_grid_basicas:
+                for e in fila:
+                    _convertir(e)
+        if hasattr(self, "entries_escalares_basicas"):
+            for e in self.entries_escalares_basicas:
+                _convertir(e)
+
+        # Tab 2: Combinación Lineal
+        if hasattr(self, "grid_entries_comb"):
+            for fila in self.grid_entries_comb:
+                for e in fila:
+                    _convertir(e)
+
+        # Tab 3: Independencia Lineal
+        if hasattr(self, "grid_entries_indep"):
+            for fila in self.grid_entries_indep:
+                for e in fila:
+                    _convertir(e)
+
+        # Refrescar resultados calculados
+        if self._ultimo_calc_basica == "punto_par":
+            self._calc_producto_punto_par()
+        elif self._ultimo_calc_basica:
+            self._calc_basica(self._ultimo_calc_basica)
+
+        if self._ultimo_calc_comb:
+            self._evaluar_comb()
+
+        if self._ultimo_calc_indep:
+            self._evaluar_indep()
+
 
     # =========================================================================
     # =========================================================================
@@ -324,6 +372,7 @@ class VectorsView(ctk.CTkFrame):
 
     def _calc_producto_punto_par(self):
         """Calcula el producto punto v_i · v_j entre los dos vectores seleccionados en los OptionMenu."""
+        self._ultimo_calc_basica = "punto_par"
         modo = self.get_modo_numero()
         try:
             vectores, _ = self._leer_vectores_y_escalares_basicas()
@@ -363,6 +412,7 @@ class VectorsView(ctk.CTkFrame):
         self._log_basicas("\n".join(lineas), limpiar=True)
 
     def _calc_basica(self, op_tipo: str):
+        self._ultimo_calc_basica = op_tipo
         modo = self.get_modo_numero()
         try:
             todos_vectores, todos_escalares = self._leer_vectores_y_escalares_basicas()
@@ -627,6 +677,7 @@ class VectorsView(ctk.CTkFrame):
         self._log_comb(f"🎲 Ejemplo cargado: {ej['desc']}\nPresione 'Evaluar Combinación Lineal'.", limpiar=True)
 
     def _evaluar_comb(self):
+        self._ultimo_calc_comb = True
         modo = self.get_modo_numero()
         n = len(self.grid_entries_comb)
         k = len(self.grid_entries_comb[0]) - 1
@@ -905,6 +956,7 @@ class VectorsView(ctk.CTkFrame):
         self._log_indep(f"🎲 Ejemplo cargado: {ej['desc']}\nPresione 'Evaluar Independencia Lineal'.", limpiar=True)
 
     def _evaluar_indep(self):
+        self._ultimo_calc_indep = True
         modo = self.get_modo_numero()
         n = len(self.grid_entries_indep)
         k = len(self.grid_entries_indep[0])

@@ -25,8 +25,10 @@ from src.core.matrix_ops import (
     sumar_matrices, restar_matrices, multiplicar_matriz_escalar,
     combinacion_matrices,
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
-    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax
+    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax, verificar_linealidad_general_ax
 )
+from src.core.domain import convertir_texto_a_modo
+
 
 
 def test_operaciones_vectoriales_basicas():
@@ -238,23 +240,60 @@ def test_ecuaciones_matriciales():
 
 def test_propiedades_producto_ax():
     print("\n=== Test 6: Propiedades del Producto Matriz - Vector Ax ===")
-    # Matriz A (2x3), u y v en R^3, escalar c = 3.0
-    A = [[1.0, 2.0, -1.0], [0.0, -5.0, 3.0]]
-    u = [2.0, 1.0, 4.0]
-    v = [-1.0, 3.0, 0.0]
-    c = 3.0
+    
+    # --- 6.1: Ejercicio de Asignación Diapositiva 10 ---
+    # A = [[2, 5], [3, 1]], u = [4, -1], v = [-3, 5], c = 2
+    A10 = [[2.0, 5.0], [3.0, 1.0]]
+    u10 = [4.0, -1.0]
+    v10 = [-3.0, 5.0]
+    c10 = 2.0
 
-    # Propiedad a: A(u + v) = Au + Av
-    res_a = verificar_propiedad_aditiva_ax(A, u, v)
-    assert res_a.se_cumple is True
-    assert res_a.lado_izq_A_u_mas_v == res_a.lado_der_Au_mas_Av
-    print("✓ Propiedad a) A(u + v) = Au + Av demostrada y verificada con éxito")
+    res_d10_aditiva = verificar_propiedad_aditiva_ax(A10, u10, v10)
+    assert res_d10_aditiva.se_cumple is True
+    assert res_d10_aditiva.lado_izq_A_suma == [22.0, 7.0]
+    assert res_d10_aditiva.lado_der_suma_transformados == [22.0, 7.0]
+    print("✓ Diapositiva 10: A(u + v) = Au + Av = [22, 7]ᵀ verificado con éxito")
 
-    # Propiedad b: A(cu) = c(Au)
-    res_b = verificar_propiedad_escalar_ax(A, u, c)
-    assert res_b.se_cumple is True
-    assert res_b.lado_izq_A_cu == res_b.lado_der_c_Au
-    print("✓ Propiedad b) A(cu) = c(Au) demostrada y verificada con éxito")
+    res_d10_escalar = verificar_propiedad_escalar_ax(A10, u10, c10)
+    assert res_d10_escalar.se_cumple is True
+    assert res_d10_escalar.lado_izq_A_cu == [6.0, 22.0]
+    assert res_d10_escalar.lado_der_c_Au == [6.0, 22.0]
+    print("✓ Diapositiva 10: A(cu) = c(Au) = [6, 22]ᵀ verificado con éxito")
+
+    # --- 6.2: Generalización a k vectores (3 vectores en R^3) ---
+    A_gen = [[1.0, 2.0, 0.0], [0.0, 3.0, -1.0], [2.0, 1.0, 1.0]]
+    v1 = [1.0, -1.0, 2.0]
+    v2 = [2.0, 0.0, 1.0]
+    v3 = [-1.0, 3.0, 0.0]
+    vectores_k = [v1, v2, v3]
+    escalares_k = [2.0, -1.0, 3.0]
+
+    # Distributiva con 3 vectores: A(v1 + v2 + v3) = Av1 + Av2 + Av3
+    res_k_aditiva = verificar_propiedad_aditiva_ax(A_gen, vectores_k)
+    assert res_k_aditiva.se_cumple is True
+    assert res_k_aditiva.lado_izq_A_suma == res_k_aditiva.lado_der_suma_transformados
+    print("✓ Generalización: A(v₁ + v₂ + v₃) = Av₁ + Av₂ + Av₃ con 3 vectores verificada")
+
+    # Principio de Linealidad General: A(c1·v1 + c2·v2 + c3·v3) = c1(Av1) + c2(Av2) + c3(Av3)
+    res_k_lin = verificar_linealidad_general_ax(A_gen, vectores_k, escalares_k)
+    assert res_k_lin.se_cumple is True
+    assert res_k_lin.lado_izq_A_comb == res_k_lin.lado_der_suma_escalados
+    print("✓ Principio de Linealidad General: A(∑ cᵢvᵢ) = ∑ cᵢ(Avᵢ) verificado con éxito")
+
+
+def test_conversion_formato_numerico():
+    print("\n=== Test 7: Conversión Dinámica Fracción / Decimal ===")
+    assert convertir_texto_a_modo("0.5", "fraccion") == "1/2"
+    assert convertir_texto_a_modo("1/2", "decimal") == "0.5"
+    assert convertir_texto_a_modo("-0.75", "fraccion") == "-3/4"
+    assert convertir_texto_a_modo("-3/4", "decimal") == "-0.75"
+    assert convertir_texto_a_modo("3", "fraccion") == "3"
+    assert convertir_texto_a_modo("3", "decimal") == "3"
+    assert convertir_texto_a_modo("0", "fraccion") == "0"
+    assert convertir_texto_a_modo("0", "decimal") == "0"
+    assert convertir_texto_a_modo("2/3", "decimal") == "0.6667"
+    assert convertir_texto_a_modo("", "fraccion") == ""
+    print("✓ Conversión bidireccional entre cadenas decimales y fraccionarias verificada")
 
 
 if __name__ == "__main__":
@@ -264,6 +303,8 @@ if __name__ == "__main__":
     test_operaciones_matriciales()
     test_ecuaciones_matriciales()
     test_propiedades_producto_ax()
+    test_conversion_formato_numerico()
     print("\n=======================================================")
     print("   TODAS LAS PRUEBAS MATEMÁTICAS PASARON CON ÉXITO!   ")
     print("=======================================================")
+

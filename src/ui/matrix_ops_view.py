@@ -15,12 +15,13 @@ from src.core.matrix_ops import (
     sumar_matrices, restar_matrices, multiplicar_matriz_escalar, combinacion_matrices,
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
     ResultadoMultiplicacionMatricial, ResultadoProductoMatrizVector, ResultadoEcuacionMatricial,
-    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax,
-    VerificacionPropiedadAditivaAx, VerificacionPropiedadEscalarAx
+    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax, verificar_linealidad_general_ax,
+    VerificacionPropiedadAditivaAx, VerificacionPropiedadEscalarAx, VerificacionLinealidadGeneralAx
 )
 
 from src.core.vectors import Vector
-from src.core.domain import Matriz, formatear_numero, a_subindice
+from src.core.domain import Matriz, formatear_numero, a_subindice, convertir_texto_a_modo
+
 
 
 class MatrixOpsView(ctk.CTkFrame):
@@ -29,6 +30,9 @@ class MatrixOpsView(ctk.CTkFrame):
     def __init__(self, master, get_modo_numero_cb, **kwargs):
         super().__init__(master, **kwargs)
         self.get_modo_numero = get_modo_numero_cb
+        self._ultimo_calc_ops = None
+        self._ultimo_calc_axb = None
+        self._ultimo_calc_prop = None
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -47,10 +51,66 @@ class MatrixOpsView(ctk.CTkFrame):
         self._setup_tab_axb()
         self._setup_tab_propiedades()
 
-
     def refresh_format(self):
-        """Refresca salidas cuando cambia el formato global."""
-        pass
+        """Refresca entradas y salidas cuando cambia el formato global (Fracción/Decimal)."""
+        modo = self.get_modo_numero()
+
+        def _convertir(entry):
+            try:
+                if entry is not None and entry.winfo_exists():
+                    val = entry.get()
+                    nuevo = convertir_texto_a_modo(val, modo)
+                    if nuevo != val:
+                        entry.delete(0, "end")
+                        entry.insert(0, nuevo)
+            except Exception:
+                pass
+
+        # Tab 1: Operaciones
+        if hasattr(self, "entries_A"):
+            for fila in self.entries_A:
+                for e in fila:
+                    _convertir(e)
+        if hasattr(self, "entries_B"):
+            for fila in self.entries_B:
+                for e in fila:
+                    _convertir(e)
+        if hasattr(self, "entry_ops_c"):
+            _convertir(self.entry_ops_c)
+
+        # Tab 2: Ax = b
+        if hasattr(self, "entries_axb"):
+            for fila in self.entries_axb:
+                for e in fila:
+                    _convertir(e)
+
+        # Tab 3: Propiedades Ax
+        if hasattr(self, "entries_prop_A"):
+            for fila in self.entries_prop_A:
+                for e in fila:
+                    _convertir(e)
+        if hasattr(self, "entries_prop_vecs"):
+            for fila in self.entries_prop_vecs:
+                for e in fila:
+                    _convertir(e)
+        if hasattr(self, "entries_prop_c"):
+            for e in self.entries_prop_c:
+                _convertir(e)
+
+        # Refrescar salidas calculadas activas
+        if self._ultimo_calc_ops:
+            self._calc_op(self._ultimo_calc_ops)
+        if self._ultimo_calc_axb == "ax":
+            self._calcular_ax()
+        elif self._ultimo_calc_axb == "axb":
+            self._resolver_axb()
+        if self._ultimo_calc_prop == "aditiva":
+            self._calc_propiedad_aditiva()
+        elif self._ultimo_calc_prop == "escalar":
+            self._calc_propiedad_escalar()
+        elif self._ultimo_calc_prop == "linealidad":
+            self._calc_linealidad_general()
+
 
     # =========================================================================
     # SUB-PESTAÑA 1: OPERACIONES BÁSICAS CON MATRICES
@@ -288,6 +348,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_ops(f"🎲 Ejemplo cargado: {ej['desc']}\nSeleccione la operación a realizar.", limpiar=True)
 
     def _calc_op(self, op: str):
+        self._ultimo_calc_ops = op
         modo = self.get_modo_numero()
         try:
             A = self._leer_matriz_entries(self.entries_A)
@@ -568,6 +629,7 @@ class MatrixOpsView(ctk.CTkFrame):
 
     def _calcular_ax(self):
         """Calcula el producto A·x usando el vector b como x."""
+        self._ultimo_calc_axb = "ax"
         modo = self.get_modo_numero()
         try:
             A, x = self._leer_axb()
@@ -600,6 +662,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_axb("\n".join(lineas), limpiar=True)
 
     def _resolver_axb(self):
+        self._ultimo_calc_axb = "axb"
         modo = self.get_modo_numero()
         try:
             A, b = self._leer_axb()
@@ -667,7 +730,7 @@ class MatrixOpsView(ctk.CTkFrame):
         tab.grid_rowconfigure(0, weight=1)
 
         # ── Panel izquierdo ────────────────────────────────────────────────
-        left = ctk.CTkFrame(tab, width=460, corner_radius=10)
+        left = ctk.CTkFrame(tab, width=470, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
@@ -678,86 +741,102 @@ class MatrixOpsView(ctk.CTkFrame):
             text="Propiedades del Producto Matriz-Vector  A·x",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color=("gray20", "gray90"),
-        ).pack(anchor="w", padx=14, pady=(12, 2))
+        ).pack(anchor="w", padx=14, pady=(10, 2))
         ctk.CTkLabel(
             left,
-            text="Teorema: Si A es m×n, u y v son vectores en ℝⁿ, y c es un escalar:\n"
-                 "   a) A(u + v) = Au + Av\n"
-                 "   b) A(cu) = c(Au)",
+            text="Teorema: Si A es m×n, u, v (o k vectores) están en ℝⁿ, y c es un escalar:\n"
+                 "   a) A(u + v) = Au + Av  [o generalizado a k vectores]\n"
+                 "   b) A(cu) = c(Au)\n"
+                 "   c) Principio de Linealidad General: A(∑ cᵢvᵢ) = ∑ cᵢ(Avᵢ)",
             font=ctk.CTkFont(size=11),
             text_color=("gray50", "gray60"),
             justify="left",
-        ).pack(anchor="w", padx=18, pady=(0, 8))
+        ).pack(anchor="w", padx=18, pady=(0, 6))
 
-        # Controles de dimensión
+        # Controles de dimensión (m filas, n columnas, k vectores)
         ctrl = ctk.CTkFrame(left, fg_color="transparent")
-        ctrl.pack(fill="x", padx=14, pady=(4, 2))
+        ctrl.pack(fill="x", padx=14, pady=(2, 2))
 
-        ctk.CTkLabel(ctrl, text="Filas A (m):", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, padx=2)
-        self.entry_prop_m = ctk.CTkEntry(ctrl, width=40, justify="center")
-        self.entry_prop_m.grid(row=0, column=1, padx=4)
+        ctk.CTkLabel(ctrl, text="Filas A (m):", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=0, padx=2)
+        self.entry_prop_m = ctk.CTkEntry(ctrl, width=38, justify="center")
+        self.entry_prop_m.grid(row=0, column=1, padx=2)
         self.entry_prop_m.insert(0, "2")
 
-        ctk.CTkLabel(ctrl, text="Columnas A (n):", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=2, padx=2)
-        self.entry_prop_n = ctk.CTkEntry(ctrl, width=40, justify="center")
-        self.entry_prop_n.grid(row=0, column=3, padx=4)
+        ctk.CTkLabel(ctrl, text="Cols A (n):", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=2, padx=2)
+        self.entry_prop_n = ctk.CTkEntry(ctrl, width=38, justify="center")
+        self.entry_prop_n.grid(row=0, column=3, padx=2)
         self.entry_prop_n.insert(0, "2")
 
-        # Botones Generar / Ejemplo
+        ctk.CTkLabel(ctrl, text="Vectores (k):", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=4, padx=2)
+        self.entry_prop_k = ctk.CTkEntry(ctrl, width=38, justify="center")
+        self.entry_prop_k.grid(row=0, column=5, padx=2)
+        self.entry_prop_k.insert(0, "2")
+
+        # Botones Generar / Asignación Diap. 10 / Ejemplo
         btn_row_p = ctk.CTkFrame(left, fg_color="transparent")
         btn_row_p.pack(fill="x", padx=14, pady=4)
+
         ctk.CTkButton(
-            btn_row_p, text="Generar Grilla", width=110,
+            btn_row_p, text="Generar", width=80,
             command=self._generar_prop
         ).pack(side="left", padx=2)
+
         ctk.CTkButton(
-            btn_row_p, text="🎲 Ejemplo", width=80,
+            btn_row_p, text="📘 Diapositiva 10", width=125,
+            command=self._cargar_ejercicio_asignacion_diap10,
+            fg_color=("#0284c7", "#0369a1"), hover_color=("#0369a1", "#075985"),
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(side="left", padx=3)
+
+        ctk.CTkButton(
+            btn_row_p, text="🎲 Ejemplo", width=75,
             command=self._cargar_ejemplo_prop,
             fg_color=("gray50", "#374151"), hover_color=("gray40", "#4b5563")
-        ).pack(side="left", padx=4)
+        ).pack(side="left", padx=2)
 
-        # Campo escalar c
-        esc_row = ctk.CTkFrame(left, fg_color="transparent")
-        esc_row.pack(fill="x", padx=14, pady=(2, 4))
-        ctk.CTkLabel(esc_row, text="Escalar  c =", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
-        self.entry_prop_c = ctk.CTkEntry(esc_row, width=60, justify="center")
-        self.entry_prop_c.pack(side="left", padx=6)
-        self.entry_prop_c.insert(0, "3")
-        ctk.CTkLabel(
-            esc_row, text="(usado en la propiedad b)",
-            font=ctk.CTkFont(size=10), text_color=("gray50", "gray60")
-        ).pack(side="left", padx=4)
-
-        # Scrollable frame para A, u, v
-        self.scroll_prop = ctk.CTkScrollableFrame(left, height=230)
+        # Scrollable frame para A y para los vectores
+        self.scroll_prop = ctk.CTkScrollableFrame(left, height=250)
         self.scroll_prop.pack(fill="both", expand=True, padx=14, pady=4)
 
-        # Botones de verificación
+        # Botones de verificación de teoremas
         btns_p = ctk.CTkFrame(left, fg_color="transparent")
-        btns_p.pack(fill="x", padx=14, pady=(6, 12))
+        btns_p.pack(fill="x", padx=14, pady=(4, 10))
         btns_p.grid_columnconfigure((0, 1), weight=1)
 
-        ctk.CTkButton(
+        self.btn_verif_aditiva = ctk.CTkButton(
             btns_p,
-            text="✓  Verificar A(u+v) = Au+Av",
+            text="✓ Verificar A(u+v) = Au+Av",
             command=self._calc_propiedad_aditiva,
-            fg_color=("gray30", "#0f766e"),
-            hover_color=("gray20", "#0d9488"),
-            font=ctk.CTkFont(size=12, weight="bold"),
-            height=34,
-        ).grid(row=0, column=0, padx=3, pady=3, sticky="ew")
+            fg_color=("#0d9488", "#0f766e"),
+            hover_color=("#0f766e", "#115e59"),
+            font=ctk.CTkFont(size=11, weight="bold"),
+            height=32,
+        )
+        self.btn_verif_aditiva.grid(row=0, column=0, padx=2, pady=2, sticky="ew")
 
-        ctk.CTkButton(
+        self.btn_verif_escalar = ctk.CTkButton(
             btns_p,
-            text="✓  Verificar A(cu) = c(Au)",
+            text="✓ Verificar A(cu) = c(Au)",
             command=self._calc_propiedad_escalar,
-            fg_color=("gray30", "#1d4ed8"),
-            hover_color=("gray20", "#2563eb"),
-            font=ctk.CTkFont(size=12, weight="bold"),
-            height=34,
-        ).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
+            fg_color=("#1d4ed8", "#1e40af"),
+            hover_color=("#1e40af", "#1e3a8a"),
+            font=ctk.CTkFont(size=11, weight="bold"),
+            height=32,
+        )
+        self.btn_verif_escalar.grid(row=0, column=1, padx=2, pady=2, sticky="ew")
 
-        # ── Panel derecho ──────────────────────────────────────────────────
+        self.btn_verif_linealidad = ctk.CTkButton(
+            btns_p,
+            text="🌟 Linealidad General: A(∑ cᵢvᵢ) = ∑ cᵢ(Avᵢ)",
+            command=self._calc_linealidad_general,
+            fg_color=("#7c3aed", "#6d28d9"),
+            hover_color=("#6d28d9", "#5b21b6"),
+            font=ctk.CTkFont(size=11, weight="bold"),
+            height=32,
+        )
+        self.btn_verif_linealidad.grid(row=1, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
+
+        # ── Panel derecho: Resultados ──────────────────────────────────────
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -765,7 +844,7 @@ class MatrixOpsView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             right,
-            text="🔬 Verificación Paso a Paso",
+            text="🔬 Demostración y Verificación Paso a Paso",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color=("gray20", "#38bdf8"),
         ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
@@ -778,89 +857,118 @@ class MatrixOpsView(ctk.CTkFrame):
 
         # Estado interno
         self.entries_prop_A: List[List[ctk.CTkEntry]] = []
-        self.entries_prop_u: List[ctk.CTkEntry] = []
-        self.entries_prop_v: List[ctk.CTkEntry] = []
+        self.entries_prop_vecs: List[List[ctk.CTkEntry]] = []  # [componente_i][vector_j]
+        self.entries_prop_c: List[ctk.CTkEntry] = []            # [vector_j]
         self._generar_prop()
 
     def _generar_prop(self):
-        """Genera las cuadrículas de A (m×n), u y v (n componentes)."""
+        """Genera las cuadrículas de A (m×n), y de k vectores en ℝⁿ con sus escalares."""
         try:
-            m = max(1, min(8, int(self.entry_prop_m.get())))
-            n = max(1, min(8, int(self.entry_prop_n.get())))
+            m = max(1, min(10, int(self.entry_prop_m.get().strip())))
+            n = max(1, min(10, int(self.entry_prop_n.get().strip())))
+            k = max(2, min(8, int(self.entry_prop_k.get().strip())))
         except ValueError:
             return
 
         for w in self.scroll_prop.winfo_children():
             w.destroy()
         self.entries_prop_A = []
-        self.entries_prop_u = []
-        self.entries_prop_v = []
+        self.entries_prop_vecs = [[] for _ in range(n)]
+        self.entries_prop_c = []
 
-        # ── Sección: Matriz A ──
+        es_dos = (k == 2)
+        nombres = ["u", "v"] if es_dos else [f"v{a_subindice(j+1)}" for j in range(k)]
+
+        # Actualizar textos de botones según la cantidad de vectores
+        if hasattr(self, "btn_verif_aditiva"):
+            if es_dos:
+                self.btn_verif_aditiva.configure(text="✓ Verificar A(u+v) = Au+Av")
+                self.btn_verif_escalar.configure(text="✓ Verificar A(cu) = c(Au)")
+            else:
+                self.btn_verif_aditiva.configure(text=f"✓ Verificar A({' + '.join(nombres)})")
+                self.btn_verif_escalar.configure(text=f"✓ Verificar A(c₁·v₁) = c₁(A·v₁)")
+
+        # ── 1. Matriz A ──
         ctk.CTkLabel(
             self.scroll_prop,
-            text=f"  Matriz  A  ({m}×{n})",
+            text=f"1. Matriz A ({m}×{n}):",
             font=ctk.CTkFont(size=12, weight="bold"),
-        ).pack(anchor="w", pady=(6, 2))
+            text_color=("#38bdf8", "#38bdf8")
+        ).pack(anchor="w", pady=(4, 2))
 
-        # Cabecera columnas
         hdr_A = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
         hdr_A.pack(fill="x")
-        ctk.CTkLabel(hdr_A, text="", width=30).pack(side="left")
+        ctk.CTkLabel(hdr_A, text="", width=32).pack(side="left")
         for j in range(n):
             ctk.CTkLabel(
-                hdr_A, text=f"col{a_subindice(j+1)}", width=52,
+                hdr_A, text=f"col{a_subindice(j+1)}", width=50,
                 font=ctk.CTkFont(size=10), text_color=("gray50", "gray60")
             ).pack(side="left", padx=2)
 
         for i in range(m):
             row_f = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
             row_f.pack(fill="x", pady=1)
-            ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=30).pack(side="left")
+            ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=32, font=ctk.CTkFont(size=10, weight="bold")).pack(side="left")
             fila_entries = []
             for j in range(n):
-                e = ctk.CTkEntry(row_f, width=52, height=26, justify="center")
+                e = ctk.CTkEntry(row_f, width=50, height=26, justify="center")
                 e.pack(side="left", padx=2)
                 e.insert(0, "0")
                 fila_entries.append(e)
             self.entries_prop_A.append(fila_entries)
 
-        # ── Sección: Vectores u y v ──
+        # ── 2. Vectores y Escalares ──
+        sec_title = f"2. Vectores en ℝ{a_subindice(n)} y Escalares ({k} vectores):" if not es_dos else f"2. Vectores u, v en ℝ{a_subindice(n)} y Escalares:"
         ctk.CTkLabel(
             self.scroll_prop,
-            text=f"  Vectores  u  y  v  (en ℝ{a_subindice(n)})",
+            text=sec_title,
             font=ctk.CTkFont(size=12, weight="bold"),
-        ).pack(anchor="w", pady=(12, 2))
+            text_color=("#38bdf8", "#38bdf8")
+        ).pack(anchor="w", pady=(10, 2))
 
-        hdr_uv = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
-        hdr_uv.pack(fill="x")
-        ctk.CTkLabel(hdr_uv, text="", width=30).pack(side="left")
-        ctk.CTkLabel(
-            hdr_uv, text="u", width=60, font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("gray30", "gray80")
-        ).pack(side="left", padx=(2, 10))
-        ctk.CTkLabel(
-            hdr_uv, text="v", width=60, font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("gray30", "gray80")
-        ).pack(side="left", padx=2)
+        # Cabecera de nombres de vectores
+        hdr_vecs = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        hdr_vecs.pack(fill="x")
+        ctk.CTkLabel(hdr_vecs, text="", width=68).pack(side="left")
+        for nom in nombres:
+            ctk.CTkLabel(
+                hdr_vecs, text=nom, width=55, font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=("#0284c7", "#38bdf8")
+            ).pack(side="left", padx=2)
 
+        # Fila de Escalares cᵢ
+        row_c = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        row_c.pack(fill="x", pady=(2, 4))
+        ctk.CTkLabel(
+            row_c, text="Escalar c:", width=68,
+            font=ctk.CTkFont(size=10, weight="bold"), text_color=("gray40", "gray60")
+        ).pack(side="left")
+        for j in range(k):
+            ec = ctk.CTkEntry(
+                row_c, width=55, height=26, justify="center",
+                fg_color=("#fef3c7", "#3b2c15"), text_color=("#92400e", "#fde68a"),
+                border_color=("#f59e0b", "#d97706")
+            )
+            ec.pack(side="left", padx=2)
+            ec.insert(0, str(2 if j == 0 else 1))
+            self.entries_prop_c.append(ec)
+
+        # Filas de Componentes
         for i in range(n):
-            row_uv = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
-            row_uv.pack(fill="x", pady=1)
-            ctk.CTkLabel(row_uv, text=f"x{a_subindice(i+1)}", width=30).pack(side="left")
+            row_v = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+            row_v.pack(fill="x", pady=1)
+            ctk.CTkLabel(row_v, text=f"Comp {i+1}:", width=68, font=ctk.CTkFont(size=10)).pack(side="left")
 
-            eu = ctk.CTkEntry(row_uv, width=60, height=26, justify="center")
-            eu.pack(side="left", padx=(2, 10))
-            eu.insert(0, "0")
-            self.entries_prop_u.append(eu)
-
-            ev = ctk.CTkEntry(row_uv, width=60, height=26, justify="center")
-            ev.pack(side="left", padx=2)
-            ev.insert(0, "0")
-            self.entries_prop_v.append(ev)
+            for j in range(k):
+                ev = ctk.CTkEntry(row_v, width=55, height=26, justify="center")
+                ev.pack(side="left", padx=2)
+                ev.insert(0, "0")
+                self.entries_prop_vecs[i].append(ev)
 
     def _leer_prop(self):
-        """Lee A, u, v desde las entradas. Retorna (A, u, v)."""
+        """Lee A, la lista de k vectores y la lista de k escalares.
+        Retorna (A: Matriz, vectores: List[Vector], escalares: List[float]).
+        """
         A: List[List[float]] = []
         for i, fila in enumerate(self.entries_prop_A):
             row_A = []
@@ -870,67 +978,115 @@ class MatrixOpsView(ctk.CTkFrame):
                     row_A.append(float(val) if "/" not in val
                                  else float(val.split("/")[0]) / float(val.split("/")[1]))
                 except Exception:
-                    raise ValueError(f"Valor inválido en A, fila {i+1}, col {j+1}: '{val}'")
+                    raise ValueError(f"Valor inválido en Matriz A, fila {i+1}, col {j+1}: '{val}'")
             A.append(row_A)
 
-        u: List[float] = []
-        for i, e in enumerate(self.entries_prop_u):
-            val = e.get().strip()
+        k = len(self.entries_prop_c)
+        n = len(self.entries_prop_vecs)
+
+        escalares: List[float] = []
+        for j, ec in enumerate(self.entries_prop_c):
+            val_c = ec.get().strip()
             try:
-                u.append(float(val) if "/" not in val
-                         else float(val.split("/")[0]) / float(val.split("/")[1]))
+                c = float(val_c) if "/" not in val_c else float(val_c.split("/")[0]) / float(val_c.split("/")[1])
+                escalares.append(c)
             except Exception:
-                raise ValueError(f"Valor inválido en u, componente {i+1}: '{val}'")
+                nom = "u" if (k == 2 and j == 0) else ("v" if (k == 2 and j == 1) else f"v{j+1}")
+                raise ValueError(f"Escalar inválido '{val_c}' para el vector {nom}.")
 
-        v: List[float] = []
-        for i, e in enumerate(self.entries_prop_v):
-            val = e.get().strip()
-            try:
-                v.append(float(val) if "/" not in val
-                         else float(val.split("/")[0]) / float(val.split("/")[1]))
-            except Exception:
-                raise ValueError(f"Valor inválido en v, componente {i+1}: '{val}'")
+        vectores: List[List[float]] = [[] for _ in range(k)]
+        for i in range(n):
+            for j in range(k):
+                val_comp = self.entries_prop_vecs[i][j].get().strip()
+                try:
+                    v = float(val_comp) if "/" not in val_comp else float(val_comp.split("/")[0]) / float(val_comp.split("/")[1])
+                    vectores[j].append(v)
+                except Exception:
+                    nom = "u" if (k == 2 and j == 0) else ("v" if (k == 2 and j == 1) else f"v{j+1}")
+                    raise ValueError(f"Componente {i+1} inválida '{val_comp}' en vector {nom}.")
 
-        return A, u, v
+        return A, vectores, escalares
 
-    def _leer_c_prop(self) -> float:
-        val = self.entry_prop_c.get().strip()
-        try:
-            return float(val) if "/" not in val \
-                else float(val.split("/")[0]) / float(val.split("/")[1])
-        except Exception:
-            raise ValueError(f"Escalar c inválido: '{val}'")
+    def _cargar_ejercicio_asignacion_diap10(self):
+        """Carga exactamente el ejercicio de la Diapositiva 10:
+        A = [[2, 5], [3, 1]], u = [4, -1], v = [-3, 5], c = 2.
+        """
+        self.entry_prop_m.delete(0, "end"); self.entry_prop_m.insert(0, "2")
+        self.entry_prop_n.delete(0, "end"); self.entry_prop_n.insert(0, "2")
+        self.entry_prop_k.delete(0, "end"); self.entry_prop_k.insert(0, "2")
+        self._generar_prop()
+
+        # Matriz A
+        mat_A = [[2, 5], [3, 1]]
+        for i in range(2):
+            for j in range(2):
+                self.entries_prop_A[i][j].delete(0, "end")
+                self.entries_prop_A[i][j].insert(0, str(mat_A[i][j]))
+
+        # Escalares (c = 2)
+        self.entries_prop_c[0].delete(0, "end"); self.entries_prop_c[0].insert(0, "2")
+        self.entries_prop_c[1].delete(0, "end"); self.entries_prop_c[1].insert(0, "3")
+
+        # Vectores u = [4, -1], v = [-3, 5]
+        u = [4, -1]
+        v = [-3, 5]
+        for i in range(2):
+            self.entries_prop_vecs[i][0].delete(0, "end")
+            self.entries_prop_vecs[i][0].insert(0, str(u[i]))
+            self.entries_prop_vecs[i][1].delete(0, "end")
+            self.entries_prop_vecs[i][1].insert(0, str(v[i]))
+
+        msg = (
+            "📘 Ejercicio de Asignación (Diapositiva 10) cargado con éxito:\n\n"
+            "  A = [ [ 2,  5 ]\n"
+            "        [ 3,  1 ] ]\n"
+            "  u = [ 4, -1 ]ᵀ\n"
+            "  v = [-3,  5 ]ᵀ\n\n"
+            "Presione 'Verificar A(u+v) = Au+Av' o 'Verificar A(cu) = c(Au)' para ver el desarrollo paso a paso."
+        )
+        self._log_prop(msg, limpiar=True)
 
     def _cargar_ejemplo_prop(self):
-        """Carga un ejemplo ilustrativo de las propiedades."""
+        """Carga ejemplos adaptables: 2 vectores en R^2, 3 vectores en R^3, 2 vectores en R^3, etc."""
         ejemplos = [
+            # Caso 1: Diapositiva 10 (2x2, 2 vecs en R^2)
             {
-                "m": 2, "n": 2,
-                "A": [[1, 2], [3, 4]],
-                "u": [1, 0],
-                "v": [0, 1],
-                "c": 2,
+                "m": 2, "n": 2, "k": 2,
+                "A": [[2, 5], [3, 1]],
+                "vecs": [[4, -1], [-3, 5]],
+                "cs": [2, 3],
+                "desc": "Diapositiva 10: A(2×2), u=[4, -1]ᵀ, v=[-3, 5]ᵀ en ℝ²"
             },
+            # Caso 2: 3 vectores en R^3 con A(3x3)
             {
-                "m": 3, "n": 2,
-                "A": [[2, -1], [0, 3], [1, 1]],
-                "u": [2, 1],
-                "v": [-1, 3],
-                "c": -2,
+                "m": 3, "n": 3, "k": 3,
+                "A": [[1, 2, 0], [0, 3, -1], [2, 1, 1]],
+                "vecs": [[1, -1, 2], [2, 0, 1], [-1, 3, 0]],
+                "cs": [2, -1, 3],
+                "desc": "General: 3 vectores en ℝ³ con matriz A(3×3) y escalares [2, -1, 3]"
             },
+            # Caso 3: Matriz rectangular 2x3 con 3 vectores en R^3
             {
-                "m": 2, "n": 3,
-                "A": [[1, 0, -1], [2, 1, 0]],
-                "u": [1, 2, 3],
-                "v": [-1, 0, 1],
-                "c": 3,
+                "m": 2, "n": 3, "k": 3,
+                "A": [[1, 2, -1], [0, -5, 3]],
+                "vecs": [[4, 3, 7], [1, 0, -2], [2, -1, 1]],
+                "cs": [1, 2, -1],
+                "desc": "Rectangular A(2×3) (Slide 4) con 3 vectores en ℝ³"
             },
+            # Caso 4: Matriz rectangular 3x2 con 2 vectores en R^2
+            {
+                "m": 3, "n": 2, "k": 2,
+                "A": [[2, -3], [8, 0], [-5, 2]],
+                "vecs": [[4, 7], [-2, 3]],
+                "cs": [3, -2],
+                "desc": "Rectangular A(3×2) (Slide 5) con u=[4, 7]ᵀ, v=[-2, 3]ᵀ en ℝ²"
+            }
         ]
-        import random as _r
-        ej = _r.choice(ejemplos)
+        ej = random.choice(ejemplos)
 
         self.entry_prop_m.delete(0, "end"); self.entry_prop_m.insert(0, str(ej["m"]))
         self.entry_prop_n.delete(0, "end"); self.entry_prop_n.insert(0, str(ej["n"]))
+        self.entry_prop_k.delete(0, "end"); self.entry_prop_k.insert(0, str(ej["k"]))
         self._generar_prop()
 
         for i, fila in enumerate(ej["A"]):
@@ -938,30 +1094,29 @@ class MatrixOpsView(ctk.CTkFrame):
                 self.entries_prop_A[i][j].delete(0, "end")
                 self.entries_prop_A[i][j].insert(0, str(val))
 
-        for i, val in enumerate(ej["u"]):
-            self.entries_prop_u[i].delete(0, "end")
-            self.entries_prop_u[i].insert(0, str(val))
+        for j, c_val in enumerate(ej["cs"]):
+            self.entries_prop_c[j].delete(0, "end")
+            self.entries_prop_c[j].insert(0, str(c_val))
 
-        for i, val in enumerate(ej["v"]):
-            self.entries_prop_v[i].delete(0, "end")
-            self.entries_prop_v[i].insert(0, str(val))
+        for j, vec in enumerate(ej["vecs"]):
+            for i, comp in enumerate(vec):
+                self.entries_prop_vecs[i][j].delete(0, "end")
+                self.entries_prop_vecs[i][j].insert(0, str(comp))
 
-        self.entry_prop_c.delete(0, "end")
-        self.entry_prop_c.insert(0, str(ej["c"]))
-
-        self._log_prop("🎲 Ejemplo cargado. Presione uno de los botones 'Verificar' para ver el procedimiento.", limpiar=True)
+        self._log_prop(f"🎲 Ejemplo cargado: {ej['desc']}\nSeleccione una propiedad para verificar el teorema.", limpiar=True)
 
     def _calc_propiedad_aditiva(self):
-        """Calcula y muestra la verificación paso a paso de A(u+v) = Au+Av."""
+        """Calcula y muestra la verificación de la propiedad aditiva/distributiva."""
+        self._ultimo_calc_prop = "aditiva"
         modo = self.get_modo_numero()
         try:
-            A, u, v = self._leer_prop()
+            A, vecs, _ = self._leer_prop()
         except ValueError as e:
             self._log_prop(f"❌ {e}", limpiar=True)
             return
 
         try:
-            resultado = verificar_propiedad_aditiva_ax(A, u, v, modo=modo)
+            resultado = verificar_propiedad_aditiva_ax(A, vecs, modo=modo)
         except ValueError as e:
             self._log_prop(f"❌ {e}", limpiar=True)
             return
@@ -969,17 +1124,40 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
 
     def _calc_propiedad_escalar(self):
-        """Calcula y muestra la verificación paso a paso de A(cu) = c(Au)."""
+        """Calcula y muestra la verificación de A(cu) = c(Au) para el primer vector."""
+        self._ultimo_calc_prop = "escalar"
         modo = self.get_modo_numero()
         try:
-            A, u, _ = self._leer_prop()
-            c = self._leer_c_prop()
+            A, vecs, escalares = self._leer_prop()
+        except ValueError as e:
+            self._log_prop(f"❌ {e}", limpiar=True)
+            return
+
+        k = len(vecs)
+        nom = "u" if k == 2 else "v₁"
+        c_val = escalares[0]
+        u_vec = vecs[0]
+
+        try:
+            resultado = verificar_propiedad_escalar_ax(A, u_vec, c_val, modo=modo, nombre_vector=nom)
+        except ValueError as e:
+            self._log_prop(f"❌ {e}", limpiar=True)
+            return
+
+        self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
+
+    def _calc_linealidad_general(self):
+        """Calcula y muestra la verificación del principio de superposición / linealidad general."""
+        self._ultimo_calc_prop = "linealidad"
+        modo = self.get_modo_numero()
+        try:
+            A, vecs, escalares = self._leer_prop()
         except ValueError as e:
             self._log_prop(f"❌ {e}", limpiar=True)
             return
 
         try:
-            resultado = verificar_propiedad_escalar_ax(A, u, c, modo=modo)
+            resultado = verificar_linealidad_general_ax(A, vecs, escalares, modo=modo)
         except ValueError as e:
             self._log_prop(f"❌ {e}", limpiar=True)
             return
@@ -992,4 +1170,5 @@ class MatrixOpsView(ctk.CTkFrame):
             self.txt_res_prop.delete("1.0", "end")
         self.txt_res_prop.insert("end", texto + "\n")
         self.txt_res_prop.configure(state="disabled")
+
 

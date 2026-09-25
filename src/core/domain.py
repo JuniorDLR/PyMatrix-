@@ -79,6 +79,37 @@ def formatear_numero(valor: float, modo: str = "fraccion", max_decimales: int = 
     return formatear_fraccion(valor)
 
 
+def convertir_texto_a_modo(texto: str, modo_destino: str, max_decimales: int = 4) -> str:
+    """Convierte una cadena que representa un número (en fracción o decimal) al formato destino.
+    
+    Si el texto está vacío o no es un valor numérico convertible, retorna el texto original intacto.
+    Ejemplos:
+      - '0.5' con modo 'fraccion' -> '1/2'
+      - '1/2' con modo 'decimal'  -> '0.5'
+      - '-0.75' con modo 'fraccion' -> '-3/4'
+      - '3' con cualquier modo -> '3'
+    """
+    s = texto.strip()
+    if not s:
+        return texto
+    try:
+        if "/" in s:
+            partes = s.split("/")
+            if len(partes) == 2:
+                num = float(partes[0].strip())
+                den = float(partes[1].strip())
+                if abs(den) < 1e-12:
+                    return texto
+                val = num / den
+            else:
+                return texto
+        else:
+            val = float(s)
+        return formatear_numero(val, modo=modo_destino, max_decimales=max_decimales)
+    except Exception:
+        return texto
+
+
 @dataclass(frozen=True)
 class PasoGauss:
     """Representa un estado intermedio durante la eliminación de Gauss-Jordan.
