@@ -46,10 +46,46 @@ class MatrixOpsView(ctk.CTkFrame):
         self.tab_ops = self.tabview.add("  ➕➖✖️ Operaciones con Matrices  ")
         self.tab_axb = self.tabview.add("  📐 Ax = b (Ecuación Matricial)  ")
         self.tab_props = self.tabview.add("  🔬 Propiedades de Ax  ")
+        self.tab_teoremas = self.tabview.add("📘 Teoremas Clave ")
 
         self._setup_tab_ops()
         self._setup_tab_axb()
         self._setup_tab_propiedades()
+        self._setup_tab_teoremas()
+
+    def _setup_tab_teoremas(self):
+        """Presenta los teoremas asociados con las operaciones de matrices y Ax=b."""
+        tab = self.tab_teoremas
+        tab.grid_columnconfigure(0, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
+        panel = ctk.CTkFrame(tab, corner_radius=10)
+        panel.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        panel.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            panel, text="0. Teoremas Clave del Módulo",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=("#0284c7", "#38bdf8")
+        ).pack(anchor="w", padx=20, pady=(18, 10))
+        texto = (
+            "CONDICIÓN DEL PRODUCTO MATRICIAL\n"
+            "Si A es m×n y B es n×p, entonces AB está definido y tiene tamaño m×p. En general, AB ≠ BA.\n\n"
+            "PROPIEDADES DEL PRODUCTO\n"
+            "El producto de matrices es asociativo: (AB)C = A(BC), y distributivo respecto de la suma: "
+            "A(B + C) = AB + AC y (A + B)C = AC + BC, cuando las dimensiones permiten las operaciones.\n\n"
+            "TRANSFORMACIÓN LINEAL x ↦ Ax\n"
+            "Para vectores u, v y escalar c: A(u + v) = Au + Av y A(cv) = c(Av). Además, Ax es una combinación "
+            "lineal de las columnas de A, con coeficientes dados por las entradas de x.\n\n"
+            "TEOREMA DE EXISTENCIA PARA Ax = b\n"
+            "Ax = b tiene solución exactamente cuando b pertenece al espacio columna de A; equivalentemente, "
+            "cuando b puede expresarse como combinación lineal de las columnas de A.\n\n"
+            "CRITERIO DE RANGOS\n"
+            "Ax = b es compatible si y solo si rango(A) = rango([A | b]). Si es compatible, la solución es única "
+            "cuando el rango iguala el número de incógnitas; si es menor, hay infinitas soluciones."
+        )
+        ctk.CTkLabel(
+            panel, text=texto, justify="left", anchor="nw", wraplength=900,
+            font=ctk.CTkFont(size=14)
+        ).pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
     def refresh_format(self):
         """Refresca entradas y salidas cuando cambia el formato global (Fracción/Decimal)."""

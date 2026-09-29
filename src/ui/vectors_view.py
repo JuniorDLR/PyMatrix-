@@ -9,6 +9,7 @@ Proporciona vistas interactivas para:
 """
 
 import random
+import math
 from typing import List, Optional, Tuple
 import customtkinter as ctk
 
@@ -45,10 +46,43 @@ class VectorsView(ctk.CTkFrame):
         self.tab_basicas = self.tabview.add("  ➕ Operaciones Básicas  ")
         self.tab_comb = self.tabview.add("  🔗 Combinación Lineal  ")
         self.tab_indep = self.tabview.add("  ⚖️ Independencia Lineal  ")
+        self.tab_teoremas = self.tabview.add("  📘 Teoremas Clave  ")
         
         self._setup_tab_basicas()
         self._setup_tab_comb()
         self._setup_tab_indep()
+        self._setup_tab_teoremas()
+
+    def _setup_tab_teoremas(self):
+        """Presenta los resultados teóricos principales del módulo de vectores."""
+        tab = self.tab_teoremas
+        tab.grid_columnconfigure(0, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
+        panel = ctk.CTkFrame(tab, corner_radius=10)
+        panel.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        panel.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            panel, text="0. Teoremas Clave del Módulo",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=("#0284c7", "#38bdf8")
+        ).pack(anchor="w", padx=20, pady=(18, 10))
+        texto = (
+            "INDEPENDENCIA LINEAL\n"
+            "Un conjunto {v₁, …, vₖ} es linealmente independiente si y solo si la ecuación "
+            "c₁v₁ + … + cₖvₖ = 0 tiene únicamente la solución trivial c₁ = … = cₖ = 0.\n\n"
+            "SISTEMA HOMOGÉNEO Ax = 0\n"
+            "Al colocar los vectores como columnas de A, sus coeficientes c₁, …, cₖ forman x. "
+            "La reducción por filas conserva las soluciones. Si hay pivote en cada una de las k "
+            "columnas (ninguna variable libre), el conjunto es L.I.; si hay variables libres, "
+            "existe una solución no trivial y el conjunto es L.D.\n\n"
+            "CRITERIOS ÚTILES\n"
+            "• Un conjunto que contiene el vector cero es L.D.\n"
+            "• Más de n vectores en ℝⁿ siempre son L.D.\n"
+            "• Dos vectores son L.D. si uno es múltiplo escalar del otro.\n"
+            "• Un conjunto es generador de ℝⁿ si sus columnas tienen rango n."
+        )
+        ctk.CTkLabel(panel, text=texto, justify="left", anchor="nw", wraplength=900,
+                     font=ctk.CTkFont(size=14)).pack(fill="both", expand=True, padx=20, pady=(0, 20))
         
     def refresh_format(self):
         """Refresca las entradas y salidas de texto cuando el usuario cambia el formato global (Fracción/Decimal)."""
@@ -688,7 +722,15 @@ class VectorsView(ctk.CTkFrame):
             for i in range(n):
                 for j in range(k):
                     val_str = self.grid_entries_comb[i][j].get().strip()
-                    val = float(val_str) if "/" not in val_str else float(val_str.split("/")[0]) / float(val_str.split("/")[1])
+                    if "/" in val_str:
+                        partes = val_str.split("/")
+                        if len(partes) != 2 or float(partes[1]) == 0:
+                            raise ValueError(f"Fracción inválida: {val_str}")
+                        val = float(partes[0]) / float(partes[1])
+                    else:
+                        val = float(val_str)
+                    if not math.isfinite(val):
+                        raise ValueError(f"El valor debe ser finito: {val_str}")
                     vectores[j].append(val)
                 val_b_str = self.grid_entries_comb[i][k].get().strip()
                 val_b = float(val_b_str) if "/" not in val_b_str else float(val_b_str.split("/")[0]) / float(val_b_str.split("/")[1])
@@ -972,7 +1014,11 @@ class VectorsView(ctk.CTkFrame):
             self._log_indep(f"❌ Error al leer valores de la cuadrícula: {e}", limpiar=True)
             return
             
-        resultado = evaluar_independencia_lineal(vectores, modo=modo)
+        try:
+            resultado = evaluar_independencia_lineal(vectores, modo=modo)
+        except (ValueError, ZeroDivisionError) as e:
+            self._log_indep(f"❌ No se pudo evaluar el conjunto: {e}", limpiar=True)
+            return
         
         lineas = []
         lineas.append("==================================================")
@@ -985,18 +1031,26 @@ class VectorsView(ctk.CTkFrame):
             lineas.append(f"    v{a_subindice(j+1)} = {vec_fmt}")
         lineas.append("")
         
-        lineas.append("--- 1. MATRIZ DEL SISTEMA HOMOGÉNEO [v₁ ... vₖ | 0] ---")
+        matriz_a = [fila[:-1] for fila in resultado.matriz_homogenea_inicial]
+        lineas.append("--- 1. MATRIZ A (vectores como columnas) ---")
+        lineas.append(self._formatear_matriz_a(matriz_a, modo))
+        lineas.append("Sistema homogéneo: A·x = 0, donde x = [c₁, ..., cₖ]ᵀ.\n")
+        lineas.append("--- 2. MATRIZ AUMENTADA DEL SISTEMA HOMOGÉNEO [A | 0] ---")
         lineas.append(self._formatear_matriz(resultado.matriz_homogenea_inicial, modo))
         
         # Proceso de reducción paso a paso si se resolvió por Gauss-Jordan
         if resultado.pasos_gauss and len(resultado.pasos_gauss) > 1:
-            lineas.append("--- 2. PROCESO DE RESOLUCIÓN PASO A PASO (GAUSS-JORDAN) ---")
+            lineas.append("--- 3. PROCESO DE REDUCCIÓN (GAUSS-JORDAN) ---")
             for num_p, paso in enumerate(resultado.pasos_gauss[1:], 1):
                 lineas.append(f">> Paso {num_p}: {paso.descripcion}")
                 lineas.append(self._formatear_matriz(paso.matriz_estado, modo))
         
-        lineas.append("--- 3. MATRIZ EN FORMA ESCALONADA REDUCIDA (RREF) ---")
+        lineas.append("--- 4. MATRIZ REDUCIDA (RREF) ---")
         lineas.append(self._formatear_matriz(resultado.matriz_rref, modo))
+        pivotes = self._contar_pivotes(resultado.matriz_rref, k)
+        libres = k - pivotes
+        lineas.append(f"Número de pivotes: {pivotes} de {k}")
+        lineas.append(f"Número de variables libres: {libres}\n")
         
         lineas.append("--- 4. DIAGNÓSTICO Y CONCLUSIÓN ---")
         estado_badge = "✅ LINEALMENTE INDEPENDIENTE" if resultado.es_linealmente_independiente else "⚠️ LINEALMENTE DEPENDIENTE"
@@ -1025,3 +1079,18 @@ class VectorsView(ctk.CTkFrame):
             coefs_str = "  ".join([f"{formatear_numero(c, modo):>8}" for c in coefs])
             salida += f"  [ {coefs_str} | {formatear_numero(ti, modo):>8} ]\n"
         return salida
+
+    def _formatear_matriz_a(self, matriz, modo: str) -> str:
+        return "".join("  [ " + "  ".join(f"{formatear_numero(x, modo):>8}" for x in fila) + " ]\n"
+                       for fila in matriz)
+
+    @staticmethod
+    def _contar_pivotes(matriz, cantidad_variables: int) -> int:
+        """Cuenta pivotes de las columnas de coeficientes en la RREF."""
+        pivotes = 0
+        for fila in matriz:
+            for columna in range(min(cantidad_variables, len(fila) - 1)):
+                if abs(fila[columna]) > 1e-10:
+                    pivotes += 1
+                    break
+        return pivotes

@@ -403,6 +403,10 @@ class App(ctk.CTk):
         self.tab_text = self.tabview.add("  📝 Detalle de Operaciones (Texto)  ")
         self.tab_text.grid_columnconfigure(0, weight=1)
         self.tab_text.grid_rowconfigure(0, weight=1)
+
+        self.tab_teoremas_gauss = self.tabview.add("📘 Teoremas Clave ")
+        self.tab_teoremas_gauss.grid_columnconfigure(0, weight=1)
+        self.tab_teoremas_gauss.grid_rowconfigure(0, weight=1)
         
         # Visual Tab
         self.matrix_canvas = MatrixCanvas(self.tab_visual)
@@ -421,6 +425,32 @@ class App(ctk.CTk):
 
         self.txt_resultados.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         self.txt_resultados.configure(state="disabled")
+
+        panel_teoremas = ctk.CTkFrame(self.tab_teoremas_gauss, corner_radius=10)
+        panel_teoremas.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        ctk.CTkLabel(
+            panel_teoremas, text="0. Teoremas Clave del Módulo",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=("#0284c7", "#38bdf8")
+        ).pack(anchor="w", padx=20, pady=(18, 10))
+        texto_teoremas_gauss = (
+            "OPERACIONES ELEMENTALES POR FILAS\n"
+            "Intercambiar dos filas, multiplicar una fila por un escalar distinto de cero o sumar a una fila "
+            "un múltiplo de otra produce un sistema equivalente: conserva el mismo conjunto de soluciones.\n\n"
+            "CRITERIO DE COMPATIBILIDAD (Rouché–Capelli)\n"
+            "El sistema Ax = b tiene solución si y solo si rango(A) = rango([A | b]). Una fila de la forma "
+            "[0 … 0 | d], con d ≠ 0, indica que no tiene solución.\n\n"
+            "CLASIFICACIÓN POR RANGO\n"
+            "Si el sistema es compatible y el rango coincide con el número de incógnitas, la solución es única. "
+            "Si el rango es menor, existen variables libres y hay infinitas soluciones.\n\n"
+            "SISTEMA HOMOGÉNEO Ax = 0\n"
+            "Siempre tiene la solución trivial x = 0. Tiene soluciones no triviales cuando hay variables libres, "
+            "es decir, cuando el rango es menor que el número de incógnitas."
+        )
+        ctk.CTkLabel(
+            panel_teoremas, text=texto_teoremas_gauss, justify="left", anchor="nw", wraplength=850,
+            font=ctk.CTkFont(size=14)
+        ).pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
     
     def _create_bottom_conclusion(self):
