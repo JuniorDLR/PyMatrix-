@@ -16,7 +16,9 @@ from src.core.matrix_ops import (
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
     ResultadoMultiplicacionMatricial, ResultadoProductoMatrizVector, ResultadoEcuacionMatricial,
     verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax, verificar_linealidad_general_ax,
-    VerificacionPropiedadAditivaAx, VerificacionPropiedadEscalarAx, VerificacionLinealidadGeneralAx
+    VerificacionPropiedadAditivaAx, VerificacionPropiedadEscalarAx, VerificacionLinealidadGeneralAx,
+    trasponer_matriz, invertir_matriz, calcular_determinante,
+    ResultadoInversionMatriz, ResultadoDeterminante
 )
 
 from src.core.vectors import Vector
@@ -33,6 +35,8 @@ class MatrixOpsView(ctk.CTkFrame):
         self._ultimo_calc_ops = None
         self._ultimo_calc_axb = None
         self._ultimo_calc_prop = None
+        self._ultimo_calc_inv = None   # "traspuesta" | "inversa"
+        self._ultimo_calc_det = None   # "determinante"
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -43,14 +47,18 @@ class MatrixOpsView(ctk.CTkFrame):
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.tab_ops = self.tabview.add("  ➕➖✖️ Operaciones con Matrices  ")
-        self.tab_axb = self.tabview.add("  📐 Ax = b (Ecuación Matricial)  ")
-        self.tab_props = self.tabview.add("  🔬 Propiedades de Ax  ")
+        self.tab_ops    = self.tabview.add("  ➕➖✖️ Operaciones con Matrices  ")
+        self.tab_axb    = self.tabview.add("  📐 Ax = b (Ecuación Matricial)  ")
+        self.tab_props  = self.tabview.add("  🔬 Propiedades de Ax  ")
+        self.tab_inv    = self.tabview.add("  🔄 Traspuesta e Inversa  ")
+        self.tab_det    = self.tabview.add("  📊 Determinantes  ")
         self.tab_teoremas = self.tabview.add("📘 Teoremas Clave ")
 
         self._setup_tab_ops()
         self._setup_tab_axb()
         self._setup_tab_propiedades()
+        self._setup_tab_inv()
+        self._setup_tab_det()
         self._setup_tab_teoremas()
 
     def _setup_tab_teoremas(self):
@@ -133,6 +141,18 @@ class MatrixOpsView(ctk.CTkFrame):
             for e in self.entries_prop_c:
                 _convertir(e)
 
+        # Tab 4: Traspuesta e Inversa
+        if hasattr(self, "entries_inv"):
+            for fila in self.entries_inv:
+                for e in fila:
+                    _convertir(e)
+
+        # Tab 5: Determinantes
+        if hasattr(self, "entries_det"):
+            for fila in self.entries_det:
+                for e in fila:
+                    _convertir(e)
+
         # Refrescar salidas calculadas activas
         if self._ultimo_calc_ops:
             self._calc_op(self._ultimo_calc_ops)
@@ -146,6 +166,12 @@ class MatrixOpsView(ctk.CTkFrame):
             self._calc_propiedad_escalar()
         elif self._ultimo_calc_prop == "linealidad":
             self._calc_linealidad_general()
+        if self._ultimo_calc_inv == "traspuesta":
+            self._calc_traspuesta()
+        elif self._ultimo_calc_inv == "inversa":
+            self._calc_inversa()
+        if self._ultimo_calc_det == "determinante":
+            self._calc_determinante()
 
 
     # =========================================================================
@@ -1200,11 +1226,407 @@ class MatrixOpsView(ctk.CTkFrame):
 
         self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
 
+
     def _log_prop(self, texto: str, limpiar: bool = False):
         self.txt_res_prop.configure(state="normal")
         if limpiar:
             self.txt_res_prop.delete("1.0", "end")
         self.txt_res_prop.insert("end", texto + "\n")
         self.txt_res_prop.configure(state="disabled")
+
+
+    # =========================================================================
+    # SUB-PESTAÑA 4: TRASPUESTA E INVERSA
+    # =========================================================================
+    def _setup_tab_inv(self):
+        """Panel para calcular la traspuesta Aᵀ y la inversa A⁻¹ de una matriz."""
+        tab = self.tab_inv
+        tab.grid_columnconfigure(0, weight=0)
+        tab.grid_columnconfigure(1, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
+
+        # --- Panel izquierdo: Entrada ---
+        left = ctk.CTkFrame(tab, width=420, corner_radius=10)
+        left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        left.grid_propagate(False)
+        left.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            left, text="🔄 Traspuesta e Inversa de Matriz A",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#7c3aed", "#a78bfa")
+        ).pack(anchor="w", padx=14, pady=(14, 4))
+
+        # Dimensiones
+        dim_frame = ctk.CTkFrame(left, fg_color="transparent")
+        dim_frame.pack(fill="x", padx=14, pady=(0, 4))
+        ctk.CTkLabel(dim_frame, text="Filas (n):").pack(side="left")
+        self.entry_inv_n = ctk.CTkEntry(dim_frame, width=44, justify="center")
+        self.entry_inv_n.pack(side="left", padx=(4, 12))
+        self.entry_inv_n.insert(0, "3")
+        ctk.CTkLabel(dim_frame, text="Columnas (m):").pack(side="left")
+        self.entry_inv_m = ctk.CTkEntry(dim_frame, width=44, justify="center")
+        self.entry_inv_m.pack(side="left", padx=4)
+        self.entry_inv_m.insert(0, "3")
+
+        # Botones Generar / Ejemplo
+        btn_row = ctk.CTkFrame(left, fg_color="transparent")
+        btn_row.pack(fill="x", padx=14, pady=4)
+        ctk.CTkButton(btn_row, text="Generar", width=80, command=self._generar_grid_inv).pack(side="left", padx=2)
+        ctk.CTkButton(
+            btn_row, text="🎲 Ejemplo", width=90, command=self._cargar_ejemplo_inv,
+            fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563")
+        ).pack(side="left", padx=4)
+
+        # Grid de la matriz A
+        self.scroll_inv = ctk.CTkScrollableFrame(left, height=200)
+        self.scroll_inv.pack(fill="both", expand=True, padx=14, pady=4)
+        self.entries_inv: List[List[ctk.CTkEntry]] = []
+        self._generar_grid_inv()
+
+        # Botones de operación
+        op_frame = ctk.CTkFrame(left, fg_color="transparent")
+        op_frame.pack(fill="x", padx=14, pady=(6, 12))
+        op_frame.grid_columnconfigure((0, 1), weight=1)
+
+        ctk.CTkButton(
+            op_frame, text="Aᵀ — Calcular Traspuesta",
+            command=self._calc_traspuesta,
+            fg_color=("#0d9488", "#0f766e"),
+            font=ctk.CTkFont(size=12, weight="bold"), height=36
+        ).grid(row=0, column=0, padx=3, pady=3, sticky="ew")
+
+        ctk.CTkButton(
+            op_frame, text="A⁻¹ — Calcular Inversa",
+            command=self._calc_inversa,
+            fg_color=("#7c3aed", "#6d28d9"),
+            font=ctk.CTkFont(size=12, weight="bold"), height=36
+        ).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
+
+        # Nota
+        ctk.CTkLabel(
+            left,
+            text="Nota: La inversa requiere matriz cuadrada n×n.",
+            font=ctk.CTkFont(size=11), text_color=("gray50", "gray60")
+        ).pack(anchor="w", padx=14, pady=(0, 8))
+
+        # --- Panel derecho: Resultados ---
+        right = ctk.CTkFrame(tab, corner_radius=10)
+        right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            right, text="📋 Procedimiento Paso a Paso",
+            font=ctk.CTkFont(size=13, weight="bold"), text_color=("#38bdf8", "#38bdf8")
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
+
+        self.txt_res_inv = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
+        self.txt_res_inv.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+        self.txt_res_inv.configure(state="disabled")
+
+    def _generar_grid_inv(self):
+        try:
+            n = max(1, min(8, int(self.entry_inv_n.get())))
+            m = max(1, min(8, int(self.entry_inv_m.get())))
+        except ValueError:
+            return
+        for w in self.scroll_inv.winfo_children():
+            w.destroy()
+        self.entries_inv = []
+        ctk.CTkLabel(
+            self.scroll_inv, text=f"Matriz A  ({n} × {m})",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=("#a78bfa", "#a78bfa")
+        ).pack(anchor="w", pady=(4, 2))
+        self._crear_grid_matriz(self.scroll_inv, n, m, self.entries_inv, color_col_last=False)
+
+    def _cargar_ejemplo_inv(self):
+        """Carga el ejemplo canónico de traspuesta/inversa 3×3."""
+        self.entry_inv_n.delete(0, "end"); self.entry_inv_n.insert(0, "3")
+        self.entry_inv_m.delete(0, "end"); self.entry_inv_m.insert(0, "3")
+        self._generar_grid_inv()
+        vals = [[1, 2, 0], [-1, 3, 2], [2, 0, -1]]
+        for i, fila in enumerate(vals):
+            for j, v in enumerate(fila):
+                self.entries_inv[i][j].delete(0, "end")
+                self.entries_inv[i][j].insert(0, str(v))
+
+    def _leer_matriz_inv(self):
+        """Lee la matriz A desde la grilla del tab Inversa."""
+        try:
+            n = int(self.entry_inv_n.get())
+            m = int(self.entry_inv_m.get())
+        except ValueError:
+            raise ValueError("Dimensiones inválidas.")
+        from fractions import Fraction
+        A = []
+        for i in range(n):
+            fila = []
+            for j in range(m):
+                txt = self.entries_inv[i][j].get().strip()
+                if not txt:
+                    raise ValueError(f"Celda A[{i+1},{j+1}] está vacía.")
+                try:
+                    fila.append(Fraction(txt))
+                except Exception:
+                    try:
+                        fila.append(Fraction(float(txt)))
+                    except Exception:
+                        raise ValueError(f"Valor inválido en A[{i+1},{j+1}]: '{txt}'")
+            A.append(fila)
+        return [[float(x) for x in fila] for fila in A]
+
+    def _calc_traspuesta(self):
+        self._ultimo_calc_inv = "traspuesta"
+        modo = self.get_modo_numero()
+        try:
+            A = self._leer_matriz_inv()
+        except ValueError as e:
+            self._log_inv(f"❌ {e}", limpiar=True)
+            return
+
+        AT = trasponer_matriz(A)
+        n_orig = len(A)
+        m_orig = len(A[0])
+        n_new  = len(AT)
+        m_new  = len(AT[0])
+
+        def fmt_mat(mat, rows, cols):
+            lines = []
+            for i in range(rows):
+                row_str = "  ".join(
+                    f"{formatear_numero(mat[i][j], modo):>8}" for j in range(cols)
+                )
+                lines.append(f"  [ {row_str} ]")
+            return "\n".join(lines)
+
+        lineas = [
+            "═" * 60,
+            "  TRASPUESTA DE MATRIZ  Aᵀ",
+            "═" * 60,
+            "",
+            f"  Matriz A  ({n_orig} × {m_orig}):",
+            fmt_mat(A, n_orig, m_orig),
+            "",
+            f"  Definición: (Aᵀ)ᵢⱼ = Aⱼᵢ  →  dimensión {n_new} × {m_new}",
+            "",
+            f"  Aᵀ  ({n_new} × {m_new}):",
+            fmt_mat(AT, n_new, m_new),
+            "",
+            "═" * 60,
+        ]
+        self._log_inv("\n".join(lineas), limpiar=True)
+
+    def _calc_inversa(self):
+        self._ultimo_calc_inv = "inversa"
+        modo = self.get_modo_numero()
+        try:
+            A = self._leer_matriz_inv()
+        except ValueError as e:
+            self._log_inv(f"❌ {e}", limpiar=True)
+            return
+
+        n = len(A)
+        if n != len(A[0]):
+            self._log_inv("❌ La inversa solo está definida para matrices cuadradas (n×n).", limpiar=True)
+            return
+
+        try:
+            res = invertir_matriz(A, modo=modo)
+        except ValueError as e:
+            self._log_inv(f"❌ {e}", limpiar=True)
+            return
+
+        lineas = ["═" * 60, "  INVERSA DE MATRIZ  A⁻¹  (Gauss-Jordan)", "═" * 60, ""]
+        lineas += res.pasos
+        lineas += ["", res.explicacion, "", "═" * 60]
+
+        if res.es_invertible and res.matriz_inversa:
+            def fmt_mat(mat):
+                lines = []
+                for fila in mat:
+                    row_str = "  ".join(f"{formatear_numero(x, modo):>10}" for x in fila)
+                    lines.append(f"  [ {row_str} ]")
+                return "\n".join(lines)
+            lineas += ["", f"  A⁻¹  ({n} × {n}):", fmt_mat(res.matriz_inversa)]
+
+        self._log_inv("\n".join(lineas), limpiar=True)
+
+    def _log_inv(self, texto: str, limpiar: bool = False):
+        self.txt_res_inv.configure(state="normal")
+        if limpiar:
+            self.txt_res_inv.delete("1.0", "end")
+        self.txt_res_inv.insert("end", texto + "\n")
+        self.txt_res_inv.configure(state="disabled")
+
+
+    # =========================================================================
+    # SUB-PESTAÑA 5: DETERMINANTES
+    # =========================================================================
+    def _setup_tab_det(self):
+        """Panel para calcular el determinante det(A) paso a paso."""
+        tab = self.tab_det
+        tab.grid_columnconfigure(0, weight=0)
+        tab.grid_columnconfigure(1, weight=1)
+        tab.grid_rowconfigure(0, weight=1)
+
+        # --- Panel izquierdo: Entrada ---
+        left = ctk.CTkFrame(tab, width=420, corner_radius=10)
+        left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        left.grid_propagate(False)
+        left.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            left, text="📊 Determinante de Matriz Cuadrada A",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#ea580c", "#fb923c")
+        ).pack(anchor="w", padx=14, pady=(14, 4))
+
+        # Dimensión n×n
+        dim_frame = ctk.CTkFrame(left, fg_color="transparent")
+        dim_frame.pack(fill="x", padx=14, pady=(0, 4))
+        ctk.CTkLabel(dim_frame, text="Orden n (n×n):").pack(side="left")
+        self.entry_det_n = ctk.CTkEntry(dim_frame, width=52, justify="center")
+        self.entry_det_n.pack(side="left", padx=(4, 0))
+        self.entry_det_n.insert(0, "3")
+
+        # Botones Generar / Ejemplo
+        btn_row = ctk.CTkFrame(left, fg_color="transparent")
+        btn_row.pack(fill="x", padx=14, pady=4)
+        ctk.CTkButton(btn_row, text="Generar", width=80, command=self._generar_grid_det).pack(side="left", padx=2)
+        ctk.CTkButton(
+            btn_row, text="🎲 Ejemplo 3×3", width=110, command=self._cargar_ejemplo_det,
+            fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563")
+        ).pack(side="left", padx=4)
+        ctk.CTkButton(
+            btn_row, text="🎲 Ejemplo 2×2", width=110, command=self._cargar_ejemplo_det_2x2,
+            fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563")
+        ).pack(side="left", padx=4)
+
+        # Grid de la matriz A
+        self.scroll_det = ctk.CTkScrollableFrame(left, height=220)
+        self.scroll_det.pack(fill="both", expand=True, padx=14, pady=4)
+        self.entries_det: List[List[ctk.CTkEntry]] = []
+        self._generar_grid_det()
+
+        # Botón calcular
+        ctk.CTkButton(
+            left, text="📊 Calcular det(A)",
+            command=self._calc_determinante,
+            fg_color=("#ea580c", "#c2410c"),
+            font=ctk.CTkFont(size=13, weight="bold"), height=40
+        ).pack(fill="x", padx=14, pady=(6, 12))
+
+        # --- Panel derecho: Resultados ---
+        right = ctk.CTkFrame(tab, corner_radius=10)
+        right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            right, text="📋 Procedimiento Paso a Paso",
+            font=ctk.CTkFont(size=13, weight="bold"), text_color=("#38bdf8", "#38bdf8")
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(12, 6))
+
+        self.txt_res_det = ctk.CTkTextbox(right, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
+        self.txt_res_det.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+        self.txt_res_det.configure(state="disabled")
+
+    def _generar_grid_det(self):
+        try:
+            n = max(1, min(8, int(self.entry_det_n.get())))
+        except ValueError:
+            return
+        for w in self.scroll_det.winfo_children():
+            w.destroy()
+        self.entries_det = []
+        ctk.CTkLabel(
+            self.scroll_det, text=f"Matriz A  ({n} × {n})",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=("#fb923c", "#fb923c")
+        ).pack(anchor="w", pady=(4, 2))
+        self._crear_grid_matriz(self.scroll_det, n, n, self.entries_det, color_col_last=False)
+
+    def _cargar_ejemplo_det(self):
+        """Ejemplo 3×3 con det = -14."""
+        self.entry_det_n.delete(0, "end"); self.entry_det_n.insert(0, "3")
+        self._generar_grid_det()
+        vals = [[1, 2, 3], [4, 5, 6], [7, 2, 9]]
+        for i, fila in enumerate(vals):
+            for j, v in enumerate(fila):
+                self.entries_det[i][j].delete(0, "end")
+                self.entries_det[i][j].insert(0, str(v))
+
+    def _cargar_ejemplo_det_2x2(self):
+        """Ejemplo 2×2: A = [[3,-2],[4,1]] → det = 11."""
+        self.entry_det_n.delete(0, "end"); self.entry_det_n.insert(0, "2")
+        self._generar_grid_det()
+        vals = [[3, -2], [4, 1]]
+        for i, fila in enumerate(vals):
+            for j, v in enumerate(fila):
+                self.entries_det[i][j].delete(0, "end")
+                self.entries_det[i][j].insert(0, str(v))
+
+    def _leer_matriz_det(self):
+        """Lee la matriz cuadrada desde la grilla del tab Determinante."""
+        try:
+            n = int(self.entry_det_n.get())
+        except ValueError:
+            raise ValueError("Dimensión inválida.")
+        from fractions import Fraction
+        A = []
+        for i in range(n):
+            fila = []
+            for j in range(n):
+                txt = self.entries_det[i][j].get().strip()
+                if not txt:
+                    raise ValueError(f"Celda A[{i+1},{j+1}] está vacía.")
+                try:
+                    fila.append(float(Fraction(txt)))
+                except Exception:
+                    try:
+                        fila.append(float(txt))
+                    except Exception:
+                        raise ValueError(f"Valor inválido en A[{i+1},{j+1}]: '{txt}'")
+            A.append(fila)
+        return A
+
+    def _calc_determinante(self):
+        self._ultimo_calc_det = "determinante"
+        modo = self.get_modo_numero()
+        try:
+            A = self._leer_matriz_det()
+        except ValueError as e:
+            self._log_det(f"❌ {e}", limpiar=True)
+            return
+
+        try:
+            res = calcular_determinante(A, modo=modo)
+        except ValueError as e:
+            self._log_det(f"❌ {e}", limpiar=True)
+            return
+
+        lineas = ["═" * 60, "  DETERMINANTE — det(A)", "═" * 60, ""]
+        lineas += res.pasos
+        lineas += [
+            "",
+            "═" * 60,
+            f"  det(A) = {formatear_numero(res.determinante, modo)}",
+            "",
+            res.explicacion,
+            "═" * 60,
+        ]
+
+        veredicto = "✅ La matriz ES INVERTIBLE  (det ≠ 0)" if res.es_invertible \
+                    else "❌ La matriz NO ES INVERTIBLE  (det = 0, es singular)"
+        lineas += ["", veredicto]
+
+        self._log_det("\n".join(lineas), limpiar=True)
+
+    def _log_det(self, texto: str, limpiar: bool = False):
+        self.txt_res_det.configure(state="normal")
+        if limpiar:
+            self.txt_res_det.delete("1.0", "end")
+        self.txt_res_det.insert("end", texto + "\n")
+        self.txt_res_det.configure(state="disabled")
 
 
