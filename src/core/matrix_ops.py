@@ -818,3 +818,277 @@ def verificar_linealidad_general_ax(
         se_cumple=se_cumple,
         desglose_pasos=pasos
     )
+
+
+# =========================================================================
+# 7. TRASPUESTA, INVERSA Y DETERMINANTES (PURO PYTHON ESTÁNDAR)
+# =========================================================================
+
+def trasponer_matriz(A: Matriz) -> Matriz:
+    """Calcula la matriz traspuesta Aᵀ.
+    
+    Procedimiento algebraico:
+    Si A es de orden m × n, su traspuesta Aᵀ es de orden n × m,
+    donde (Aᵀ)ᵢⱼ = Aⱼᵢ para todo i, j.
+    """
+    if not A or not A[0]:
+        raise ValueError("La matriz no puede estar vacía.")
+    m = len(A)
+    n = len(A[0])
+    return [[A[i][j] for i in range(m)] for j in range(n)]
+
+
+@dataclass
+class ResultadoInversionMatriz:
+    """Resultado del cálculo de la matriz inversa mediante [A | I] → [I | A⁻¹]."""
+    es_invertible: bool
+    matriz_original: Matriz
+    matriz_inversa: Optional[Matriz]
+    matriz_aumentada_inicial: Matriz
+    matriz_aumentada_final: Matriz
+    pasos: List[str]
+    explicacion: str
+
+
+def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatriz:
+    """Calcula la inversa A⁻¹ mediante reducción de Gauss-Jordan sobre [A | I].
+    
+    Teorema de la Matriz Invertible:
+    Una matriz cuadrada A de n × n es invertible si y solo si es equivalente por filas a Iₙ.
+    Si [A | I] se reduce a [I | B], entonces B = A⁻¹. Si surge una fila de ceros en la parte izquierda,
+    la matriz es singular (no invertible).
+    """
+    if not A or not A[0]:
+        raise ValueError("La matriz no puede estar vacía.")
+    n = len(A)
+    for i, fila in enumerate(A):
+        if len(fila) != n:
+            raise ValueError(
+                f"La matriz no es cuadrada: Fila {i+1} tiene {len(fila)} columnas pero A tiene {n} filas. "
+                f"Solo las matrices cuadradas pueden tener matriz inversa."
+            )
+
+    # 1. Construir [A | I]
+    aumentada: Matriz = []
+    for i in range(n):
+        fila = [float(val) for val in A[i]]
+        for j in range(n):
+            fila.append(1.0 if i == j else 0.0)
+        aumentada.append(fila)
+
+    aum_inicial = [fila[:] for fila in aumentada]
+    pasos: List[str] = []
+    pasos.append(f"1. Matriz cuadrada A de {n}×{n}. Se construye la matriz aumentada [A | I_{n}]:")
+
+    def fmt_aum(mat: Matriz) -> str:
+        s = ""
+        for row in mat:
+            izq = "  ".join(f"{formatear_numero(x, modo):>8}" for x in row[:n])
+            der = "  ".join(f"{formatear_numero(x, modo):>8}" for x in row[n:])
+            s += f"  [ {izq} | {der} ]\n"
+        return s
+
+    pasos.append(fmt_aum(aumentada))
+
+    # 2. Eliminación de Gauss-Jordan
+    rango = 0
+    paso_num = 1
+    for col in range(n):
+        # Buscar pivote con mayor magnitud (pivoteo parcial)
+        max_fila = rango
+        max_val = abs(aumentada[rango][col]) if rango < n else 0.0
+        for f in range(rango + 1, n):
+            if abs(aumentada[f][col]) > max_val:
+                max_val = abs(aumentada[f][col])
+                max_fila = f
+
+        if max_val < 1e-10:
+            # Columna sin pivote
+            continue
+
+        if max_fila != rango:
+            aumentada[rango], aumentada[max_fila] = aumentada[max_fila], aumentada[rango]
+            pasos.append(f">> Paso {paso_num}: Fila {rango+1} ↔ Fila {max_fila+1} (Intercambio de filas por pivote)")
+            pasos.append(fmt_aum(aumentada))
+            paso_num += 1
+
+        pivote = aumentada[rango][col]
+        if abs(pivote - 1.0) > 1e-10:
+            aumentada[rango] = [round(x / pivote, 9) for x in aumentada[rango]]
+            p_fmt = formatear_numero(pivote, modo)
+            pasos.append(f">> Paso {paso_num}: Fila {rango+1} → (1/{p_fmt}) · Fila {rango+1} (Normalizar pivote a 1)")
+            pasos.append(fmt_aum(aumentada))
+            paso_num += 1
+
+        for f in range(n):
+            if f != rango and abs(aumentada[f][col]) > 1e-10:
+                factor = aumentada[f][col]
+                aumentada[f] = [round(aumentada[f][c] - factor * aumentada[rango][c], 9) for c in range(2 * n)]
+                f_fmt = formatear_numero(factor, modo)
+                signo = "-" if factor > 0 else "+"
+                f_abs_fmt = formatear_numero(abs(factor), modo)
+                pasos.append(f">> Paso {paso_num}: Fila {f+1} → Fila {f+1} {signo} {f_abs_fmt} · Fila {rango+1} (Crear cero)")
+                pasos.append(fmt_aum(aumentada))
+                paso_num += 1
+
+        rango += 1
+
+    # 3. Verificar si el lado izquierdo es Iₙ
+    es_identidad = True
+    for i in range(n):
+        for j in range(n):
+            esperado = 1.0 if i == j else 0.0
+            if abs(aumentada[i][j] - esperado) > 1e-7:
+                es_identidad = False
+                break
+        if not es_identidad:
+            break
+
+    if es_identidad:
+        inversa = [[aumentada[i][n + j] for j in range(n)] for i in range(n)]
+        explicacion = (
+            f"✓ LA MATRIZ ES INVERTIBLE (RANGO COMPLETO = {n}).\n"
+            f"La forma escalonada reducida del lado izquierdo es la matriz identidad I_{n}.\n"
+            f"Por tanto, el bloque derecho corresponde exactamente a la matriz inversa A⁻¹."
+        )
+        return ResultadoInversionMatriz(
+            es_invertible=True,
+            matriz_original=A,
+            matriz_inversa=inversa,
+            matriz_aumentada_inicial=aum_inicial,
+            matriz_aumentada_final=aumentada,
+            pasos=pasos,
+            explicacion=explicacion
+        )
+    else:
+        explicacion = (
+            f"✗ LA MATRIZ ES SINGULAR (NO INVERTIBLE).\n"
+            f"El rango por filas es {rango} < {n}. Al reducir [A | I], el lado izquierdo no alcanzó "
+            f"la matriz identidad I_{n} (surgieron filas de ceros o variables libres).\n"
+            f"Por el Teorema Fundamental de la Matriz Invertible, det(A) = 0 y no existe A⁻¹."
+        )
+        return ResultadoInversionMatriz(
+            es_invertible=False,
+            matriz_original=A,
+            matriz_inversa=None,
+            matriz_aumentada_inicial=aum_inicial,
+            matriz_aumentada_final=aumentada,
+            pasos=pasos,
+            explicacion=explicacion
+        )
+
+
+@dataclass
+class ResultadoDeterminante:
+    """Resultado del cálculo del determinante de una matriz cuadrada."""
+    matriz: Matriz
+    orden: int
+    determinante: float
+    es_invertible: bool
+    pasos: List[str]
+    explicacion: str
+
+
+def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDeterminante:
+    """Calcula el determinante det(A) usando triangulación gaussiana pura.
+    
+    Propiedades utilizadas:
+      1. Intercambiar dos filas multiplica el determinante por -1.
+      2. Sumar a una fila un múltiplo de otra no altera el determinante.
+      3. Para una matriz triangular superior U, det(A) = (-1)^k · Π u_ii.
+    """
+    if not A or not A[0]:
+        raise ValueError("La matriz no puede estar vacía.")
+    n = len(A)
+    for i, fila in enumerate(A):
+        if len(fila) != n:
+            raise ValueError(f"La matriz no es cuadrada: tiene {n} filas y {len(fila)} columnas en fila {i+1}.")
+
+    U = [fila[:] for fila in A]
+    swaps = 0
+    pasos: List[str] = []
+    pasos.append(f"Cálculo del determinante de matriz A de orden {n}×{n} por triangulación:")
+
+    def fmt_mat(mat: Matriz) -> str:
+        return "".join("  [ " + "  ".join(f"{formatear_numero(x, modo):>8}" for x in row) + " ]\n" for row in mat)
+
+    pasos.append(fmt_mat(U))
+
+    # Casos base para 1x1 y 2x2
+    if n == 1:
+        val = U[0][0]
+        pasos.append(f"Matriz 1×1: det(A) = {formatear_numero(val, modo)}")
+        return ResultadoDeterminante(
+            matriz=A, orden=1, determinante=val, es_invertible=abs(val) > 1e-10,
+            pasos=pasos,
+            explicacion=f"det(A) = {formatear_numero(val, modo)}. {'Invertible' if abs(val) > 1e-10 else 'Singular'}."
+        )
+
+    if n == 2:
+        val = U[0][0] * U[1][1] - U[0][1] * U[1][0]
+        a11_s = formatear_numero(U[0][0], modo)
+        a22_s = formatear_numero(U[1][1], modo)
+        a12_s = formatear_numero(U[0][1], modo)
+        a21_s = formatear_numero(U[1][0], modo)
+        pasos.append(f"Fórmula 2×2: det(A) = (a₁₁ · a₂₂) − (a₁₂ · a₂₁)")
+        pasos.append(f"det(A) = ({a11_s} · {a22_s}) − ({a12_s} · {a21_s}) = {formatear_numero(val, modo)}")
+        return ResultadoDeterminante(
+            matriz=A, orden=2, determinante=val, es_invertible=abs(val) > 1e-10,
+            pasos=pasos,
+            explicacion=f"det(A) = {formatear_numero(val, modo)}."
+        )
+
+    # Triangulación gaussiana para orden n >= 3
+    det_cero = False
+    for col in range(n):
+        # Buscar fila con pivote distinto de cero
+        pivot_row = col
+        max_val = abs(U[col][col])
+        for r in range(col + 1, n):
+            if abs(U[r][col]) > max_val:
+                max_val = abs(U[r][col])
+                pivot_row = r
+
+        if max_val < 1e-10:
+            det_cero = True
+            pasos.append(f"Columna {col+1}: Todos los elementos bajo la diagonal son cero. La matriz es singular.")
+            break
+
+        if pivot_row != col:
+            U[col], U[pivot_row] = U[pivot_row], U[col]
+            swaps += 1
+            pasos.append(f"Intercambio Fila {col+1} ↔ Fila {pivot_row+1} (el determinante cambia de signo por (-1)):")
+            pasos.append(fmt_mat(U))
+
+        # Eliminar hacia abajo
+        piv = U[col][col]
+        for r in range(col + 1, n):
+            if abs(U[r][col]) > 1e-10:
+                factor = U[r][col] / piv
+                U[r] = [round(U[r][c] - factor * U[col][c], 9) for c in range(n)]
+                pasos.append(f"Fila {r+1} → Fila {r+1} − ({formatear_numero(factor, modo)})·Fila {col+1}")
+
+    if det_cero:
+        det = 0.0
+    else:
+        prod_diagonal = 1.0
+        diag_terms = []
+        for i in range(n):
+            prod_diagonal *= U[i][i]
+            diag_terms.append(formatear_numero(U[i][i], modo))
+        signo_swaps = (-1) ** swaps
+        det = round(signo_swaps * prod_diagonal, 9)
+        pasos.append(f"\nMatriz triangular superior resultante:\n{fmt_mat(U)}")
+        pasos.append(f"det(A) = (-1)^{swaps} · ({' · '.join(diag_terms)}) = {formatear_numero(det, modo)}")
+
+    es_inv = abs(det) > 1e-10
+    expl = (
+        f"det(A) = {formatear_numero(det, modo)}.\n"
+        f"Diagnóstico: {'A es invertible (no singular), tiene columnas L.I. y rango máximo.' if es_inv else 'A no es invertible (singular), sus columnas son L.D. y det(A) = 0.'}"
+    )
+
+    return ResultadoDeterminante(
+        matriz=A, orden=n, determinante=det, es_invertible=es_inv,
+        pasos=pasos, explicacion=expl
+    )
+

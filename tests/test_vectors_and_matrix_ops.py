@@ -25,7 +25,8 @@ from src.core.matrix_ops import (
     sumar_matrices, restar_matrices, multiplicar_matriz_escalar,
     combinacion_matrices,
     multiplicar_matrices, multiplicar_matriz_vector, resolver_ecuacion_matricial,
-    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax, verificar_linealidad_general_ax
+    verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax, verificar_linealidad_general_ax,
+    trasponer_matriz, invertir_matriz, calcular_determinante
 )
 from src.core.domain import convertir_texto_a_modo
 
@@ -296,6 +297,48 @@ def test_conversion_formato_numerico():
     print("✓ Conversión bidireccional entre cadenas decimales y fraccionarias verificada")
 
 
+def test_inversa_determinante_y_traspuesta():
+    print("\n=== Test 8: Traspuesta, Determinante e Inversa (Programa 4) ===")
+    
+    # Traspuesta de 2x3 a 3x2
+    M = [[1, 2, 3], [4, 5, 6]]
+    MT = trasponer_matriz(M)
+    assert MT == [[1, 4], [2, 5], [3, 6]], f"Fallo traspuesta: {MT}"
+    print("✓ Traspuesta de matriz 2x3 -> 3x2 verificada")
+
+    # Determinante 2x2
+    A2 = [[3, -2], [4, 1]]
+    det2 = calcular_determinante(A2, modo="fraccion")
+    # det = 3*1 - (-2*4) = 11
+    assert abs(det2.determinante - 11.0) < 1e-7, f"Fallo det2: {det2.determinante}"
+    assert det2.es_invertible is True
+    print("✓ Determinante 2x2: det([[3, -2], [4, 1]]) = 11 verificado")
+
+    # Inversa 2x2
+    inv2 = invertir_matriz(A2, modo="fraccion")
+    assert inv2.es_invertible is True
+    assert inv2.matriz_inversa is not None
+    # Inversa: 1/11 * [[1, 2], [-4, 3]]
+    assert abs(inv2.matriz_inversa[0][0] - 1/11) < 1e-7
+    assert abs(inv2.matriz_inversa[0][1] - 2/11) < 1e-7
+    assert abs(inv2.matriz_inversa[1][0] - (-4/11)) < 1e-7
+    assert abs(inv2.matriz_inversa[1][1] - 3/11) < 1e-7
+    print("✓ Inversa 2x2 exacta calculada por Gauss-Jordan verificada")
+
+    # Determinante 3x3 singular (filas ld)
+    A3_sing = [[1, 2, 3], [2, 4, 6], [1, 1, 1]]
+    det3_sing = calcular_determinante(A3_sing, modo="fraccion")
+    assert abs(det3_sing.determinante) < 1e-7, f"Fallo det3 singular: {det3_sing.determinante}"
+    assert det3_sing.es_invertible is False
+    print("✓ Determinante de matriz singular = 0 verificado")
+
+    # Inversa de matriz singular detecta no invertibilidad
+    inv3_sing = invertir_matriz(A3_sing, modo="fraccion")
+    assert inv3_sing.es_invertible is False
+    assert inv3_sing.matriz_inversa is None
+    print("✓ Detección de matriz no invertible (singular) verificada")
+
+
 if __name__ == "__main__":
     test_operaciones_vectoriales_basicas()
     test_combinacion_lineal()
@@ -304,6 +347,7 @@ if __name__ == "__main__":
     test_ecuaciones_matriciales()
     test_propiedades_producto_ax()
     test_conversion_formato_numerico()
+    test_inversa_determinante_y_traspuesta()
     print("\n=======================================================")
     print("   TODAS LAS PRUEBAS MATEMÁTICAS PASARON CON ÉXITO!   ")
     print("=======================================================")
