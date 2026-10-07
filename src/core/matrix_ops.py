@@ -1,19 +1,7 @@
-"""
-Módulo de Operaciones Matriciales Básicas y Ecuaciones Matriciales para PyMatrix.
-
-Contiene la lógica matemática para:
-1. Suma y resta de matrices A ± B (con validación de dimensiones m × n).
-2. Multiplicación de una matriz por un escalar c · A.
-3. Multiplicación de matrices A_m×n · B_n×p:
-   - Validación de compatibilidad dimensional: columnas de A == filas de B.
-   - Algoritmo estándar con triple bucle anidado for/for/for documentado paso a paso.
-   - Generación de desgloses de cálculo posicional para fines didácticos e informe técnico.
-4. Producto matriz-vector A · x (regla fila-vector y combinación lineal de columnas).
-5. Resolución computacional de la ecuación matricial Ax = b mediante matriz aumentada [A | b].
-
-RESTRICCIÓN DIDÁCTICA:
-Implementado estrictamente con Python estándar (listas, bucles, condicionales).
-Prohibido el uso de NumPy o SciPy.
+"""Operaciones matriciales en Python estándar (sin NumPy/SciPy), con desglose paso a paso.
+Implementa suma/resta, producto por escalar, A·B, producto matriz-vector A·x y ecuación Ax = b,
+propiedades de linealidad de Ax, traspuesta, inversa y determinantes.
+Elaborado por: Grupo x
 """
 
 from dataclasses import dataclass, field
@@ -29,23 +17,13 @@ from src.core.gauss import (
 from src.core.vectors import Vector
 
 
-# =========================================================================
-# 1. SUMA Y RESTA DE MATRICES
-# =========================================================================
-
 def validar_dimensiones_matrices_iguales(A: Matriz, B: Matriz, operacion: str = "operación") -> Tuple[int, int]:
-    """Verifica que dos matrices tengan exactamente las mismas dimensiones m × n.
-    
-    Procedimiento algebraico:
-    La adición y sustracción de matrices solo están definidas si ambas matrices
-    tienen el mismo número de filas y el mismo número de columnas (A, B ∈ M_{m × n}(ℝ)).
-    
-    Raises:
-        ValueError: Si alguna matriz está vacía o sus dimensiones difieren.
-    """
+    """Verifica que A y B tengan las mismas dimensiones m × n y devuelve (m, n).
+    Lanza ValueError si alguna está vacía o difieren: la suma/resta solo existe entre matrices iguales."""
     if not A or not A[0] or not B or not B[0]:
         raise ValueError("Las matrices no pueden estar vacías.")
     
+    # Validar dimensiones antes de operar: A ± B solo está definida si ambas son m × n.
     filas_A, cols_A = len(A), len(A[0])
     filas_B, cols_B = len(B), len(B[0])
     
@@ -59,31 +37,20 @@ def validar_dimensiones_matrices_iguales(A: Matriz, B: Matriz, operacion: str = 
 
 
 def sumar_matrices(A: Matriz, B: Matriz) -> Matriz:
-    """Calcula la suma matricial C = A + B.
-    
-    Procedimiento algebraico:
-    Dadas A, B ∈ M_{m × n}(ℝ), la matriz resultante C = A + B tiene entradas:
-    C_{ij} = A_{ij} + B_{ij}  para todo 1 ≤ i ≤ m, 1 ≤ j ≤ n.
-    Se suman los elementos correspondientes posición a posición.
-    """
+    """Calcula C = A + B con C_ij = A_ij + B_ij; recibe dos matrices m × n y devuelve la suma."""
     m, n = validar_dimensiones_matrices_iguales(A, B, "suma matricial")
     C: Matriz = []
     for i in range(m):
         fila: List[float] = []
         for j in range(n):
+            # round(…, 9) elimina ruido de punto flotante (p. ej. 0.1 + 0.2).
             fila.append(round(A[i][j] + B[i][j], 9))
         C.append(fila)
     return C
 
 
 def restar_matrices(A: Matriz, B: Matriz) -> Matriz:
-    """Calcula la resta matricial C = A - B.
-    
-    Procedimiento algebraico:
-    A - B = A + (-1)·B.
-    C_{ij} = A_{ij} - B_{ij}  para todo 1 ≤ i ≤ m, 1 ≤ j ≤ n.
-    Se resta cada elemento de B al correspondiente elemento de A.
-    """
+    """Calcula C = A - B con C_ij = A_ij - B_ij; recibe dos matrices m × n y devuelve la resta."""
     m, n = validar_dimensiones_matrices_iguales(A, B, "resta matricial")
     C: Matriz = []
     for i in range(m):
@@ -94,18 +61,8 @@ def restar_matrices(A: Matriz, B: Matriz) -> Matriz:
     return C
 
 
-# =========================================================================
-# 2. MULTIPLICACIÓN POR UN ESCALAR
-# =========================================================================
-
 def multiplicar_matriz_escalar(c: float, A: Matriz) -> Matriz:
-    """Calcula el producto de un escalar por una matriz C = c · A.
-    
-    Procedimiento algebraico:
-    Dado c ∈ ℝ y A ∈ M_{m × n}(ℝ):
-    (c · A)_{ij} = c · A_{ij}  para todo 1 ≤ i ≤ m, 1 ≤ j ≤ n.
-    Cada entrada de la matriz se multiplica por el factor escalar c.
-    """
+    """Calcula C = c · A multiplicando cada entrada de A por el escalar c; devuelve C."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     
@@ -120,12 +77,8 @@ def multiplicar_matriz_escalar(c: float, A: Matriz) -> Matriz:
 
 
 def combinacion_matrices(c_A: float, A: Matriz, c_B: float, B: Matriz, restar: bool = False) -> Matriz:
-    """Calcula la combinación lineal de dos matrices C = c_A·A + c_B·B (o c_A·A - c_B·B si restar=True).
-    
-    Procedimiento algebraico:
-    Dadas A, B ∈ M_{m × n}(ℝ) y escalares c_A, c_B ∈ ℝ:
-    C_{ij} = c_A·A_{ij} ± c_B·B_{ij} para todo 1 ≤ i ≤ m, 1 ≤ j ≤ n.
-    """
+    """Calcula C = c_A·A + c_B·B (o c_A·A - c_B·B si restar=True) entre matrices m × n.
+    Valida dimensiones iguales y devuelve la matriz resultante."""
     m, n = validar_dimensiones_matrices_iguales(A, B, "combinación lineal matricial")
     signo = -1.0 if restar else 1.0
     C: Matriz = []
@@ -138,11 +91,6 @@ def combinacion_matrices(c_A: float, A: Matriz, c_B: float, B: Matriz, restar: b
     return C
 
 
-
-# =========================================================================
-# 3. MULTIPLICACIÓN DE MATRICES (A_m×n · B_n×p)
-# =========================================================================
-
 @dataclass
 class ResultadoMultiplicacionMatricial:
     """Almacena el resultado y el desglose paso a paso de la multiplicación A · B."""
@@ -154,32 +102,18 @@ class ResultadoMultiplicacionMatricial:
 
 
 def multiplicar_matrices(A: Matriz, B: Matriz, modo: str = "fraccion") -> ResultadoMultiplicacionMatricial:
-    """Calcula el producto matricial C = A · B de dimensiones (m × n) · (n × p) = (m × p).
-    
-    Procedimiento algebraico:
-    1. Condición de Compatibilidad:
-       El producto A · B está definido si y solo si el número de columnas de A
-       es exactamente igual al número de filas de B (cols_A == filas_B = n).
-    
-    2. Regla de Producto Fila por Columna (Producto Punto):
-       Cada entrada C_{ij} de la matriz producto resulta del producto escalar entre
-       la fila i-ésima de A y la columna j-ésima de B:
-       C_{ij} = ∑_{k=1}^{n} (A_{ik} · B_{kj}) = A_{i1}B_{1j} + A_{i2}B_{2j} + ... + A_{in}B_{nj}
-    
-    3. Explicación de la Lógica de Bucles Anidados:
-       - Bucle exterior (i de 0 a m-1): Itera sobre cada fila de la matriz A.
-       - Bucle intermedio (j de 0 a p-1): Itera sobre cada columna de la matriz B.
-       - Bucle interior (k de 0 a n-1): Acumula la suma de productos de los elementos
-         correspondientes de la fila i de A y la columna j de B.
-    """
+    """Calcula C = A · B con C_ij = Σₖ A_ik·B_kj; exige columnas de A == filas de B.
+    Recibe A (m×n), B (n×p) y modo de formato; devuelve ResultadoMultiplicacionMatricial
+    con la matriz (m×p) y el desglose por celda."""
     if not A or not A[0] or not B or not B[0]:
         raise ValueError("Ninguna de las matrices puede estar vacía.")
     
-    m = len(A)       # Filas de A
-    n_A = len(A[0])  # Columnas de A
-    n_B = len(B)     # Filas de B
-    p = len(B[0])    # Columnas de B
+    m = len(A)
+    n_A = len(A[0])
+    n_B = len(B)
+    p = len(B[0])
     
+    # A·B existe solo si columnas de A == filas de B (producto fila por columna).
     if n_A != n_B:
         raise ValueError(
             f"Incompatibilidad de dimensiones para multiplicación: A es {m}×{n_A} y B es {n_B}×{p}. "
@@ -190,15 +124,12 @@ def multiplicar_matrices(A: Matriz, B: Matriz, modo: str = "fraccion") -> Result
     C: Matriz = []
     desgloses: List[str] = []
     
-    # Bucle i: Recorre las filas de la matriz A (tamaño m)
     for i in range(m):
         fila_C: List[float] = []
-        # Bucle j: Recorre las columnas de la matriz B (tamaño p)
         for j in range(p):
             acumulador = 0.0
             terminos_texto: List[str] = []
             
-            # Bucle k: Recorre los elementos compartidos de dimensión n
             for k in range(n):
                 prod = A[i][k] * B[k][j]
                 acumulador += prod
@@ -209,7 +140,6 @@ def multiplicar_matrices(A: Matriz, B: Matriz, modo: str = "fraccion") -> Result
             acumulador_redondeado = round(acumulador, 9)
             fila_C.append(acumulador_redondeado)
             
-            # Formatear el desglose didáctico de la celda C[i+1, j+1]
             desglose_celda = (
                 f"c{a_subindice(i+1)}{a_subindice(j+1)} = " +
                 " + ".join(terminos_texto) +
@@ -227,10 +157,6 @@ def multiplicar_matrices(A: Matriz, B: Matriz, modo: str = "fraccion") -> Result
     )
 
 
-# =========================================================================
-# 4. PRODUCTO MATRIZ-VECTOR (A · x)
-# =========================================================================
-
 @dataclass
 class ResultadoProductoMatrizVector:
     """Resultado del cálculo Ax."""
@@ -240,16 +166,8 @@ class ResultadoProductoMatrizVector:
 
 
 def multiplicar_matriz_vector(A: Matriz, x: Vector, modo: str = "fraccion") -> ResultadoProductoMatrizVector:
-    """Calcula el producto matriz-vector b = A · x.
-    
-    Procedimiento algebraico:
-    Si A es una matriz m × n con columnas a₁, a₂, ..., aₙ y x ∈ ℝⁿ, entonces:
-    1. Regla de Combinación Lineal de Columnas:
-       Ax = x₁a₁ + x₂a₂ + ... + xₙaₙ
-    2. Regla Fila-Vector:
-       La i-ésima entrada de Ax es el producto punto de la fila i de A con el vector x:
-       (Ax)ᵢ = ∑_{j=1}^{n} (A_{ij} · xⱼ).
-    """
+    """Calcula b = A · x con (Ax)_i = Σⱼ A_ij·xⱼ, equivalente a x₁a₁ + ... + xₙaₙ.
+    Recibe A (m×n), x ∈ ℝⁿ y modo; devuelve el vector, el desglose por fila y la combinación de columnas."""
     if not A or not A[0]:
         raise ValueError("La matriz A no puede estar vacía.")
     if not x:
@@ -258,6 +176,7 @@ def multiplicar_matriz_vector(A: Matriz, x: Vector, modo: str = "fraccion") -> R
     m = len(A)
     n = len(A[0])
     
+    # Ax requiere x ∈ ℝⁿ: una componente por cada columna de A.
     if len(x) != n:
         raise ValueError(
             f"Dimensión incompatible en A·x: La matriz A tiene {n} columnas, "
@@ -281,7 +200,6 @@ def multiplicar_matriz_vector(A: Matriz, x: Vector, modo: str = "fraccion") -> R
             f"Fila {i+1}: " + " + ".join(terminos) + f" = {formatear_numero(suma_redondeada, modo)}"
         )
     
-    # Expresión como combinación de columnas: x₁a₁ + ... + xₙaₙ
     partes_cols: List[str] = []
     for j in range(n):
         xj_str = formatear_numero(x[j], modo)
@@ -294,10 +212,6 @@ def multiplicar_matriz_vector(A: Matriz, x: Vector, modo: str = "fraccion") -> R
         combinacion_columnas=comb_columnas
     )
 
-
-# =========================================================================
-# 5. ECUACIONES MATRICIALES (Ax = b)
-# =========================================================================
 
 @dataclass
 class ResultadoEcuacionMatricial:
@@ -313,22 +227,8 @@ class ResultadoEcuacionMatricial:
 
 
 def resolver_ecuacion_matricial(A: Matriz, b: Vector, modo: str = "fraccion") -> ResultadoEcuacionMatricial:
-    """Evalúa y resuelve computacionalmente la ecuación matricial Ax = b.
-    
-    Teorema Fundamental de Álgebra Lineal:
-    Si A es una matriz m × n con columnas a₁, ..., aₙ y b ∈ ℝᵐ,
-    la ecuación matricial:
-        Ax = b
-    tiene exactamente el mismo conjunto solución que la ecuación vectorial:
-        x₁a₁ + x₂a₂ + ... + xₙaₙ = b
-    y a la vez, tiene el mismo conjunto solución que el sistema lineal cuya matriz aumentada es:
-        [ a₁  a₂  ...  aₙ | b ] = [ A | b ]
-    
-    Procedimiento:
-    1. Valida dimensiones: filas de A deben coincidir con la longitud de b (b ∈ ℝᵐ).
-    2. Forma la matriz aumentada [A | b] de dimensiones m × (n + 1).
-    3. Aplica Gauss-Jordan para clasificar el sistema y obtener la solución.
-    """
+    """Resuelve Ax = b aplicando Gauss-Jordan a la matriz aumentada [A | b] de m × (n+1).
+    Recibe A, b ∈ ℝᵐ y modo; devuelve la clasificación, la solución y los pasos de Gauss."""
     if not A or not A[0]:
         raise ValueError("La matriz A no puede estar vacía.")
     if not b:
@@ -337,13 +237,14 @@ def resolver_ecuacion_matricial(A: Matriz, b: Vector, modo: str = "fraccion") ->
     m = len(A)
     n = len(A[0])
     
+    # b debe pertenecer a ℝᵐ: una entrada por cada ecuación (fila de A).
     if len(b) != m:
         raise ValueError(
             f"Dimensión incompatible en Ax = b: La matriz A tiene {m} filas, "
             f"pero el vector b tiene dimensión {len(b)}. El vector b debe pertenecer a ℝ{a_subindice(m)}."
         )
     
-    # Construcción de la matriz aumentada [A | b]
+    # Ax = b tiene el mismo conjunto solución que el sistema de matriz aumentada [A | b].
     matriz_aumentada: Matriz = []
     for i in range(m):
         fila = A[i][:] + [b[i]]
@@ -386,7 +287,7 @@ def resolver_ecuacion_matricial(A: Matriz, b: Vector, modo: str = "fraccion") ->
             pasos_gauss=pasos,
             resumen_explicativo=explicacion
         )
-    else:  # SolucionInfinita
+    else:
         vars_libres = res.variables_libres
         lineas_param = sol_gen.a_strings(n, modo=modo) if sol_gen else []
         explicacion = (
@@ -406,10 +307,6 @@ def resolver_ecuacion_matricial(A: Matriz, b: Vector, modo: str = "fraccion") ->
         )
 
 
-# =========================================================================
-# 6. PROPIEDADES DEL PRODUCTO MATRIZ - VECTOR Ax (TEOREMA DE LINEALIDAD)
-# =========================================================================
-
 @dataclass
 class VerificacionPropiedadAditivaAx:
     """Demostración y verificación paso a paso de A(u + v) = Au + Av (o para k vectores)."""
@@ -423,30 +320,37 @@ class VerificacionPropiedadAditivaAx:
 
     @property
     def u(self) -> Vector:
+        """Primer vector sumado (u), o [] si no hay."""
         return self.vectores[0] if self.vectores else []
 
     @property
     def v(self) -> Vector:
+        """Segundo vector sumado (v), o [] si no existe."""
         return self.vectores[1] if len(self.vectores) > 1 else []
 
     @property
     def u_mas_v(self) -> Vector:
+        """Suma de los vectores (u + v)."""
         return self.suma_vectores
 
     @property
     def lado_izq_A_u_mas_v(self) -> Vector:
+        """Lado izquierdo A(u + v)."""
         return self.lado_izq_A_suma
 
     @property
     def Au(self) -> Vector:
+        """Producto A·u, o [] si no hay."""
         return self.vectores_transformados[0] if self.vectores_transformados else []
 
     @property
     def Av(self) -> Vector:
+        """Producto A·v, o [] si no existe."""
         return self.vectores_transformados[1] if len(self.vectores_transformados) > 1 else []
 
     @property
     def lado_der_Au_mas_Av(self) -> Vector:
+        """Lado derecho Au + Av."""
         return self.lado_der_suma_transformados
 
 
@@ -483,19 +387,13 @@ def verificar_propiedad_aditiva_ax(
     v: Optional[Vector] = None,
     modo: str = "fraccion"
 ) -> VerificacionPropiedadAditivaAx:
-    """Verifica paso a paso la propiedad distributiva: A(u + v) = Au + Av (o para k vectores).
-    
-    Teorema: Si A es una matriz m × n, y los vectores pertenecen a ℝⁿ:
-      Lado Izquierdo (L.I.): Primero suma los vectores, luego multiplica A por la suma.
-      Lado Derecho   (L.D.): Multiplica A por cada vector y luego suma los resultados.
-      Conclusión: L.I. == L.D.
-    """
+    """Verifica A(u + v) = Au + Av (o la versión con k vectores) comparando ambos lados.
+    Recibe A, dos vectores o una lista de vectores y modo; devuelve ambos lados, el desglose y si se cumple."""
     if not A or not A[0]:
         raise ValueError("La matriz A no puede estar vacía.")
     m = len(A)
     n = len(A[0])
 
-    # Manejar si se pasaron 2 vectores (u, v) o una lista de k vectores
     if v is not None:
         vectores: List[Vector] = [u_o_vectores, v]  # type: ignore
     elif isinstance(u_o_vectores, list) and u_o_vectores and isinstance(u_o_vectores[0], list):
@@ -517,7 +415,6 @@ def verificar_propiedad_aditiva_ax(
     es_caso_dos = (k == 2)
     nombres = ["u", "v"] if es_caso_dos else [f"v{a_subindice(j+1)}" for j in range(k)]
 
-    # 1. Lado Izquierdo: A(v₁ + ... + vₖ)
     suma_vecs: Vector = [0.0] * n
     for vec in vectores:
         for i in range(n):
@@ -526,17 +423,15 @@ def verificar_propiedad_aditiva_ax(
     res_A_suma = multiplicar_matriz_vector(A, suma_vecs, modo=modo)
     lado_izq = res_A_suma.vector_resultado
 
-    # 2. Lado Derecho: A·v₁ + ... + A·vₖ
     res_A_vecs = [multiplicar_matriz_vector(A, vec, modo=modo) for vec in vectores]
     lado_der: Vector = [0.0] * m
     for r in res_A_vecs:
         for i in range(m):
             lado_der[i] = round(lado_der[i] + r.vector_resultado[i], 9)
 
-    # 3. Comprobación de igualdad numérica
+    # Tolerancia y no ==: el redondeo a 9 decimales deja diferencias mínimas entre ambos lados.
     se_cumple = all(abs(izq - der) < 1e-7 for izq, der in zip(lado_izq, lado_der))
 
-    # 4. Desglose detallado
     pasos: List[str] = []
     pasos.append("======================================================================")
     if es_caso_dos:
@@ -549,7 +444,6 @@ def verificar_propiedad_aditiva_ax(
     pasos.append(f"Teorema: Si A es una matriz de {m}×{n} y los {k} vectores pertenecen a ℝ{a_subindice(n)},")
     pasos.append("la multiplicación matriz-vector se distribuye sobre la suma de vectores.\n")
 
-    # Desarrollo Lado Izquierdo
     expr_izq = "A(u + v)" if es_caso_dos else f"A({' + '.join(nombres)})"
     pasos.append(f"--- [1] DESARROLLO DEL LADO IZQUIERDO: {expr_izq} ---")
     for nom, vec in zip(nombres, vectores):
@@ -569,7 +463,6 @@ def verificar_propiedad_aditiva_ax(
     izq_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_izq]) + "]ᵀ"
     pasos.append(f"  => Vector L.I. = {expr_izq} = {izq_str}\n")
 
-    # Desarrollo Lado Derecho
     expr_der = "Au + Av" if es_caso_dos else " + ".join([f"A{nom}" for nom in nombres])
     pasos.append(f"--- [2] DESARROLLO DEL LADO DERECHO: {expr_der} ---")
     for j, (nom, r) in enumerate(zip(nombres, res_A_vecs)):
@@ -586,7 +479,6 @@ def verificar_propiedad_aditiva_ax(
     der_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_der]) + "]ᵀ"
     pasos.append(f"  => Vector L.D. = {expr_der} = {der_str}\n")
 
-    # Conclusión
     pasos.append("--- [3] CONCLUSIÓN Y VERIFICACIÓN TEÓRICA ---")
     pasos.append(f"  Lado Izquierdo {expr_izq} = {izq_str}")
     pasos.append(f"  Lado Derecho   {expr_der} = {der_str}")
@@ -614,13 +506,8 @@ def verificar_propiedad_escalar_ax(
     modo: str = "fraccion",
     nombre_vector: str = "u"
 ) -> VerificacionPropiedadEscalarAx:
-    """Verifica paso a paso la propiedad de homogeneidad escalar: A(cu) = c(Au).
-    
-    Teorema: Si A es una matriz m × n, u es un vector en ℝⁿ, y c es un escalar:
-      Lado Izquierdo (L.I.): Primero escala el vector cu, luego multiplica A · (cu).
-      Lado Derecho   (L.D.): Primero multiplica A · u, luego escala el resultado c · (Au).
-      Conclusión: L.I. == L.D.
-    """
+    """Verifica A(cu) = c(Au) para una matriz A, un vector u y un escalar c.
+    Devuelve ambos lados, el desglose paso a paso y si se cumple."""
     if not A or not A[0]:
         raise ValueError("La matriz A no puede estar vacía.")
     m = len(A)
@@ -632,19 +519,16 @@ def verificar_propiedad_escalar_ax(
 
     c_fmt = formatear_numero(c, modo)
 
-    # 1. Lado Izquierdo: A(cu)
     cu = [round(c * ui, 9) for ui in u]
     res_A_cu = multiplicar_matriz_vector(A, cu, modo=modo)
     lado_izq = res_A_cu.vector_resultado
 
-    # 2. Lado Derecho: c(Au)
     res_Au = multiplicar_matriz_vector(A, u, modo=modo)
     c_Au = [round(c * aui, 9) for aui in res_Au.vector_resultado]
 
-    # 3. Comprobación de igualdad numérica
+    # Tolerancia y no ==: el redondeo a 9 decimales deja diferencias mínimas entre ambos lados.
     se_cumple = all(abs(izq - der) < 1e-7 for izq, der in zip(lado_izq, c_Au))
 
-    # 4. Desglose detallado
     pasos: List[str] = []
     pasos.append("======================================================================")
     pasos.append(f"  PROPIEDAD b) DEL PRODUCTO MATRIZ-VECTOR: A(c·{nombre_vector}) = c(A·{nombre_vector})")
@@ -706,11 +590,8 @@ def verificar_linealidad_general_ax(
     escalares: List[float],
     modo: str = "fraccion"
 ) -> VerificacionLinealidadGeneralAx:
-    """Verifica el Principio de Superposición / Linealidad General:
-    A(c₁v₁ + c₂v₂ + ... + cₖvₖ) = c₁(Av₁) + c₂(Av₂) + ... + cₖ(Avₖ).
-    
-    Combina las propiedades distributiva y de homogeneidad escalar para k vectores cualesquiera en ℝⁿ.
-    """
+    """Verifica A(c₁v₁ + ... + cₖvₖ) = c₁(Av₁) + ... + cₖ(Avₖ) para k ≥ 2 vectores.
+    Recibe A, vectores, escalares y modo; devuelve ambos lados, el desglose y si se cumple."""
     if not A or not A[0]:
         raise ValueError("La matriz A no puede estar vacía.")
     m = len(A)
@@ -727,7 +608,6 @@ def verificar_linealidad_general_ax(
 
     nombres = ["u", "v"] if k == 2 else [f"v{a_subindice(j+1)}" for j in range(k)]
 
-    # 1. Lado Izquierdo: A(∑ cᵢ vᵢ)
     comb_vec: Vector = [0.0] * n
     for c_val, vec in zip(escalares, vectores):
         for i in range(n):
@@ -736,7 +616,6 @@ def verificar_linealidad_general_ax(
     res_A_comb = multiplicar_matriz_vector(A, comb_vec, modo=modo)
     lado_izq = res_A_comb.vector_resultado
 
-    # 2. Lado Derecho: ∑ cᵢ (A · vᵢ)
     res_A_vecs = [multiplicar_matriz_vector(A, vec, modo=modo) for vec in vectores]
     vecs_escalados: List[Vector] = []
     for c_val, r in zip(escalares, res_A_vecs):
@@ -748,10 +627,9 @@ def verificar_linealidad_general_ax(
         for i in range(m):
             lado_der[i] = round(lado_der[i] + v_esc[i], 9)
 
-    # 3. Comprobación
+    # Tolerancia y no ==: el redondeo a 9 decimales deja diferencias mínimas entre ambos lados.
     se_cumple = all(abs(izq - der) < 1e-7 for izq, der in zip(lado_izq, lado_der))
 
-    # 4. Desglose
     pasos: List[str] = []
     pasos.append("======================================================================")
     pasos.append("  PRINCIPIO DE SUPERPOSICIÓN / LINEALIDAD GENERAL DEL PRODUCTO Ax")
@@ -761,7 +639,6 @@ def verificar_linealidad_general_ax(
     pasos.append(f"Teorema General: Para una matriz A de {m}×{n}, {k} vectores en ℝ{a_subindice(n)} y sus escalares:")
     pasos.append(f"  A( {comb_formula} ) = {der_formula}\n")
 
-    # L.I.
     pasos.append("--- [1] DESARROLLO DEL LADO IZQUIERDO: A( ∑ cᵢ vᵢ ) ---")
     for nom, c_val, vec in zip(nombres, escalares, vectores):
         v_str = "[" + ", ".join([formatear_numero(x, modo) for x in vec]) + "]ᵀ"
@@ -780,7 +657,6 @@ def verificar_linealidad_general_ax(
     izq_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_izq]) + "]ᵀ"
     pasos.append(f"  => Vector L.I. = A( ∑ cᵢ vᵢ ) = {izq_str}\n")
 
-    # L.D.
     pasos.append("--- [2] DESARROLLO DEL LADO DERECHO: ∑ cᵢ (A · vᵢ) ---")
     for j, (nom, c_val, r, v_esc) in enumerate(zip(nombres, escalares, res_A_vecs, vecs_escalados)):
         pasos.append(f"  Paso 2.{j+1}a: Multiplicar A · {nom}:")
@@ -797,7 +673,6 @@ def verificar_linealidad_general_ax(
     der_str = "[" + ", ".join([formatear_numero(x, modo) for x in lado_der]) + "]ᵀ"
     pasos.append(f"  => Vector L.D. = ∑ cᵢ (A · vᵢ) = {der_str}\n")
 
-    # Conclusión
     pasos.append("--- [3] CONCLUSIÓN Y VERIFICACIÓN TEÓRICA ---")
     pasos.append(f"  Lado Izquierdo A( ∑ cᵢ vᵢ )  = {izq_str}")
     pasos.append(f"  Lado Derecho   ∑ cᵢ (A · vᵢ) = {der_str}")
@@ -820,17 +695,8 @@ def verificar_linealidad_general_ax(
     )
 
 
-# =========================================================================
-# 7. TRASPUESTA, INVERSA Y DETERMINANTES (PURO PYTHON ESTÁNDAR)
-# =========================================================================
-
 def trasponer_matriz(A: Matriz) -> Matriz:
-    """Calcula la matriz traspuesta Aᵀ.
-    
-    Procedimiento algebraico:
-    Si A es de orden m × n, su traspuesta Aᵀ es de orden n × m,
-    donde (Aᵀ)ᵢⱼ = Aⱼᵢ para todo i, j.
-    """
+    """Devuelve Aᵀ (n × m) con (Aᵀ)ᵢⱼ = Aⱼᵢ a partir de una matriz A de m × n."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     m = len(A)
@@ -851,13 +717,8 @@ class ResultadoInversionMatriz:
 
 
 def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatriz:
-    """Calcula la inversa A⁻¹ mediante reducción de Gauss-Jordan sobre [A | I].
-    
-    Teorema de la Matriz Invertible:
-    Una matriz cuadrada A de n × n es invertible si y solo si es equivalente por filas a Iₙ.
-    Si [A | I] se reduce a [I | B], entonces B = A⁻¹. Si surge una fila de ceros en la parte izquierda,
-    la matriz es singular (no invertible).
-    """
+    """Calcula A⁻¹ reduciendo [A | I] a [I | A⁻¹] con Gauss-Jordan; A debe ser cuadrada.
+    Devuelve ResultadoInversionMatriz (invertible solo si el bloque izquierdo llega a I) con los pasos."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     n = len(A)
@@ -868,7 +729,6 @@ def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatr
                 f"Solo las matrices cuadradas pueden tener matriz inversa."
             )
 
-    # 1. Construir [A | I]
     aumentada: Matriz = []
     for i in range(n):
         fila = [float(val) for val in A[i]]
@@ -881,6 +741,7 @@ def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatr
     pasos.append(f"1. Matriz cuadrada A de {n}×{n}. Se construye la matriz aumentada [A | I_{n}]:")
 
     def fmt_aum(mat: Matriz) -> str:
+        """Formatea [A | I] como texto alineado, con una barra entre ambos bloques."""
         s = ""
         for row in mat:
             izq = "  ".join(f"{formatear_numero(x, modo):>8}" for x in row[:n])
@@ -890,11 +751,10 @@ def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatr
 
     pasos.append(fmt_aum(aumentada))
 
-    # 2. Eliminación de Gauss-Jordan
     rango = 0
     paso_num = 1
     for col in range(n):
-        # Buscar pivote con mayor magnitud (pivoteo parcial)
+        # Pivoteo parcial: el mayor |valor| reduce el error de redondeo y evita pivotes casi nulos.
         max_fila = rango
         max_val = abs(aumentada[rango][col]) if rango < n else 0.0
         for f in range(rango + 1, n):
@@ -903,9 +763,10 @@ def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatr
                 max_fila = f
 
         if max_val < 1e-10:
-            # Columna sin pivote
+            # Sin pivote (|valor| ≈ 0): se omite la columna y el rango quedará incompleto.
             continue
 
+        # Intercambio de filas: lleva el pivote elegido a la posición (rango, col).
         if max_fila != rango:
             aumentada[rango], aumentada[max_fila] = aumentada[max_fila], aumentada[rango]
             pasos.append(f">> Paso {paso_num}: Fila {rango+1} ↔ Fila {max_fila+1} (Intercambio de filas por pivote)")
@@ -933,7 +794,7 @@ def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatr
 
         rango += 1
 
-    # 3. Verificar si el lado izquierdo es Iₙ
+    # A es invertible solo si el bloque izquierdo llegó a Iₙ (tolerancia por redondeo).
     es_identidad = True
     for i in range(n):
         for j in range(n):
@@ -990,13 +851,8 @@ class ResultadoDeterminante:
 
 
 def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDeterminante:
-    """Calcula el determinante det(A) usando triangulación gaussiana pura.
-    
-    Propiedades utilizadas:
-      1. Intercambiar dos filas multiplica el determinante por -1.
-      2. Sumar a una fila un múltiplo de otra no altera el determinante.
-      3. Para una matriz triangular superior U, det(A) = (-1)^k · Π u_ii.
-    """
+    """Calcula det(A) por triangulación gaussiana: det = (-1)^k · Π uᵢᵢ, con k intercambios de fila.
+    Usa fórmula directa en 1×1 y 2×2; devuelve ResultadoDeterminante con pasos y diagnóstico."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     n = len(A)
@@ -1010,11 +866,12 @@ def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDetermi
     pasos.append(f"Cálculo del determinante de matriz A de orden {n}×{n} por triangulación:")
 
     def fmt_mat(mat: Matriz) -> str:
+        """Formatea una matriz como texto alineado, una fila por línea."""
         return "".join("  [ " + "  ".join(f"{formatear_numero(x, modo):>8}" for x in row) + " ]\n" for row in mat)
 
     pasos.append(fmt_mat(U))
 
-    # Casos base para 1x1 y 2x2
+    # 1×1 y 2×2 se resuelven con fórmula directa, sin triangular.
     if n == 1:
         val = U[0][0]
         pasos.append(f"Matriz 1×1: det(A) = {formatear_numero(val, modo)}")
@@ -1038,10 +895,9 @@ def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDetermi
             explicacion=f"det(A) = {formatear_numero(val, modo)}."
         )
 
-    # Triangulación gaussiana para orden n >= 3
     det_cero = False
     for col in range(n):
-        # Buscar fila con pivote distinto de cero
+        # Mayor |pivote| (pivoteo parcial); si es ≈ 0 la columna no tiene pivote y det(A) = 0.
         pivot_row = col
         max_val = abs(U[col][col])
         for r in range(col + 1, n):
@@ -1055,12 +911,13 @@ def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDetermi
             break
 
         if pivot_row != col:
+            # Cada intercambio de filas multiplica det(A) por -1; se cuenta en swaps.
             U[col], U[pivot_row] = U[pivot_row], U[col]
             swaps += 1
             pasos.append(f"Intercambio Fila {col+1} ↔ Fila {pivot_row+1} (el determinante cambia de signo por (-1)):")
             pasos.append(fmt_mat(U))
 
-        # Eliminar hacia abajo
+        # Sumar múltiplos de la fila pivote no altera det(A).
         piv = U[col][col]
         for r in range(col + 1, n):
             if abs(U[r][col]) > 1e-10:
@@ -1076,6 +933,7 @@ def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDetermi
         for i in range(n):
             prod_diagonal *= U[i][i]
             diag_terms.append(formatear_numero(U[i][i], modo))
+        # U triangular superior: det(U) = Π uᵢᵢ y det(A) = (-1)^swaps · det(U).
         signo_swaps = (-1) ** swaps
         det = round(signo_swaps * prod_diagonal, 9)
         pasos.append(f"\nMatriz triangular superior resultante:\n{fmt_mat(U)}")
@@ -1092,10 +950,6 @@ def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDetermi
         pasos=pasos, explicacion=expl
     )
 
-
-# =========================================================================
-# 8. INTEGRACIÓN CON modulo_matrices (ADJUNTA, COFACTORES, SARRUS Y SESIONES 10-11)
-# =========================================================================
 
 from modulos.modulo_matrices import (
     crear_matriz as crear_matriz_frac,
@@ -1115,7 +969,7 @@ from modulos.modulo_matrices import (
 
 
 def invertir_matriz_adjunta(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatriz:
-    """Calcula la matriz inversa A⁻¹ mediante la fórmula de la adjunta: (1 / det(A)) · adj(A)."""
+    """Calcula A⁻¹ = (1/det(A))·adj(A) con fracciones exactas; recibe A y devuelve ResultadoInversionMatriz."""
     A_frac = crear_matriz_frac(A)
     res = inv_adj_frac(A_frac)
     
@@ -1141,7 +995,7 @@ def invertir_matriz_adjunta(A: Matriz, modo: str = "fraccion") -> ResultadoInver
 
 
 def calcular_determinante_cofactores_core(A: Matriz, modo: str = "fraccion") -> ResultadoDeterminante:
-    """Calcula el determinante por expansión por cofactores (Laplace)."""
+    """Calcula det(A) por expansión de cofactores (Laplace) con fracciones; devuelve ResultadoDeterminante."""
     A_frac = crear_matriz_frac(A)
     det_val, pasos = det_cof_frac(A_frac)
     det_float = float(det_val)
@@ -1154,7 +1008,7 @@ def calcular_determinante_cofactores_core(A: Matriz, modo: str = "fraccion") -> 
 
 
 def calcular_determinante_sarrus_core(A: Matriz, modo: str = "fraccion") -> ResultadoDeterminante:
-    """Calcula el determinante de matriz 3×3 mediante la regla de Sarrus."""
+    """Calcula det(A) de una matriz 3×3 con la regla de Sarrus; devuelve ResultadoDeterminante."""
     A_frac = crear_matriz_frac(A)
     det_val, pasos = det_sar_frac(A_frac)
     det_float = float(det_val)

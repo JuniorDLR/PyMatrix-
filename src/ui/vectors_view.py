@@ -1,11 +1,7 @@
 """
-Módulo de Interfaz Gráfica para Vectores en ℝⁿ (PyMatrix).
-
-Proporciona vistas interactivas para:
-1. Operaciones básicas con vectores (u + v, u - v, c·u, producto punto, normas).
-2. Evaluación computacional de Combinación Lineal con reducción a RREF.
-3. Evaluación de Independencia y Dependencia Lineal con detección de teoremas
-   por inspección directa y deducción de relaciones no triviales.
+Vista de vectores en ℝⁿ: operaciones básicas (suma, resta, escalar, producto punto),
+combinación lineal e independencia lineal, ambas resueltas por reducción a RREF.
+Elaborado por: Grupo x
 """
 
 import random
@@ -22,11 +18,11 @@ from src.core.vectors import (
 from src.core.domain import formatear_numero, a_subindice, convertir_texto_a_modo
 
 
-
 class VectorsView(ctk.CTkFrame):
     """Panel principal para el módulo de vectores en ℝⁿ."""
     
     def __init__(self, master, get_modo_numero_cb, **kwargs):
+        """Crea el panel; recibe el contenedor y un callback que devuelve el modo numérico (fracción/decimal)."""
         super().__init__(master, **kwargs)
         self.get_modo_numero = get_modo_numero_cb
         self._ultimo_calc_basica = None
@@ -39,10 +35,10 @@ class VectorsView(ctk.CTkFrame):
         self._setup_ui()
         
     def _setup_ui(self):
+        """Construye el selector de pestañas y delega en cada sub-pestaña."""
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         
-        # 3 Sub-pestañas especializadas
         self.tab_basicas = self.tabview.add("  ➕ Operaciones Básicas  ")
         self.tab_comb = self.tabview.add("  🔗 Combinación Lineal  ")
         self.tab_indep = self.tabview.add("  ⚖️ Independencia Lineal  ")
@@ -89,6 +85,7 @@ class VectorsView(ctk.CTkFrame):
         modo = self.get_modo_numero()
 
         def _convertir(entry):
+            """Reescribe el texto de una entrada en el modo numérico actual, ignorando errores."""
             try:
                 if entry is not None and entry.winfo_exists():
                     val = entry.get()
@@ -99,7 +96,6 @@ class VectorsView(ctk.CTkFrame):
             except Exception:
                 pass
 
-        # Tab 1: Operaciones Básicas
         if hasattr(self, "entries_grid_basicas"):
             for fila in self.entries_grid_basicas:
                 for e in fila:
@@ -108,19 +104,16 @@ class VectorsView(ctk.CTkFrame):
             for e in self.entries_escalares_basicas:
                 _convertir(e)
 
-        # Tab 2: Combinación Lineal
         if hasattr(self, "grid_entries_comb"):
             for fila in self.grid_entries_comb:
                 for e in fila:
                     _convertir(e)
 
-        # Tab 3: Independencia Lineal
         if hasattr(self, "grid_entries_indep"):
             for fila in self.grid_entries_indep:
                 for e in fila:
                     _convertir(e)
 
-        # Refrescar resultados calculados
         if self._ultimo_calc_basica == "punto_par":
             self._calc_producto_punto_par()
         elif self._ultimo_calc_basica:
@@ -133,23 +126,18 @@ class VectorsView(ctk.CTkFrame):
             self._evaluar_indep()
 
 
-    # =========================================================================
-    # =========================================================================
-    # SUB-PESTAÑA 1: OPERACIONES BÁSICAS CON VECTORES (k VECTORES Y ESCALARES)
-    # =========================================================================
     def _setup_tab_basicas(self):
+        """Arma la pestaña de operaciones básicas: entradas de vectores/escalares, botones y registro de resultados."""
         tab = self.tab_basicas
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
         
-        # Panel izquierdo: Controles y entradas
         left_frame = ctk.CTkFrame(tab, width=460, corner_radius=10)
         left_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left_frame.grid_propagate(False)
         left_frame.grid_columnconfigure(0, weight=1)
         
-        # Controles de Dimensión (n) y Cantidad de Vectores (k)
         dim_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
         dim_frame.pack(fill="x", padx=12, pady=(10, 4))
         
@@ -181,11 +169,9 @@ class VectorsView(ctk.CTkFrame):
         )
         lbl_hint.pack(anchor="w", padx=14, pady=(2, 4))
         
-        # Scrollable frame para los vectores v₁ ... vₖ y sus escalares
         self.scroll_basicas = ctk.CTkScrollableFrame(left_frame, height=190)
         self.scroll_basicas.pack(fill="both", expand=True, padx=12, pady=4)
         
-        # Selector de vectores a operar
         self.frame_sel_vecs = ctk.CTkFrame(left_frame, fg_color="transparent")
         self.frame_sel_vecs.pack(fill="x", padx=12, pady=(4, 2))
         ctk.CTkLabel(self.frame_sel_vecs, text="Vectores a operar:", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=(0, 6))
@@ -193,7 +179,6 @@ class VectorsView(ctk.CTkFrame):
         self.box_chk_vecs.pack(side="left", fill="x", expand=True)
         self.chks_basicas: List[ctk.CTkCheckBox] = []
         
-        # Fila de selección de producto punto v_i · v_j
         dot_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
         dot_frame.pack(fill="x", padx=12, pady=(2, 4))
         ctk.CTkLabel(dot_frame, text="Producto Punto:", font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=(0, 4))
@@ -207,7 +192,6 @@ class VectorsView(ctk.CTkFrame):
             fg_color=("#7c3aed", "#6d28d9"), font=ctk.CTkFont(size=11, weight="bold")
         ).pack(side="left", padx=(6, 2))
         
-        # Botones de Operación (nombres claros y concisos)
         btn_grid = ctk.CTkFrame(left_frame, fg_color="transparent")
         btn_grid.pack(fill="x", padx=12, pady=(4, 10))
         btn_grid.grid_columnconfigure((0, 1), weight=1)
@@ -232,7 +216,6 @@ class VectorsView(ctk.CTkFrame):
             fg_color=("#059669", "#10b981"), font=ctk.CTkFont(size=11, weight="bold"), height=32
         ).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
         
-        # Panel derecho: Registro de resultados
         right_frame = ctk.CTkFrame(tab, corner_radius=10)
         right_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right_frame.grid_columnconfigure(0, weight=1)
@@ -253,6 +236,7 @@ class VectorsView(ctk.CTkFrame):
         self._generar_entradas_basicas()
 
     def _generar_entradas_basicas(self):
+        """Regenera la cuadrícula n×k de componentes y escalares (n ≤ 10, k ≤ 8) al pulsar 'Generar'."""
         try:
             n = int(self.entry_basicas_n.get().strip())
             k = int(self.entry_basicas_k.get().strip())
@@ -267,7 +251,6 @@ class VectorsView(ctk.CTkFrame):
         self.entries_escalares_basicas = []
         self.entries_grid_basicas = []
         
-        # Actualizar opciones de producto punto
         nombres_vecs = [f"v{a_subindice(j+1)}" for j in range(k)]
         if hasattr(self, "combo_dot_1"):
             self.combo_dot_1.configure(values=nombres_vecs)
@@ -275,7 +258,6 @@ class VectorsView(ctk.CTkFrame):
             self.combo_dot_2.configure(values=nombres_vecs)
             self.combo_dot_2.set(nombres_vecs[1 if k > 1 else 0])
             
-        # Actualizar casillas de selección de vectores
         if hasattr(self, "box_chk_vecs"):
             for w in self.box_chk_vecs.winfo_children():
                 w.destroy()
@@ -289,7 +271,6 @@ class VectorsView(ctk.CTkFrame):
                 chk.select()
                 self.chks_basicas.append(chk)
         
-        # Cabecera
         header = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="Vector", width=80, font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
@@ -299,7 +280,6 @@ class VectorsView(ctk.CTkFrame):
                 font=ctk.CTkFont(size=11, weight="bold"), text_color=("#38bdf8", "#38bdf8")
             ).pack(side="left", padx=2)
             
-        # Fila de Escalares individuales
         row_esc = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
         row_esc.pack(fill="x", pady=(2, 6))
         ctk.CTkLabel(
@@ -314,10 +294,9 @@ class VectorsView(ctk.CTkFrame):
                 border_color=("#f59e0b", "#d97706")
             )
             esc_e.pack(side="left", padx=2)
-            esc_e.insert(0, str(j + 1))  # Por defecto 1, 2, 3...
+            esc_e.insert(0, str(j + 1))
             self.entries_escalares_basicas.append(esc_e)
             
-        # Filas de Componentes
         for i in range(n):
             fila = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
             fila.pack(fill="x", pady=2)
@@ -332,6 +311,7 @@ class VectorsView(ctk.CTkFrame):
             self.entries_grid_basicas.append(fila_entries)
 
     def _leer_vectores_y_escalares_basicas(self) -> Tuple[List[Vector], List[float]]:
+        """Lee la cuadrícula y devuelve (vectores, escalares) como floats; admite fracciones 'a/b' y lanza ValueError si hay texto inválido."""
         n = len(self.entries_grid_basicas)
         k = len(self.entries_escalares_basicas)
         
@@ -357,29 +337,26 @@ class VectorsView(ctk.CTkFrame):
         return vectores, escalares
 
     def _cargar_ejemplo_basicas(self):
+        """Carga al azar un ejemplo predefinido en la pestaña de operaciones básicas."""
         ejemplos = [
-            # Caso 1: 3 vectores en R^3 con escalares 2, -1, 3
             {
                 "n": 3, "k": 3,
                 "vectores": [[1, 2, -1], [3, 0, 2], [-1, 4, 1]],
                 "escalares": [2, -1, 3],
                 "desc": "3 vectores en ℝ³ con escalares individuales (c₁=2, c₂=-1, c₃=3)"
             },
-            # Caso 2: Slide 4 Ej 4 (2 vectores en R^2 con escalares 4 y -3)
             {
                 "n": 2, "k": 2,
                 "vectores": [[1, -2], [2, -5]],
                 "escalares": [4, -3],
                 "desc": "Diapositiva 4 Ej 4: 4u + (-3)v (u=[1, -2], v=[2, -5])"
             },
-            # Caso 3: 4 vectores en R^3 con escalares 1, 2, -2, 1
             {
                 "n": 3, "k": 4,
                 "vectores": [[2, 1, 0], [0, 3, -1], [1, 2, 4], [-2, 0, 1]],
                 "escalares": [1, 2, -2, 1],
                 "desc": "4 vectores en ℝ³ con escalares propios [1, 2, -2, 1]"
             },
-            # Caso 4: Slide 23 Ej I (3 vectores en R^3)
             {
                 "n": 3, "k": 3,
                 "vectores": [[3, 2, -4], [-6, 1, 7], [1, -1, 2]],
@@ -418,7 +395,6 @@ class VectorsView(ctk.CTkFrame):
         str_1 = self.combo_dot_1.get()
         str_2 = self.combo_dot_2.get()
         
-        # Extraer índice 0-based
         idx_1 = 0
         idx_2 = 1 if k > 1 else 0
         for j in range(k):
@@ -446,6 +422,7 @@ class VectorsView(ctk.CTkFrame):
         self._log_basicas("\n".join(lineas), limpiar=True)
 
     def _calc_basica(self, op_tipo: str):
+        """Aplica la operación pedida (suma, resta, escalar o combinación con escalares) a los vectores marcados y muestra el desarrollo."""
         self._ultimo_calc_basica = op_tipo
         modo = self.get_modo_numero()
         try:
@@ -454,7 +431,6 @@ class VectorsView(ctk.CTkFrame):
             self._log_basicas(f"❌ Error de entrada: {e}", limpiar=True)
             return
 
-        # Filtrar qué vectores están seleccionados mediante las casillas
         indices = [j for j, chk in enumerate(self.chks_basicas) if chk.get() == 1] if hasattr(self, "chks_basicas") and self.chks_basicas else list(range(len(todos_vectores)))
         if not indices:
             self._log_basicas("⚠️ Debe seleccionar al menos un vector en 'Vectores a operar'.", limpiar=True)
@@ -491,6 +467,7 @@ class VectorsView(ctk.CTkFrame):
             if cant_sel < 2:
                 self._log_basicas("⚠️ Debe seleccionar al menos 2 vectores para realizar la resta.", limpiar=True)
                 return
+            # La resta no es conmutativa: el primer vector seleccionado es el minuendo.
             res = restar_multiples_vectores(vectores)
             eq_formula = nombres[0] + "".join([f" − {nom}" for nom in nombres[1:]])
             lineas.append(f">> RESTA DE VECTORES: {eq_formula}")
@@ -528,22 +505,20 @@ class VectorsView(ctk.CTkFrame):
 
 
     def _log_basicas(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el cuadro de resultados de operaciones básicas, borrándolo antes si limpiar es True."""
         self.txt_res_basicas.configure(state="normal")
         if limpiar:
             self.txt_res_basicas.delete("1.0", "end")
         self.txt_res_basicas.insert("end", texto + "\n")
         self.txt_res_basicas.configure(state="disabled")
 
-    # =========================================================================
-    # SUB-PESTAÑA 2: COMBINACIÓN LINEAL
-    # =========================================================================
     def _setup_tab_comb(self):
+        """Arma la pestaña de combinación lineal: cuadrícula [v₁ … vₖ | b] y panel de diagnóstico."""
         tab = self.tab_comb
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
         
-        # Panel izquierdo
         left = ctk.CTkFrame(tab, width=440, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
@@ -586,7 +561,6 @@ class VectorsView(ctk.CTkFrame):
         )
         btn_eval_comb.pack(fill="x", padx=14, pady=(6, 12))
         
-        # Panel derecho: Resultados
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -607,6 +581,7 @@ class VectorsView(ctk.CTkFrame):
         self._generar_grid_comb()
 
     def _generar_grid_comb(self):
+        """Regenera la cuadrícula de n filas por k vectores más la columna b (n, k ≤ 10)."""
         try:
             n = int(self.entry_comb_n.get().strip())
             k = int(self.entry_comb_k.get().strip())
@@ -620,7 +595,6 @@ class VectorsView(ctk.CTkFrame):
         
         self.grid_entries_comb = []
         
-        # Cabecera
         header = ctk.CTkFrame(self.scroll_comb, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="Fila", width=36).pack(side="left")
@@ -636,7 +610,6 @@ class VectorsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=11, weight="bold"), text_color=("#f43f5e", "#f43f5e")
         ).pack(side="left", padx=(6, 2))
         
-        # Filas
         for i in range(n):
             row_frame = ctk.CTkFrame(self.scroll_comb, fg_color="transparent")
             row_frame.pack(fill="x", pady=2)
@@ -649,7 +622,6 @@ class VectorsView(ctk.CTkFrame):
                 e.insert(0, "0")
                 fila_entries.append(e)
                 
-            # Entrada para b
             eb = ctk.CTkEntry(
                 row_frame, width=55, height=28, justify="center",
                 fg_color=("#ffe4e6", "#3f1a24"), text_color=("#be123c", "#fca5a5")
@@ -661,29 +633,26 @@ class VectorsView(ctk.CTkFrame):
             self.grid_entries_comb.append(fila_entries)
 
     def _cargar_ejemplo_comb(self):
+        """Carga al azar un ejemplo predefinido (con o sin solución) en la pestaña de combinación lineal."""
         ejemplos = [
-            # Slide 11: a1 = [1, -2, -5], a2 = [2, 5, 6], b = [7, 4, -3] -> Combinación Lineal única (c1=3, c2=2)
             {
                 "n": 3, "k": 2,
                 "vectores": [[1, -2, -5], [2, 5, 6]],
                 "b": [7, 4, -3],
                 "desc": "Diapositiva 11: a₁=[1, -2, -5], a₂=[2, 5, 6], b=[7, 4, -3] (Solución Única: c₁=3, c₂=2)"
             },
-            # Slide 15 Ej 13: A columnas y b = [3, -7, -3]
             {
                 "n": 3, "k": 3,
                 "vectores": [[1, 0, -2], [-4, 3, 8], [2, 5, -4]],
                 "b": [3, -7, -3],
                 "desc": "Diapositiva 15 Ej 13: Columnas de A y b=[3, -7, -3]"
             },
-            # Slide 16 IV: Minería v1=[30, 600], v2=[40, 380], b=[240, 2824]
             {
                 "n": 2, "k": 2,
                 "vectores": [[30, 600], [40, 380]],
                 "b": [240, 2824],
                 "desc": "Diapositiva 16 Ej IV: Problema de Minas (Cobre y Plata)"
             },
-            # Ejemplo Inconsistente (Sin solución)
             {
                 "n": 3, "k": 2,
                 "vectores": [[1, 2, 3], [2, 4, 6]],
@@ -711,6 +680,7 @@ class VectorsView(ctk.CTkFrame):
         self._log_comb(f"🎲 Ejemplo cargado: {ej['desc']}\nPresione 'Evaluar Combinación Lineal'.", limpiar=True)
 
     def _evaluar_comb(self):
+        """Lee la cuadrícula, decide si b es combinación lineal de los vectores vía RREF y escribe el reporte paso a paso."""
         self._ultimo_calc_comb = True
         modo = self.get_modo_numero()
         n = len(self.grid_entries_comb)
@@ -741,7 +711,6 @@ class VectorsView(ctk.CTkFrame):
         
         resultado = evaluar_combinacion_lineal(vectores, b, modo=modo)
         
-        # Formatear reporte completo
         lineas = []
         lineas.append("==================================================")
         lineas.append("  EVALUACIÓN DE COMBINACIÓN LINEAL EN ℝⁿ")
@@ -757,7 +726,6 @@ class VectorsView(ctk.CTkFrame):
         lineas.append("--- 1. MATRIZ AUMENTADA INICIAL [v₁ ... vₖ | b] ---")
         lineas.append(self._formatear_matriz(resultado.matriz_aumentada_inicial, modo))
         
-        # Proceso de reducción paso a paso
         if resultado.pasos_gauss and len(resultado.pasos_gauss) > 1:
             lineas.append("--- 2. PROCESO DE RESOLUCIÓN PASO A PASO (GAUSS-JORDAN) ---")
             for num_p, paso in enumerate(resultado.pasos_gauss[1:], 1):
@@ -769,7 +737,7 @@ class VectorsView(ctk.CTkFrame):
         
         lineas.append("--- 4. DIAGNÓSTICO ALGEBRAICO Y CONCLUSIÓN ---")
         if not resultado.es_combinacion:
-            # Buscar la fila inconsistente del tipo [0 0 ... 0 | k] con k != 0
+            # Una fila [0 ... 0 | k] con k != 0 equivale a 0 = k (sistema inconsistente); 1e-10 tolera error de punto flotante.
             fila_inconsistente = None
             val_k_str = "k"
             mat_final = resultado.matriz_rref
@@ -827,22 +795,20 @@ class VectorsView(ctk.CTkFrame):
 
 
     def _log_comb(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el cuadro de resultados de combinación lineal, borrándolo antes si limpiar es True."""
         self.txt_res_comb.configure(state="normal")
         if limpiar:
             self.txt_res_comb.delete("1.0", "end")
         self.txt_res_comb.insert("end", texto + "\n")
         self.txt_res_comb.configure(state="disabled")
 
-    # =========================================================================
-    # SUB-PESTAÑA 3: INDEPENDENCIA LINEAL
-    # =========================================================================
     def _setup_tab_indep(self):
+        """Arma la pestaña de independencia lineal: cuadrícula de vectores y panel de diagnóstico."""
         tab = self.tab_indep
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
         
-        # Panel izquierdo
         left = ctk.CTkFrame(tab, width=440, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
@@ -885,7 +851,6 @@ class VectorsView(ctk.CTkFrame):
         )
         btn_eval_indep.pack(fill="x", padx=14, pady=(6, 12))
         
-        # Panel derecho: Diagnóstico
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -906,6 +871,7 @@ class VectorsView(ctk.CTkFrame):
         self._generar_grid_indep()
 
     def _generar_grid_indep(self):
+        """Regenera la cuadrícula de n filas por k vectores (n, k ≤ 10)."""
         try:
             n = int(self.entry_indep_n.get().strip())
             k = int(self.entry_indep_k.get().strip())
@@ -943,38 +909,33 @@ class VectorsView(ctk.CTkFrame):
             self.grid_entries_indep.append(fila_entries)
 
     def _cargar_ejemplo_indep(self):
+        """Carga al azar un ejemplo predefinido (L.I. o L.D.) en la pestaña de independencia lineal."""
         ejemplos = [
-            # Slide 12: v1=[1, -2, 3], v2=[2, -2, 0], v3=[0, 1, 7] -> Linealmente Independientes
             {
                 "n": 3, "k": 3,
                 "vectores": [[1, -2, 3], [2, -2, 0], [0, 1, 7]],
                 "desc": "Diapositiva 12 Ej 1: v₁=[1, -2, 3], v₂=[2, -2, 0], v₃=[0, 1, 7] (Linealmente Independientes)"
             },
-            # Slide 15: v1=[1, -3, 0], v2=[3, 0, 4], v3=[11, -6, 12] -> Linealmente Dependientes
             {
                 "n": 3, "k": 3,
                 "vectores": [[1, -3, 0], [3, 0, 4], [11, -6, 12]],
                 "desc": "Diapositiva 15 Ej 2: v₁=[1, -3, 0], v₂=[3, 0, 4], v₃=[11, -6, 12] (Linealmente Dependientes)"
             },
-            # Slide 17: v1=[1, 2, 3], v2=[4, 5, 6], v3=[2, 1, 0] -> Linealmente Dependientes
             {
                 "n": 3, "k": 3,
                 "vectores": [[1, 2, 3], [4, 5, 6], [2, 1, 0]],
                 "desc": "Diapositiva 17 Ej 3: Conjunto L.D. con relación no trivial"
             },
-            # Slide 20: v1=[3, 1], v2=[6, 2] -> L.D. por múltiplos escalares
             {
                 "n": 2, "k": 2,
                 "vectores": [[3, 1], [6, 2]],
                 "desc": "Diapositiva 20: v₁=[3, 1], v₂=[6, 2] (L.D. por múltiplos escalares)"
             },
-            # Slide 22: 4 vectores en R^3 (p > n)
             {
                 "n": 3, "k": 4,
                 "vectores": [[1, 7, 6], [0, 0, 9], [3, 1, 5], [4, 1, 8]],
                 "desc": "Diapositiva 22: Teorema p > n (4 vectores en ℝ³)"
             },
-            # Slide 22: Contiene vector cero
             {
                 "n": 3, "k": 3,
                 "vectores": [[2, 3, 5], [0, 0, 0], [1, 1, 8]],
@@ -998,6 +959,7 @@ class VectorsView(ctk.CTkFrame):
         self._log_indep(f"🎲 Ejemplo cargado: {ej['desc']}\nPresione 'Evaluar Independencia Lineal'.", limpiar=True)
 
     def _evaluar_indep(self):
+        """Lee los vectores, resuelve Ax = 0 por RREF y muestra pivotes, variables libres y conclusión L.I./L.D."""
         self._ultimo_calc_indep = True
         modo = self.get_modo_numero()
         n = len(self.grid_entries_indep)
@@ -1031,6 +993,7 @@ class VectorsView(ctk.CTkFrame):
             lineas.append(f"    v{a_subindice(j+1)} = {vec_fmt}")
         lineas.append("")
         
+        # Se descarta la columna de ceros del sistema homogéneo para mostrar solo A.
         matriz_a = [fila[:-1] for fila in resultado.matriz_homogenea_inicial]
         lineas.append("--- 1. MATRIZ A (vectores como columnas) ---")
         lineas.append(self._formatear_matriz_a(matriz_a, modo))
@@ -1038,7 +1001,6 @@ class VectorsView(ctk.CTkFrame):
         lineas.append("--- 2. MATRIZ AUMENTADA DEL SISTEMA HOMOGÉNEO [A | 0] ---")
         lineas.append(self._formatear_matriz(resultado.matriz_homogenea_inicial, modo))
         
-        # Proceso de reducción paso a paso si se resolvió por Gauss-Jordan
         if resultado.pasos_gauss and len(resultado.pasos_gauss) > 1:
             lineas.append("--- 3. PROCESO DE REDUCCIÓN (GAUSS-JORDAN) ---")
             for num_p, paso in enumerate(resultado.pasos_gauss[1:], 1):
@@ -1048,6 +1010,7 @@ class VectorsView(ctk.CTkFrame):
         lineas.append("--- 4. MATRIZ REDUCIDA (RREF) ---")
         lineas.append(self._formatear_matriz(resultado.matriz_rref, modo))
         pivotes = self._contar_pivotes(resultado.matriz_rref, k)
+        # Variables libres = columnas sin pivote; si hay alguna existe solución no trivial (L.D.).
         libres = k - pivotes
         lineas.append(f"Número de pivotes: {pivotes} de {k}")
         lineas.append(f"Número de variables libres: {libres}\n")
@@ -1065,6 +1028,7 @@ class VectorsView(ctk.CTkFrame):
 
 
     def _log_indep(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el cuadro de resultados de independencia lineal, borrándolo antes si limpiar es True."""
         self.txt_res_indep.configure(state="normal")
         if limpiar:
             self.txt_res_indep.delete("1.0", "end")
@@ -1072,6 +1036,7 @@ class VectorsView(ctk.CTkFrame):
         self.txt_res_indep.configure(state="disabled")
 
     def _formatear_matriz(self, matriz, modo: str) -> str:
+        """Devuelve como texto una matriz aumentada, con la última columna separada por '|'."""
         salida = ""
         for fila in matriz:
             coefs = fila[:-1]
@@ -1081,12 +1046,14 @@ class VectorsView(ctk.CTkFrame):
         return salida
 
     def _formatear_matriz_a(self, matriz, modo: str) -> str:
+        """Devuelve como texto una matriz de coeficientes sin columna aumentada."""
         return "".join("  [ " + "  ".join(f"{formatear_numero(x, modo):>8}" for x in fila) + " ]\n"
                        for fila in matriz)
 
     @staticmethod
     def _contar_pivotes(matriz, cantidad_variables: int) -> int:
         """Cuenta pivotes de las columnas de coeficientes en la RREF."""
+        # En una RREF cada fila no nula tiene un único pivote; se ignora la columna de términos independientes.
         pivotes = 0
         for fila in matriz:
             for columna in range(min(cantidad_variables, len(fila) - 1)):

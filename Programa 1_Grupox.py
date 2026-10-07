@@ -1,23 +1,23 @@
-# Importamos sys y path para asegurar que los imports de módulos locales (src) funcionen bien.
+"""
+Punto de entrada del Programa 1: abre la calculadora gráfica PyMatrix.
+Tema de clase: sistemas de ecuaciones lineales y eliminación de Gauss.
+Elaborado por: Grupo x
+"""
+
 import sys
 import os
 
-# Aseguramos que el directorio actual esté en la ruta para importaciones absolutas
+# Permite importar el paquete src al ejecutar este archivo desde otra carpeta.
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-# Importamos nuestra aplicación principal desde el módulo UI construido con customtkinter
 from src.ui.app import App
 
+
 def main():
-    # Paso 1: Instanciar la aplicación
-    # La clase App extiende de ctk.CTk y configura la ventana inicial, 
-    # botones y caja de texto para los resultados.
+    """Crea la ventana principal y arranca el ciclo de eventos de la interfaz."""
     app = App()
-    
-    # Paso 2: Ejecutar el bucle principal (Main Loop) de la interfaz gráfica.
-    # Esto mantendrá la ventana abierta esperando las interacciones del usuario.
     app.mainloop()
 
-# Verificamos si este archivo se está ejecutando directamente y no importado.
+
 if __name__ == "__main__":
     main()

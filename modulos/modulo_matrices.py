@@ -1,44 +1,19 @@
-"""
-UNIVERSIDAD AMERICANA (UAM)
-Facultad de Ingeniería y Arquitectura (FIA)
-Asignatura: Álgebra Lineal (MTM0120)
-
-MÓDULO: modulo_matrices.py
-Archivo Python reutilizable para operaciones matriciales avanzadas, determinantes,
-inversas y verificación de propiedades algebraicas (Sesiones 10 y 11).
-
-REGLAS TÉCNICAS:
-- Cero librerías numéricas externas (prohibido numpy, scipy y math).
-- Uso exclusivo de tipos nativos: listas anidadas, bucles for/while y condicionales.
-- Uso de la librería estándar 'fractions.Fraction' para exactitud aritmética y evitar
-  errores de redondeo con números en coma flotante.
-- Separación de responsabilidades: las funciones de cálculo reciben matrices y escalares
-  y retornan resultados/estructuras sin interactuar con la consola (sin input() ni print()).
-- Documentación rigurosa: docstrings explicativas y comentarios justificando decisiones
-  matemáticas en cada algoritmo.
-"""
+"""Operaciones matriciales con fracciones exactas: suma, producto, traspuesta, determinantes e inversas.
+Tema de clase: álgebra matricial, determinantes, matriz inversa y sus propiedades (sesiones 10 y 11).
+Las funciones de cálculo no usan input() ni print(); devuelven datos y textos de pasos.
+Elaborado por: Grupo x"""
 
 from fractions import Fraction
 from typing import List, Tuple, Optional, Dict, Any
 from dataclasses import dataclass
 
 
-# =============================================================================
-# TIPOS Y CONVERSIONES AUXILIARES
-# =============================================================================
-
-# Definición de tipo para matriz exacta: lista de filas con fracciones
 MatrizF = List[List[Fraction]]
 
 
 def parsear_fraccion(valor: Any) -> Fraction:
-    """Convierte un valor numérico (int, float, str o Fraction) a Fraction exacta.
-    
-    Decisión matemática:
-    Convertir entradas como '3/4', '0.5' o 2 a Fraction permite que toda la aritmética
-    subsiguiente se conserve en el cuerpo de los racionales (ℚ), eliminando la pérdida de
-    precisión típica de IEEE-754 en cálculos de inversas y determinantes.
-    """
+    """Convierte int, float, str ('3/4', '0.5') o Fraction a Fraction exacta.
+    Se usa Fraction y no float para que inversas y determinantes no acumulen error de redondeo."""
     if isinstance(valor, Fraction):
         return valor
     if isinstance(valor, int):
@@ -57,12 +32,14 @@ def parsear_fraccion(valor: Any) -> Fraction:
 
 
 def crear_matriz(datos: List[List[Any]]) -> MatrizF:
-    """Crea una matriz exacta de fracciones a partir de una lista anidada de números."""
+    """Crea una matriz de Fraction a partir de una lista anidada de números.
+    Lanza ValueError si está vacía o si sus filas tienen longitudes distintas."""
     if not datos or not datos[0]:
         raise ValueError("La matriz no puede estar vacía.")
     num_cols = len(datos[0])
     matriz: MatrizF = []
     for f_idx, fila in enumerate(datos):
+        # Una matriz irregular no está definida: cada fila debe tener las mismas columnas.
         if len(fila) != num_cols:
             raise ValueError(f"Fila {f_idx + 1} tiene longitud irregular ({len(fila)} != {num_cols}).")
         matriz.append([parsear_fraccion(elem) for elem in fila])
@@ -70,19 +47,20 @@ def crear_matriz(datos: List[List[Any]]) -> MatrizF:
 
 
 def copiar_matriz(A: MatrizF) -> MatrizF:
-    """Retorna una copia profunda e independiente de una matriz."""
+    """Devuelve una copia de A con filas nuevas, para modificarla sin alterar la original."""
     return [fila[:] for fila in A]
 
 
 def matriz_identidad(n: int) -> MatrizF:
-    """Construye la matriz identidad Iₙ de tamaño n × n con unos en la diagonal."""
+    """Devuelve la identidad Iₙ (n x n); n debe ser mayor que cero."""
     if n <= 0:
         raise ValueError("El orden n de la matriz identidad debe ser mayor a cero.")
     return [[Fraction(1 if i == j else 0, 1) for j in range(n)] for i in range(n)]
 
 
 def son_matrices_iguales(A: MatrizF, B: MatrizF) -> bool:
-    """Verifica si dos matrices A y B son algebraicamente idénticas entrada por entrada."""
+    """Devuelve True si A y B tienen las mismas dimensiones y las mismas entradas."""
+    # Con Fraction se compara con ==, sin tolerancia: no hay error de redondeo.
     if len(A) != len(B) or len(A[0]) != len(B[0]):
         return False
     for i in range(len(A)):
@@ -93,7 +71,7 @@ def son_matrices_iguales(A: MatrizF, B: MatrizF) -> bool:
 
 
 def matriz_a_cadena(A: MatrizF, ancho_columna: int = 10) -> str:
-    """Formatea una matriz a una cadena visual con bordes de corchete."""
+    """Devuelve A como texto con corchetes y columnas alineadas a ancho_columna."""
     filas = []
     for fila in A:
         elementos = [f"{str(elem):>{ancho_columna}}" for elem in fila]
@@ -101,16 +79,14 @@ def matriz_a_cadena(A: MatrizF, ancho_columna: int = 10) -> str:
     return "\n".join(filas)
 
 
-# =============================================================================
-# 1. SUMA Y RESTA DE MATRICES
-# =============================================================================
-
 def validar_mismas_dimensiones(A: MatrizF, B: MatrizF, operacion: str = "operación") -> Tuple[int, int]:
-    """Valida que dos matrices tengan exactamente el mismo orden m × n."""
+    """Comprueba que A y B tengan el mismo orden m x n y devuelve (m, n).
+    Lanza ValueError si alguna está vacía o si los órdenes difieren."""
     if not A or not A[0] or not B or not B[0]:
         raise ValueError("Las matrices no pueden estar vacías.")
     m_A, n_A = len(A), len(A[0])
     m_B, n_B = len(B), len(B[0])
+    # Suma y resta operan entrada a entrada: sin igual orden no hay pareja para cada entrada.
     if m_A != m_B or n_A != n_B:
         raise ValueError(
             f"Dimensiones incompatibles para {operacion}: A es {m_A}×{n_A} y B es {m_B}×{n_B}. "
@@ -120,51 +96,29 @@ def validar_mismas_dimensiones(A: MatrizF, B: MatrizF, operacion: str = "operaci
 
 
 def sumar_matrices(A: MatrizF, B: MatrizF) -> MatrizF:
-    """Calcula la suma matricial C = A + B término a término.
-    
-    Definición matemática:
-    Dadas A, B ∈ M_{m×n}(ℚ), C_{ij} = A_{ij} + B_{ij} para todo 1 ≤ i ≤ m, 1 ≤ j ≤ n.
-    """
+    """Devuelve C = A + B, con C_ij = A_ij + B_ij. Valida dimensiones antes de operar."""
     m, n = validar_mismas_dimensiones(A, B, "suma de matrices")
-    # Se suman entradas correspondientes usando aritmética exacta de Fraction
     return [[A[i][j] + B[i][j] for j in range(n)] for i in range(m)]
 
 
 def restar_matrices(A: MatrizF, B: MatrizF) -> MatrizF:
-    """Calcula la resta matricial C = A - B término a término.
-    
-    Definición matemática:
-    C_{ij} = A_{ij} - B_{ij} = A_{ij} + (-1)·B_{ij}.
-    """
+    """Devuelve C = A - B, con C_ij = A_ij - B_ij. Valida dimensiones antes de operar."""
     m, n = validar_mismas_dimensiones(A, B, "resta de matrices")
     return [[A[i][j] - B[i][j] for j in range(n)] for i in range(m)]
 
 
-# =============================================================================
-# 2. MULTIPLICACIÓN POR UN ESCALAR
-# =============================================================================
-
 def multiplicar_escalar(c: Any, A: MatrizF) -> MatrizF:
-    """Calcula el producto de un escalar por una matriz C = c · A.
-    
-    Definición matemática:
-    Para c ∈ ℚ y A ∈ M_{m×n}(ℚ), (c · A)_{ij} = c · A_{ij}.
-    """
+    """Devuelve c·A multiplicando cada entrada de A por el escalar c (int, str o Fraction)."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     c_frac = parsear_fraccion(c)
     m, n = len(A), len(A[0])
-    # Multiplicar cada celda por el factor escalar
     return [[c_frac * A[i][j] for j in range(n)] for i in range(m)]
 
 
-# =============================================================================
-# 3. PRODUCTO MATRICIAL (A_m×n × B_n×p → C_m×p)
-# =============================================================================
-
 @dataclass
 class DetalleProductoMatricial:
-    """Contenedor de resultados del producto matricial con desgloses paso a paso."""
+    """Resultado del producto A·B: matriz, dimensiones y desglose de cada celda."""
     matriz_resultado: MatrizF
     dimensiones_A: Tuple[int, int]
     dimensiones_B: Tuple[int, int]
@@ -173,13 +127,8 @@ class DetalleProductoMatricial:
 
 
 def multiplicar_matrices(A: MatrizF, B: MatrizF) -> MatrizF:
-    """Calcula el producto matricial estándar C = A · B.
-    
-    Condición de compatibilidad:
-    El número de columnas de A debe ser estrictamente igual al número de filas de B.
-    Algoritmo del triple bucle anidado:
-      C_{ij} = ∑_{k=0}^{n-1} A_{ik} · B_{kj}
-    """
+    """Devuelve A·B (m x p). Requiere columnas de A == filas de B; si no, lanza ValueError.
+    A: m filas de n elementos. B: n filas de p elementos."""
     if not A or not A[0] or not B or not B[0]:
         raise ValueError("Ninguna de las matrices puede estar vacía.")
     m = len(A)
@@ -187,17 +136,18 @@ def multiplicar_matrices(A: MatrizF, B: MatrizF) -> MatrizF:
     n_B = len(B)
     p = len(B[0])
 
+    # Cada entrada es fila por columna: sin columnas de A == filas de B no hay productos que sumar.
     if n_A != n_B:
         raise ValueError(
             f"Incompatibilidad de dimensiones para el producto: A es {m}×{n_A} y B es {n_B}×{p}. "
             f"El número de columnas de A ({n_A}) debe coincidir con el número de filas de B ({n_B})."
         )
 
-    # Triple bucle for/for/for
     C: MatrizF = []
     for i in range(m):
         fila: List[Fraction] = []
         for j in range(p):
+            # Elemento (i, j) = fila i de A por columna j de B.
             acumulador = Fraction(0, 1)
             for k in range(n_A):
                 acumulador += A[i][k] * B[k][j]
@@ -207,7 +157,8 @@ def multiplicar_matrices(A: MatrizF, B: MatrizF) -> MatrizF:
 
 
 def multiplicar_matrices_explicado(A: MatrizF, B: MatrizF) -> DetalleProductoMatricial:
-    """Calcula el producto matricial generando además el desglose paso a paso de cada celda."""
+    """Calcula A·B como multiplicar_matrices y devuelve además el desglose de texto de cada celda
+    (DetalleProductoMatricial)."""
     if not A or not A[0] or not B or not B[0]:
         raise ValueError("Ninguna de las matrices puede estar vacía.")
     m, n_A = len(A), len(A[0])
@@ -244,29 +195,17 @@ def multiplicar_matrices_explicado(A: MatrizF, B: MatrizF) -> DetalleProductoMat
     )
 
 
-# =============================================================================
-# 4. TRANSPOSICIÓN DE MATRICES
-# =============================================================================
-
 def trasponer_matriz(A: MatrizF) -> MatrizF:
-    """Calcula la matriz transpuesta Aᵀ intercambiando filas por columnas.
-    
-    Definición matemática:
-    Si A ∈ M_{m×n}(ℚ), entonces Aᵀ ∈ M_{n×m}(ℚ) donde (Aᵀ)_{ij} = A_{ji}.
-    """
+    """Devuelve Aᵀ (n x m): la fila j de la traspuesta es la columna j de A."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     m, n = len(A), len(A[0])
-    # Intercambio de índices: la columna j se convierte en la fila j
     return [[A[i][j] for i in range(m)] for j in range(n)]
 
 
-# =============================================================================
-# 5. DETERMINANTES
-# =============================================================================
-
 def validar_matriz_cuadrada(A: MatrizF, operacion: str = "operación") -> int:
-    """Valida que la matriz sea estrictamente cuadrada de orden n × n."""
+    """Comprueba que A sea n x n y devuelve n; lanza ValueError si no lo es.
+    Determinantes e inversas solo existen para matrices cuadradas."""
     if not A or not A[0]:
         raise ValueError("La matriz no puede estar vacía.")
     n = len(A)
@@ -279,11 +218,8 @@ def validar_matriz_cuadrada(A: MatrizF, operacion: str = "operación") -> int:
 
 
 def obtener_submatriz_menor(A: MatrizF, fila_elim: int, col_elim: int) -> MatrizF:
-    """Genera la submatriz (menor) eliminando la fila y columna especificadas (0-indexadas).
-    
-    Decisión matemática:
-    Base del cálculo de menores M_{ij} en la teoría clásica de cofactores de Laplace.
-    """
+    """Devuelve A sin la fila fila_elim ni la columna col_elim (índices desde 0).
+    Es el menor M_ij que usan los cofactores."""
     return [
         [A[i][j] for j in range(len(A[0])) if j != col_elim]
         for i in range(len(A)) if i != fila_elim
@@ -291,15 +227,16 @@ def obtener_submatriz_menor(A: MatrizF, fila_elim: int, col_elim: int) -> Matriz
 
 
 def cofactor(A: MatrizF, i: int, j: int) -> Fraction:
-    """Calcula el cofactor algebraico C_{ij} = (-1)^(i+j) · det(M_{ij})."""
+    """Devuelve el cofactor C_ij = (-1)^(i+j) · det(M_ij), con i y j desde 0."""
     sub = obtener_submatriz_menor(A, i, j)
+    # El signo (-1)^(i+j) sigue el patrón de cofactores: alterna según la posición.
     signo = Fraction(1 if (i + j) % 2 == 0 else -1, 1)
     det_menor, _ = determinante_cofactores(sub)
     return signo * det_menor
 
 
 def matriz_cofactores(A: MatrizF) -> MatrizF:
-    """Construye la matriz de cofactores C donde C_{ij} = (-1)^(i+j) · det(M_{ij})."""
+    """Devuelve la matriz C de cofactores de una matriz cuadrada A."""
     n = validar_matriz_cuadrada(A, "matriz de cofactores")
     if n == 1:
         # Para orden 1, el cofactor de [a₁₁] se define convencionalmente como 1
@@ -314,38 +251,33 @@ def matriz_cofactores(A: MatrizF) -> MatrizF:
 
 
 def matriz_adjunta(A: MatrizF) -> MatrizF:
-    """Calcula la matriz adjunta adj(A) = Cᵀ (la transpuesta de la matriz de cofactores)."""
+    """Devuelve adj(A) = Cᵀ, la traspuesta de la matriz de cofactores."""
     C = matriz_cofactores(A)
     return trasponer_matriz(C)
 
 
 def determinante_cofactores(A: MatrizF) -> Tuple[Fraction, List[str]]:
-    """Calcula el determinante mediante expansión por cofactores (Teorema de Laplace).
-    
-    Fórmula:
-    det(A) = ∑_{j=0}^{n-1} a_{0j} · C_{0j}   (expandiendo a lo largo de la primera fila).
-    Retorna el determinante y la traza explicativa de pasos.
-    """
+    """Devuelve (det(A), pasos) expandiendo por cofactores a lo largo de la fila 1.
+    A: matriz cuadrada. pasos: lista de textos con el desarrollo."""
     n = validar_matriz_cuadrada(A, "determinante por cofactores")
     pasos: List[str] = []
 
-    # Caso base 1×1
+    # Casos base de la recursión: se detiene en matrices 1x1 y 2x2.
     if n == 1:
         val = A[0][0]
         pasos.append(f"Matriz 1×1: det = A[1,1] = {val}")
         return val, pasos
 
-    # Caso base 2×2
     if n == 2:
         val = (A[0][0] * A[1][1]) - (A[0][1] * A[1][0])
         pasos.append(f"Fórmula 2×2: ({A[0][0]})·({A[1][1]}) - ({A[0][1]})·({A[1][0]}) = {val}")
         return val, pasos
 
-    # Expansión recursiva para n ≥ 3 a lo largo de la fila 0
     det_total = Fraction(0, 1)
     lineas_expansion = []
     for j in range(n):
         elem = A[0][j]
+        # El signo (-1)^j sigue el patrón de cofactores: alterna según la posición de la columna.
         signo_num = 1 if (0 + j) % 2 == 0 else -1
         signo_str = "+" if signo_num == 1 else "-"
         sub = obtener_submatriz_menor(A, 0, j)
@@ -364,26 +296,18 @@ def determinante_cofactores(A: MatrizF) -> Tuple[Fraction, List[str]]:
 
 
 def determinante_sarrus(A: MatrizF) -> Tuple[Fraction, List[str]]:
-    """Calcula el determinante de una matriz 3×3 mediante la regla de Sarrus.
-    
-    Procedimiento algebraico:
-    Diagonales principales (hacia abajo y derecha):
-      D₁ = a₁₁·a₂₂·a₃₃,  D₂ = a₁₂·a₂₃·a₃₁,  D₃ = a₁₃·a₂₁·a₃₂
-    Diagonales secundarias (hacia abajo e izquierda):
-      d₁ = a₁₃·a₂₂·a₃₁,  d₂ = a₁₁·a₂₃·a₃₂,  d₃ = a₁₂·a₂₁·a₃₃
-    det(A) = (D₁ + D₂ + D₃) - (d₁ + d₂ + d₃).
-    """
+    """Devuelve (det(A), pasos) de una matriz 3x3 con la regla de Sarrus:
+    det = suma de diagonales principales - suma de diagonales secundarias."""
     n = validar_matriz_cuadrada(A, "método de Sarrus")
+    # Sarrus solo es válida para 3x3; en otros órdenes daría un valor incorrecto.
     if n != 3:
         raise ValueError(f"El método de Sarrus es exclusivo para matrices 3×3 (matriz dada es {n}×{n}).")
 
-    # Diagonales principales
     D1 = A[0][0] * A[1][1] * A[2][2]
     D2 = A[0][1] * A[1][2] * A[2][0]
     D3 = A[0][2] * A[1][0] * A[2][1]
     suma_principales = D1 + D2 + D3
 
-    # Diagonales secundarias
     d1 = A[0][2] * A[1][1] * A[2][0]
     d2 = A[0][0] * A[1][2] * A[2][1]
     d3 = A[0][1] * A[1][0] * A[2][2]
@@ -409,14 +333,8 @@ def determinante_sarrus(A: MatrizF) -> Tuple[Fraction, List[str]]:
 
 
 def determinante_triangulacion(A: MatrizF) -> Tuple[Fraction, List[str]]:
-    """Calcula el determinante reduciendo A a una matriz triangular superior.
-    
-    Teoremas utilizados:
-    1. Intercambio de dos filas (F_i ↔ F_j): cambia el signo del determinante (factor (-1)).
-    2. Sumar a una fila un múltiplo de otra (F_i → F_i + k·F_j): no altera el determinante.
-    3. Para una matriz triangular superior U, det(U) = ∏_{i=1}^n u_{ii}.
-    4. det(A) = (-1)^(intercambios) · ∏ u_{ii}.
-    """
+    """Devuelve (det(A), pasos) reduciendo A a triangular superior.
+    det(A) = (-1)^(intercambios) · producto de la diagonal de la triangular."""
     n = validar_matriz_cuadrada(A, "determinante por triangulación")
     U = copiar_matriz(A)
     pasos: List[str] = [f"Reducción a matriz triangular superior (orden {n}×{n}):"]
@@ -425,7 +343,7 @@ def determinante_triangulacion(A: MatrizF) -> Tuple[Fraction, List[str]]:
     det_cero = False
 
     for col in range(n):
-        # Buscar pivote no nulo en la columna actual
+        # Se busca un pivote no nulo; si el de la diagonal es 0 se intercambian filas.
         pivote_fila = col
         while pivote_fila < n and U[pivote_fila][col] == Fraction(0, 1):
             pivote_fila += 1
@@ -436,8 +354,8 @@ def determinante_triangulacion(A: MatrizF) -> Tuple[Fraction, List[str]]:
             pasos.append(f"Columna {col+1}: Todos los elementos bajo la diagonal son cero. La matriz es singular.")
             break
 
-        # Si se requiere intercambio de filas
         if pivote_fila != col:
+            # Cada intercambio cambia el signo de det(A): se cuenta para aplicar (-1)^swaps al final.
             U[col], U[pivote_fila] = U[pivote_fila], U[col]
             swaps += 1
             pasos.append(
@@ -478,13 +396,9 @@ def determinante_triangulacion(A: MatrizF) -> Tuple[Fraction, List[str]]:
     return det_final, pasos
 
 
-# =============================================================================
-# 6. INVERSA POR GAUSS-JORDAN ([A | I] → [I | A⁻¹])
-# =============================================================================
-
 @dataclass
 class ResultadoInversion:
-    """Resultado del cálculo de inversa matricial."""
+    """Resultado de invertir una matriz: inversa (None si es singular), pasos y comprobación A·A⁻¹ = I."""
     es_invertible: bool
     matriz_inversa: Optional[MatrizF]
     pasos: List[str]
@@ -493,23 +407,18 @@ class ResultadoInversion:
 
 
 def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
-    """Calcula la matriz inversa A⁻¹ mediante reducción de Gauss-Jordan sobre [A | I].
-    
-    Regla técnica:
-    Si en cualquier columna pivote no existe elemento no nulo (rango < n),
-    se detiene el proceso de inmediato e informa que la matriz es singular (no invertible).
-    Si se alcanza [I | A⁻¹], comprueba automáticamente que A · A⁻¹ = I.
-    """
+    """Devuelve la inversa de A reduciendo [A | I] a [I | A⁻¹] (ResultadoInversion).
+    Si falta un pivote la matriz es singular y se detiene sin inversa."""
     n = validar_matriz_cuadrada(A, "inversa por Gauss-Jordan")
     pasos: List[str] = [f"Cálculo de A⁻¹ por Gauss-Jordan sobre matriz aumentada [A | I_{n}]:"]
 
-    # 1. Construir la matriz aumentada [A | I_n]
     aumentada: MatrizF = []
     for i in range(n):
         fila = [A[i][j] for j in range(n)] + [Fraction(1 if i == j else 0, 1) for j in range(n)]
         aumentada.append(fila)
 
     def formato_aumentada(M: MatrizF) -> str:
+        """Devuelve la matriz aumentada [A | I] como texto, con una barra entre ambos bloques."""
         lineas = []
         for f in M:
             izq = " ".join(f"{str(x):>8}" for x in f[:n])
@@ -520,14 +429,12 @@ def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
     pasos.append("Estado inicial de [A | I]:")
     pasos.append(formato_aumentada(aumentada))
 
-    # 2. Eliminación de Gauss-Jordan columna a columna
     for col in range(n):
-        # Buscar fila con pivote no nulo
         pivote_fila = col
         while pivote_fila < n and aumentada[pivote_fila][col] == Fraction(0, 1):
             pivote_fila += 1
 
-        # Criterio de parada: falta de pivote en columna
+        # Sin n pivotes la matriz es singular: se detiene la reducción en lugar de dividir entre 0.
         if pivote_fila == n:
             pasos.append(
                 f"\n❌ PROCESO DETENIDO: No se encontró pivote en la columna {col+1}.\n"
@@ -542,8 +449,8 @@ def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
                 matriz_producto_comprobacion=None
             )
 
-        # Intercambio si es necesario
         if pivote_fila != col:
+            # Se intercambian filas si el pivote es 0: sin pivote no se puede eliminar la columna.
             aumentada[col], aumentada[pivote_fila] = aumentada[pivote_fila], aumentada[col]
             pasos.append(f"Intercambio: Fila {col+1} ↔ Fila {pivote_fila+1}")
 
@@ -554,8 +461,8 @@ def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
             aumentada[col] = [elem * factor_inv for elem in aumentada[col]]
             pasos.append(f"Normalizar pivote: Fila {col+1} → ({factor_inv}) · Fila {col+1}")
 
-        # Anular todos los demás elementos de la columna col (Gauss-Jordan)
         for f in range(n):
+            # Se anula la columna arriba y abajo del pivote (no solo debajo) para llegar a [I | A⁻¹].
             if f != col and aumentada[f][col] != Fraction(0, 1):
                 factor = aumentada[f][col]
                 aumentada[f] = [aumentada[f][c] - factor * aumentada[col][c] for c in range(2 * n)]
@@ -564,12 +471,12 @@ def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
     pasos.append("\nForma reducida final alcanzada [I | A⁻¹]:")
     pasos.append(formato_aumentada(aumentada))
 
-    # Extraer la matriz inversa del bloque derecho
     A_inv: MatrizF = []
     for i in range(n):
         A_inv.append([aumentada[i][n + j] for j in range(n)])
 
     # Comprobación automática obligatoria: A · A⁻¹ = I
+    # Se comprueba A·A⁻¹ = I para detectar cualquier error en la reducción.
     prod = multiplicar_matrices(A, A_inv)
     I = matriz_identidad(n)
     es_identidad = son_matrices_iguales(prod, I)
@@ -590,25 +497,16 @@ def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
     )
 
 
-# =============================================================================
-# 7. INVERSA POR MATRIZ ADJUNTA
-# =============================================================================
-
 def inversa_adjunta(A: MatrizF) -> ResultadoInversion:
-    """Calcula la matriz inversa usando la fórmula de la matriz adjunta:
-       A⁻¹ = (1 / det(A)) · adj(A)
-    
-    Condición matemática:
-    Válida si y solo si det(A) ≠ 0. Si det(A) = 0, la matriz es singular.
-    Comprueba automáticamente que A · A⁻¹ = I.
-    """
+    """Devuelve la inversa de A como (1 / det(A)) · adj(A) (ResultadoInversion).
+    Si det(A) = 0 la matriz es singular y no hay inversa."""
     n = validar_matriz_cuadrada(A, "inversa por matriz adjunta")
     pasos: List[str] = ["Cálculo de A⁻¹ mediante la Matriz Adjunta: A⁻¹ = (1 / det(A)) · adj(A)"]
 
-    # 1. Calcular determinante
     det, pasos_det = determinante_cofactores(A)
     pasos.append(f"1. Cálculo del determinante: det(A) = {det}")
 
+    # Con det(A) = 0 la matriz es singular y la fórmula dividiría entre cero.
     if det == Fraction(0, 1):
         pasos.append(
             "❌ PROCESO DETENIDO: det(A) = 0. No se puede dividir entre cero.\n"
@@ -622,23 +520,20 @@ def inversa_adjunta(A: MatrizF) -> ResultadoInversion:
             matriz_producto_comprobacion=None
         )
 
-    # 2. Calcular matriz de cofactores
     C = matriz_cofactores(A)
     pasos.append("\n2. Matriz de Cofactores C:")
     pasos.append(matriz_a_cadena(C))
 
-    # 3. Calcular matriz adjunta: adj(A) = Cᵀ
     adj_A = trasponer_matriz(C)
     pasos.append("\n3. Matriz Adjunta adj(A) = Cᵀ:")
     pasos.append(matriz_a_cadena(adj_A))
 
-    # 4. Multiplicar por el escalar 1 / det(A)
     factor_escalar = Fraction(1, 1) / det
     A_inv = multiplicar_escalar(factor_escalar, adj_A)
     pasos.append(f"\n4. A⁻¹ = (1 / {det}) · adj(A):")
     pasos.append(matriz_a_cadena(A_inv))
 
-    # 5. Comprobación automática obligatoria: A · A⁻¹ = I
+    # Se comprueba A·A⁻¹ = I para detectar cualquier error en la fórmula.
     prod = multiplicar_matrices(A, A_inv)
     I = matriz_identidad(n)
     es_identidad = son_matrices_iguales(prod, I)
@@ -659,13 +554,9 @@ def inversa_adjunta(A: MatrizF) -> ResultadoInversion:
     )
 
 
-# =============================================================================
-# 8. VERIFICADOR DE PROPIEDADES (SESIONES 10 Y 11)
-# =============================================================================
-
 @dataclass
 class ResultadoPropiedad:
-    """Contenedor para la comprobación de una propiedad algebraica."""
+    """Resultado de verificar una propiedad: fórmula, ambos lados como texto y si se cumple."""
     nombre: str
     formula: str
     se_cumple: bool
@@ -675,7 +566,7 @@ class ResultadoPropiedad:
 
 
 def verificar_propiedad_inversa_de_inversa(A: MatrizF) -> ResultadoPropiedad:
-    """Verifica la propiedad (A⁻¹)⁻¹ = A."""
+    """Verifica (A⁻¹)⁻¹ = A; devuelve un ResultadoPropiedad."""
     res1 = inversa_gauss_jordan(A)
     if not res1.es_invertible or res1.matriz_inversa is None:
         return ResultadoPropiedad(
@@ -701,16 +592,15 @@ def verificar_propiedad_inversa_de_inversa(A: MatrizF) -> ResultadoPropiedad:
 
 
 def verificar_propiedad_inversa_del_producto(A: MatrizF, B: MatrizF) -> ResultadoPropiedad:
-    """Verifica la propiedad de inversión del producto: (AB)⁻¹ = B⁻¹ A⁻¹."""
+    """Verifica (AB)⁻¹ = B⁻¹·A⁻¹ para A y B cuadradas del mismo orden; devuelve un ResultadoPropiedad."""
+    # AB solo existe e invierte bien si A y B son cuadradas del mismo orden.
     validar_mismas_dimensiones(A, B, "verificación (AB)⁻¹ = B⁻¹A⁻¹")
     validar_matriz_cuadrada(A, "verificación")
 
-    # Lado izquierdo: (AB)⁻¹
     AB = multiplicar_matrices(A, B)
     res_AB = inversa_gauss_jordan(AB)
     lado_izq = res_AB.matriz_inversa
 
-    # Lado derecho: B⁻¹ · A⁻¹
     res_B = inversa_gauss_jordan(B)
     res_A = inversa_gauss_jordan(A)
 
@@ -741,7 +631,7 @@ def verificar_propiedad_inversa_del_producto(A: MatrizF, B: MatrizF) -> Resultad
 
 
 def verificar_propiedad_inversa_de_traspuesta(A: MatrizF) -> ResultadoPropiedad:
-    """Verifica la propiedad (Aᵀ)⁻¹ = (A⁻¹)ᵀ."""
+    """Verifica (Aᵀ)⁻¹ = (A⁻¹)ᵀ; devuelve un ResultadoPropiedad."""
     validar_matriz_cuadrada(A, "verificación")
     AT = trasponer_matriz(A)
     res_AT = inversa_gauss_jordan(AT)
@@ -771,7 +661,7 @@ def verificar_propiedad_inversa_de_traspuesta(A: MatrizF) -> ResultadoPropiedad:
 
 
 def verificar_propiedad_determinante_de_inversa(A: MatrizF) -> ResultadoPropiedad:
-    """Verifica la propiedad det(A⁻¹) = 1 / det(A)."""
+    """Verifica det(A⁻¹) = 1 / det(A); devuelve un ResultadoPropiedad."""
     validar_matriz_cuadrada(A, "verificación")
     det_A, _ = determinante_cofactores(A)
     if det_A == Fraction(0, 1):
@@ -801,8 +691,10 @@ def verificar_propiedad_determinante_de_inversa(A: MatrizF) -> ResultadoPropieda
 
 
 def verificar_propiedades_operaciones_fila_det(A: MatrizF) -> List[ResultadoPropiedad]:
-    """Verifica los efectos de las 3 operaciones elementales de fila sobre el determinante."""
+    """Verifica cómo afectan al det(A) el intercambio, el reemplazo y el escalamiento de una fila.
+    Devuelve una lista de ResultadoPropiedad (vacía si A es 1x1)."""
     n = validar_matriz_cuadrada(A, "verificación operaciones de fila")
+    # Con una sola fila no hay otra fila con la cual intercambiar o combinar.
     if n < 2:
         return []
 
@@ -855,19 +747,18 @@ def verificar_propiedades_operaciones_fila_det(A: MatrizF) -> List[ResultadoProp
 
 
 def verificar_propiedad_matriz_triangular(A: MatrizF) -> ResultadoPropiedad:
-    """Construye una matriz triangular y compara el producto de la diagonal con cofactores."""
+    """Verifica que el det de la triangular superior de A sea el producto de su diagonal.
+    Devuelve un ResultadoPropiedad."""
     n = validar_matriz_cuadrada(A, "matriz triangular")
-    # Construir una matriz triangular superior basada en A poniendo ceros bajo la diagonal
     T = [[A[i][j] if j >= i else Fraction(0, 1) for j in range(n)] for i in range(n)]
 
-    # 1. Producto de la diagonal principal
     prod_diag = Fraction(1, 1)
     terminos = []
     for i in range(n):
         prod_diag *= T[i][i]
         terminos.append(str(T[i][i]))
 
-    # 2. Determinante calculado por cofactores
+    # Se compara contra cofactores, que no usan el atajo de la diagonal.
     det_cofac, _ = determinante_cofactores(T)
 
     se_cumple = (prod_diag == det_cofac)
@@ -883,10 +774,6 @@ def verificar_propiedad_matriz_triangular(A: MatrizF) -> ResultadoPropiedad:
         )
     )
 
-
-# =============================================================================
-# 9. TEOREMAS CLAVE Y LOGO ASCII DEL MÓDULO 3
-# =============================================================================
 
 LOGO_ASCII_MODULO_3 = r"""
   ██████╗ ██╗   ██╗███╗   ███╗ █████╗ ████████╗██████╗ ██╗██╗  ██╗
@@ -940,12 +827,8 @@ TEOREMAS_MODULO_3 = """
 """
 
 
-# =============================================================================
-# 10. ANÁLISIS DETALLADO DEL EJERCICIO EN OPERACIONES MATRICIALES
-# =============================================================================
-
 def analizar_suma_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
-    """Genera un análisis algebraico profundo y contextualizado de la suma A + B = C."""
+    """Devuelve las líneas de texto con el análisis de A + B = C (conmutatividad y estructura)."""
     m, n = len(A), len(A[0])
     lineas = [
         "═" * 70,
@@ -955,12 +838,10 @@ def analizar_suma_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
         f"   Ambas matrices comparten orden idéntico ({m} filas y {n} columnas).",
         "   La operación es cerrada en el espacio vectorial M_{m×n}(ℝ)."
     ]
-    # Conmutatividad con estas matrices
     B_mas_A = sumar_matrices(B, A)
     conmuta = son_matrices_iguales(C, B_mas_A)
     lineas.append(f"2. Verificación de Conmutatividad: A + B == B + A → {'✓ Verificada' if conmuta else '✗ No'} (conmutativa).")
 
-    # Análisis de elementos
     ceros = sum(1 for i in range(m) for j in range(n) if C[i][j] == Fraction(0, 1))
     lineas.append(f"3. Análisis de Entradas Resultantes: Total de {m*n} celdas calculadas.")
     if ceros > 0:
@@ -968,7 +849,6 @@ def analizar_suma_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
     else:
         lineas.append("   • Ningún elemento resultó en cero (no hubo parejas de opuestos aditivos exactos).")
 
-    # Clasificación si es cuadrada
     if m == n:
         es_sim = son_matrices_iguales(C, trasponer_matriz(C))
         es_diag = all(C[i][j] == Fraction(0, 1) for i in range(m) for j in range(n) if i != j)
@@ -984,7 +864,7 @@ def analizar_suma_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
 
 
 def analizar_resta_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
-    """Genera un análisis algebraico profundo y contextualizado de la resta A - B = C."""
+    """Devuelve las líneas de texto con el análisis de A - B = C (no conmutatividad y comparación)."""
     m, n = len(A), len(A[0])
     lineas = [
         "═" * 70,
@@ -993,7 +873,6 @@ def analizar_resta_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
         f"1. Compatibilidad Espacial: A, B ∈ M_{m}×{n}(ℚ).",
         "   Definida como la adición con el opuesto aditivo: A - B = A + (-1)·B."
     ]
-    # No conmutatividad
     B_menos_A = restar_matrices(B, A)
     es_igual_inverso = son_matrices_iguales(C, B_menos_A)
     opuesto = multiplicar_escalar(Fraction(-1, 1), B_menos_A)
@@ -1002,7 +881,6 @@ def analizar_resta_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
     lineas.append(f"   • ¿A - B == B - A?: {'Sí (caso trivial A=B)' if es_igual_inverso else 'NO (la sustracción no es conmutativa)'}.")
     lineas.append(f"   • Relación Antisimétrica: A - B == -(B - A) → {'✓ Verificada idénticamente' if es_antisimetrico else '✗ Discrepancia'}.")
 
-    # Comparación término a término
     mayores = sum(1 for i in range(m) for j in range(n) if A[i][j] > B[i][j])
     menores = sum(1 for i in range(m) for j in range(n) if A[i][j] < B[i][j])
     iguales = sum(1 for i in range(m) for j in range(n) if A[i][j] == B[i][j])
@@ -1016,7 +894,7 @@ def analizar_resta_matrices(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
 
 
 def analizar_escalar_matriz(c: Fraction, A: MatrizF, R: MatrizF) -> List[str]:
-    """Genera un análisis algebraico profundo y contextualizado de c · A = R."""
+    """Devuelve las líneas de texto con el análisis de c·A = R (efecto del escalar y del det)."""
     m, n = len(A), len(A[0])
     lineas = [
         "═" * 70,
@@ -1039,6 +917,7 @@ def analizar_escalar_matriz(c: Fraction, A: MatrizF, R: MatrizF) -> List[str]:
         lineas.append("   • Isometría Escalar (|c| = 1): Las magnitudes absolutas permanecen inalteradas.")
 
     if m == n:
+        # Cada una de las m filas se multiplica por c y cada una aporta un factor c al determinante.
         factor_det = c ** m
         lineas.append(f"2. Efecto Teórico en el Determinante (Orden Cuadrado {m}×{n}):")
         lineas.append(f"   • Teorema: det(c · A) = c^{m} · det(A) = ({c})^{m} · det(A) = {factor_det} · det(A).")
@@ -1051,7 +930,7 @@ def analizar_escalar_matriz(c: Fraction, A: MatrizF, R: MatrizF) -> List[str]:
 
 
 def analizar_producto_matricial(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]:
-    """Genera un análisis algebraico profundo y contextualizado del producto A · B = C."""
+    """Devuelve las líneas de texto con el análisis de A·B = C (dimensiones y conmutatividad)."""
     m = len(A)
     nA = len(A[0])
     nB = len(B)
@@ -1067,13 +946,12 @@ def analizar_producto_matricial(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]
         f"   • Total de operaciones elementales ejecutadas: {m * p * nA} multiplicaciones y {m * p * (nA - 1)} sumas."
     ]
 
-    # Conmutatividad
     lineas.append("2. Análisis de Conmutatividad (¿Existe y es igual B × A?):")
+    # B·A solo existe si las columnas de B (p) igualan las filas de A (m).
     if p != m:
         lineas.append(f"   • B × A NO EXISTE (No está definido): B tiene {p} columnas y A tiene {m} filas ({p} ≠ {m}).")
         lineas.append("   • Esto prueba contundentemente la no conmutatividad estricta de las matrices en este ejercicio.")
     else:
-        # B x A está definido
         BA = multiplicar_matrices(B, A)
         if len(BA) != m or len(BA[0]) != p:
             lineas.append(f"   • B × A existe pero tiene tamaño ({p}×{nA}), diferente al tamaño de A × B ({m}×{p}).")
@@ -1083,7 +961,6 @@ def analizar_producto_matricial(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]
             lineas.append(f"   • B × A tiene las mismas dimensiones ({m}×{p}).")
             lineas.append(f"   • ¿AB == BA en este ejercicio?: {'¡Sí conmutan!' if conmutan else 'NO CONMUTAN (AB ≠ BA, caso general)'}.")
 
-    # Interpretación
     lineas.append("3. Interpretación Estructural:")
     lineas.append("   • Cada fila i de la matriz resultante C es una combinación lineal de las filas de B.")
     lineas.append("   • Cada columna j de la matriz resultante C es una combinación lineal de las columnas de A.")
@@ -1092,7 +969,7 @@ def analizar_producto_matricial(A: MatrizF, B: MatrizF, C: MatrizF) -> List[str]
 
 
 def analizar_transposicion_matriz(A: MatrizF, AT: MatrizF) -> List[str]:
-    """Genera un análisis algebraico profundo y contextualizado de la transposición Aᵀ."""
+    """Devuelve las líneas de texto con el análisis de Aᵀ (diagonal, simetría e involución)."""
     m, n = len(A), len(A[0])
     lineas = [
         "═" * 70,
@@ -1102,13 +979,11 @@ def analizar_transposicion_matriz(A: MatrizF, AT: MatrizF) -> List[str]:
         "   La operación refleja las entradas respecto a la diagonal principal: (Aᵀ)[j,i] = A[i,j]."
     ]
 
-    # Elementos invariantes en la diagonal
     min_dim = min(m, n)
     diag_fijos = [f"A[{i+1},{i+1}] = {A[i][i]}" for i in range(min_dim)]
     lineas.append(f"2. Elementos Invariantes (Diagonal Principal):")
     lineas.append(f"   • Los elementos sobre la diagonal principal permanecen en sus posiciones: {', '.join(diag_fijos)}.")
 
-    # Simetría si es cuadrada
     if m == n:
         es_sim = son_matrices_iguales(A, AT)
         A_neg = multiplicar_escalar(Fraction(-1, 1), A)

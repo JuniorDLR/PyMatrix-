@@ -1,21 +1,13 @@
 """
-UNIVERSIDAD AMERICANA (UAM)
-Facultad de Ingeniería y Arquitectura (FIA)
-Asignatura: Álgebra Lineal (MTM0120)
-
-PROGRAMA 4: Calculadora Integrada de Álgebra Lineal — PyMatrix
-
-Punto de entrada para ejecutar la calculadora completa, que integra:
-  1. Sistemas de ecuaciones lineales con eliminación de Gauss y Gauss-Jordan.
-  2. Operaciones con vectores, combinación lineal e independencia lineal.
-  3. Operaciones matriciales, producto matriz-vector y resolución de Ax = b.
-  4. Pestañas de teoremas fundamentales en cada módulo.
+Punto de entrada del Programa 4: abre la calculadora integrada PyMatrix.
+Temas de clase: Gauss-Jordan, vectores, operaciones matriciales, Ax = b y teoremas clave.
+Elaborado por: Grupo x
 """
 
 import os
 import sys
 
-
+# La consola de Windows puede no usar UTF-8 y fallaría con los símbolos matemáticos.
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -29,7 +21,7 @@ from src.ui.app import App
 
 
 def main():
-    """Inicia la calculadora integrada de Álgebra Lineal."""
+    """Crea la ventana principal con todos los módulos y arranca la interfaz."""
     app = App()
     app.mainloop()
 

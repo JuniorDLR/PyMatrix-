@@ -1,3 +1,8 @@
+"""
+Lienzo gráfico y controles de reproducción para ver paso a paso la eliminación gaussiana.
+Resalta pivotes, ceros creados y la "escalera" de la forma escalonada (REF/RREF) de Gauss/Gauss-Jordan.
+Elaborado por: Grupo x
+"""
 import customtkinter as ctk
 import tkinter as tk
 from typing import List, Optional, Tuple, Callable
@@ -7,6 +12,7 @@ from src.core.domain import formatear_fraccion, formatear_numero, a_subindice
 
 
 class CellState(Enum):
+    """Estados visuales de una celda durante la eliminación (pivote, ceros nuevos, término independiente...)."""
     NORMAL = "normal"
     PIVOT_CURRENT = "pivot_current"
     PIVOT_NORMALIZED = "pivot_normalized"
@@ -20,6 +26,7 @@ class CellState(Enum):
 
 @dataclass
 class CellStyle:
+    """Colores y borde con que se dibuja una celda según su estado."""
     bg: str
     fg: str
     font_weight: str = "normal"
@@ -29,6 +36,7 @@ class CellStyle:
 
 @dataclass
 class MatrixStep:
+    """Un paso de la eliminación: matriz resultante, descripción y celdas a resaltar."""
     matriz: List[List[float]]
     descripcion: str
     pivot_row: int = -1
@@ -41,7 +49,9 @@ class MatrixStep:
 
 
 class MatrixCanvas(ctk.CTkFrame):
+    """Lienzo que dibuja la matriz aumentada de cada paso con colores, encabezados y leyenda."""
     def __init__(self, master, **kwargs):
+        """Crea el canvas, las barras de desplazamiento y el estado de reproducción; recibe el frame padre."""
         super().__init__(master, **kwargs)
         self.force_staircase = False
         self.modo_numero = "fraccion"
@@ -61,8 +71,6 @@ class MatrixCanvas(ctk.CTkFrame):
         self.scroll_x = ctk.CTkScrollbar(self, orientation="horizontal", command=self.canvas.xview)
         self.canvas.configure(xscrollcommand=self.scroll_x.set, yscrollcommand=self.scroll_y.set)
 
-
-        
         self.steps: List[MatrixStep] = []
         self.current_step = 0
         self.cell_rects: List[List[int]] = []
@@ -85,6 +93,7 @@ class MatrixCanvas(ctk.CTkFrame):
         self._setup_fonts()
     
     def _get_theme_colors(self) -> dict:
+        """Devuelve el diccionario de colores del tema (Dark/Light) activo."""
         mode = ctk.get_appearance_mode()
         if mode == "Dark":
             return {
@@ -154,12 +163,14 @@ class MatrixCanvas(ctk.CTkFrame):
             }
     
     def _setup_fonts(self):
+        """Define las fuentes de celdas, encabezados y leyenda."""
         self.font_normal = ("Consolas", 11)
         self.font_bold = ("Consolas", 11, "bold")
         self.font_header = ("Consolas", 11, "bold")
         self.font_legend = ("Consolas", 9)
     
     def _bind_events(self):
+        """Enlaza redimensionado, rueda del ratón y repintado del tema al mostrarse."""
         self.canvas.bind("<Configure>", self._on_resize)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         self.canvas.bind("<Button-4>", self._on_mousewheel)
@@ -167,18 +178,21 @@ class MatrixCanvas(ctk.CTkFrame):
         self.bind("<Map>", lambda e: self._refresh_theme())
     
     def _refresh_theme(self):
+        """Recarga los colores del tema actual y redibuja el paso visible."""
         self._theme_colors = self._get_theme_colors()
         self.canvas.configure(bg=self._theme_colors["canvas_bg"])
         if self.steps:
             self.render_step(self.current_step)
     
     def toggle_staircase(self) -> bool:
+        """Activa/desactiva la escalera forzada, redibuja y devuelve el nuevo estado (bool)."""
         self.force_staircase = not self.force_staircase
         if self.steps:
             self.render_step(self.current_step)
         return self.force_staircase
 
     def _update_scrollbars(self):
+        """Muestra cada barra solo si el contenido desborda y ajusta la región de desplazamiento."""
         bbox = self.canvas.bbox("all")
         if not bbox:
             self.scroll_x.grid_remove()
@@ -188,13 +202,11 @@ class MatrixCanvas(ctk.CTkFrame):
         cw = self.canvas.winfo_width()
         ch = self.canvas.winfo_height()
         
-        # Mostrar barra horizontal solo si el contenido desborda el ancho visible
         if bbox[2] + 30 > cw and cw > 50:
             self.scroll_x.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
         else:
             self.scroll_x.grid_remove()
             
-        # Mostrar barra vertical solo si el contenido desborda la altura visible
         if bbox[3] + 30 > ch and ch > 50:
             self.scroll_y.grid(row=0, column=1, sticky="ns", padx=(0, 6), pady=6)
         else:
@@ -205,21 +217,25 @@ class MatrixCanvas(ctk.CTkFrame):
         self.canvas.configure(scrollregion=(0, 0, sr_w, sr_h))
 
     def _on_resize(self, event):
+        """Reajusta las barras de desplazamiento al cambiar el tamaño del canvas."""
         self._update_scrollbars()
     
     def _on_mousewheel(self, event):
+        """Desplaza verticalmente con la rueda (Windows usa delta; Linux, Button-4/5)."""
         if event.num == 4 or event.delta > 0:
             self.canvas.yview_scroll(-1, "units")
         elif event.num == 5 or event.delta < 0:
             self.canvas.yview_scroll(1, "units")
     
     def load_steps(self, steps: List[MatrixStep]):
+        """Carga la lista de pasos (MatrixStep) y muestra el primero."""
         self.steps = steps
         self.current_step = 0
         if steps:
             self.render_step(0)
     
     def render_step(self, step_index: int):
+        """Asigna el estado de cada celda del paso indicado y lo dibuja; avisa a on_step_change."""
         if not self.steps or step_index >= len(self.steps):
             return
         
@@ -236,9 +252,9 @@ class MatrixCanvas(ctk.CTkFrame):
         cols = len(matriz[0]) if rows > 0 else 0
         num_vars = cols - 1
         
+        # Cada regla solo pisa celdas NORMAL (o ROW_PIVOT): el orden fija la prioridad visual
         self.cell_states = [[CellState.NORMAL for _ in range(cols)] for _ in range(rows)]
         
-        # 1. Pivote actual
         if step.pivot_row >= 0 and step.pivot_col >= 0:
             if step.is_normalized:
                 self.cell_states[step.pivot_row][step.pivot_col] = CellState.PIVOT_NORMALIZED
@@ -249,26 +265,23 @@ class MatrixCanvas(ctk.CTkFrame):
                 if c != step.pivot_col:
                     self.cell_states[step.pivot_row][c] = CellState.ROW_PIVOT
         
-        # 2. Ceros nuevos abajo
         for (r, c) in step.zeros_created:
             if self.cell_states[r][c] == CellState.NORMAL:
                 self.cell_states[r][c] = CellState.ZERO_NEW
                 
-        # 3. Ceros nuevos arriba (Gauss-Jordan)
         for (r, c) in step.zeros_above_created:
             if self.cell_states[r][c] == CellState.NORMAL or self.cell_states[r][c] == CellState.ROW_PIVOT:
                 self.cell_states[r][c] = CellState.ZERO_ABOVE
         
-        # 4. Términos independientes
         for r in range(rows):
             if self.cell_states[r][num_vars] in (CellState.NORMAL, CellState.ROW_PIVOT):
                 self.cell_states[r][num_vars] = CellState.INDEPENDENT
         
-        # 5. Ceros preexistentes
         for r in range(rows):
             for c in range(cols):
                 if self.cell_states[r][c] == CellState.NORMAL:
                     val = matriz[r][c]
+                    # Tolerancia 1e-10: los pasos son floats y un residuo mínimo debe contar como cero
                     if abs(val) < 1e-10:
                         self.cell_states[r][c] = CellState.ZERO_EXISTING
         
@@ -279,6 +292,7 @@ class MatrixCanvas(ctk.CTkFrame):
             self.on_step_change(step_index, step)
     
     def _draw_matrix(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int, descripcion: str, show_staircase: bool = False):
+        """Dibuja encabezado, etiquetas de fila, celdas, escalera (si aplica) y leyenda."""
         x_start = self.padding + self.row_label_width
         y_header = self.padding + 34
         y_start = y_header + self.header_height + 2
@@ -300,7 +314,8 @@ class MatrixCanvas(ctk.CTkFrame):
         self._draw_legend(x_start, y_start + rows * (self.cell_height + 1) + 20, num_vars, show_staircase=draw_stair)
 
     def _draw_staircase(self, matriz: List[List[float]], rows: int, cols: int, num_vars: int):
-        """Dibuja la línea de la escalera (patrón escalonado) con un color ámbar/dorado llamativo."""
+        """Dibuja la línea de escalera que bordea los pivotes (primer elemento no nulo de cada fila)."""
+        # Pivote de una fila = primer elemento no nulo entre las columnas de variables (excluye la columna b)
         pivotes: List[Tuple[int, int]] = []
         for r in range(rows):
             for c in range(num_vars):
@@ -333,10 +348,8 @@ class MatrixCanvas(ctk.CTkFrame):
             py_top = y_start + r * (self.cell_height + 1)
             py_bot = py_top + self.cell_height + 1
             
-            # Línea vertical: baja por el lado izquierdo de la celda pivote
             points.append((px, py_bot))
             
-            # Línea horizontal: se extiende bajo el pivote hasta la columna del siguiente o fin de vars
             if i + 1 < len(pivotes):
                 next_px = x_start + pivotes[i + 1][1] * (self.cell_width + 1)
                 points.append((next_px, py_bot))
@@ -344,7 +357,6 @@ class MatrixCanvas(ctk.CTkFrame):
                 end_px = x_start + num_vars * (self.cell_width + 1)
                 points.append((end_px, py_bot))
                 
-        # Trazar la escalera con línea ancha destacada (ancho=4)
         for i in range(len(points) - 1):
             p1 = points[i]
             p2 = points[i + 1]
@@ -353,7 +365,6 @@ class MatrixCanvas(ctk.CTkFrame):
                 fill=stair_color, width=4, capstyle="round", joinstyle="round"
             )
             
-        # Marcadores redondeados en el vértice superior izquierdo de cada escalón
         for (r, c) in pivotes:
             cx = x_start + c * (self.cell_width + 1)
             cy = y_start + r * (self.cell_height + 1)
@@ -363,6 +374,7 @@ class MatrixCanvas(ctk.CTkFrame):
             )
     
     def _draw_header(self, descripcion: str, x: int, y: int, cols: int, num_vars: int):
+        """Dibuja el título del paso, las cabeceras x₁…xₙ y '=' y el separador de la columna b."""
         self.canvas.create_text(
             x, y - 18, text=f"• {descripcion}", anchor="w",
             font=("Consolas", 12, "bold"), fill=self._theme_colors["header_fg"]
@@ -394,6 +406,7 @@ class MatrixCanvas(ctk.CTkFrame):
         )
     
     def _draw_row_label(self, row: int, x: int, y: int):
+        """Dibuja la etiqueta F_i de una fila."""
         self.canvas.create_rectangle(
             x, y, x + self.row_label_width, y + self.cell_height,
             fill=self._theme_colors["header_bg"], outline=self._theme_colors["grid_color"]
@@ -404,6 +417,7 @@ class MatrixCanvas(ctk.CTkFrame):
         )
     
     def _draw_cell(self, row: int, col: int, x: int, y: int, value: float):
+        """Dibuja una celda con el estilo de su estado y guarda los ids de rectángulo y texto."""
         state = self.cell_states[row][col]
         style = self._get_cell_style(state)
         
@@ -429,6 +443,7 @@ class MatrixCanvas(ctk.CTkFrame):
         self.cell_texts[row].append(text)
     
     def _get_cell_style(self, state: CellState) -> CellStyle:
+        """Devuelve el CellStyle correspondiente al estado de la celda."""
         colors = self._theme_colors
         if state == CellState.PIVOT_CURRENT:
             return CellStyle(colors["pivot_current"], colors["pivot_current_fg"], "bold", colors["border_pivot"], 2)
@@ -450,6 +465,7 @@ class MatrixCanvas(ctk.CTkFrame):
             return CellStyle(colors["cell_normal"], colors["cell_normal_fg"], "normal", colors["grid_color"], 1)
     
     def _format_value(self, value: float) -> str:
+        """Formatea un número como fracción o decimal según el modo activo."""
         return formatear_numero(value, self.modo_numero)
     
     def set_number_mode(self, modo: str):
@@ -459,6 +475,7 @@ class MatrixCanvas(ctk.CTkFrame):
             self.render_step(self.current_step)
     
     def _draw_legend(self, x: int, y: int, num_vars: int, show_staircase: bool = False):
+        """Dibuja el recuadro de leyenda de colores (con la escalera si show_staircase)."""
         legends = [
             ("■ Pivote activo (Gauss)", self._theme_colors["pivot_current_fg"]),
             ("■ Pivote normalizado = 1 (Jordan)", self._theme_colors["pivot_normalized_fg"]),
@@ -483,32 +500,39 @@ class MatrixCanvas(ctk.CTkFrame):
             self.canvas.create_text(x + 12, ly, text=label, anchor="w", font=self.font_legend, fill=color)
     
     def next_step(self):
+        """Avanza un paso si existe uno siguiente."""
         if self.current_step < len(self.steps) - 1:
             self.render_step(self.current_step + 1)
     
     def prev_step(self):
+        """Retrocede un paso si existe uno anterior."""
         if self.current_step > 0:
             self.render_step(self.current_step - 1)
     
     def first_step(self):
+        """Muestra el primer paso."""
         self.render_step(0)
     
     def last_step(self):
+        """Muestra el último paso."""
         self.render_step(len(self.steps) - 1)
     
     def play(self):
+        """Inicia la reproducción automática de los pasos."""
         if self.is_playing:
             return
         self.is_playing = True
         self._animate()
     
     def pause(self):
+        """Detiene la reproducción y cancela el temporizador pendiente."""
         self.is_playing = False
         if self.animation_id:
             self.after_cancel(self.animation_id)
             self.animation_id = None
     
     def _animate(self):
+        """Avanza un paso y se reprograma (1400/velocidad ms) hasta llegar al último."""
         if not self.is_playing or self.current_step >= len(self.steps) - 1:
             self.is_playing = False
             return
@@ -518,21 +542,26 @@ class MatrixCanvas(ctk.CTkFrame):
         self.animation_id = self.after(delay, self._animate)
     
     def set_speed(self, speed: float):
+        """Fija la velocidad de reproducción limitada al rango [0.25, 4.0]."""
         self.play_speed = max(0.25, min(4.0, speed))
     
     def get_current_step_info(self) -> Tuple[int, int, Optional[MatrixStep]]:
+        """Devuelve (paso actual en base 1, total, MatrixStep) o (0, 0, None) si no hay pasos."""
         if not self.steps:
             return 0, 0, None
         return self.current_step + 1, len(self.steps), self.steps[self.current_step]
 
 
 class PlaybackControls(ctk.CTkFrame):
+    """Barra de botones para navegar y reproducir los pasos de un MatrixCanvas."""
     def __init__(self, master, canvas: MatrixCanvas, **kwargs):
+        """Guarda el canvas controlado y construye los botones."""
         super().__init__(master, **kwargs)
         self.canvas = canvas
         self._setup_ui()
     
     def _setup_ui(self):
+        """Crea los botones de navegación, velocidad, REF/RREF, escalera y las etiquetas de paso."""
         self.btn_first = ctk.CTkButton(self, text="⏮", width=38, height=32, command=self.canvas.first_step)
         self.btn_first.pack(side="left", padx=2)
         
@@ -559,7 +588,6 @@ class PlaybackControls(ctk.CTkFrame):
         self.step_label = ctk.CTkLabel(self, text="Paso 0 / 0", font=ctk.CTkFont(family="Consolas", size=13, weight="bold"))
         self.step_label.pack(side="left", padx=14)
         
-        # Botones de salto directo a Forma Escalonada (REF) y Reducida (RREF)
         self.btn_rref = ctk.CTkButton(
             self, text="🎯 RREF (Final)", width=105, height=30,
             command=self._go_to_rref,
@@ -590,6 +618,7 @@ class PlaybackControls(ctk.CTkFrame):
         self.canvas.on_step_change = self._on_step_change
 
     def _go_to_ref(self):
+        """Salta al primer paso cuya descripción indica forma escalonada (REF); si no hay, al primero."""
         for idx, step in enumerate(self.canvas.steps):
             if "Forma Escalonada por Filas" in step.descripcion or "(REF)" in step.descripcion:
                 self.canvas.render_step(idx)
@@ -597,9 +626,11 @@ class PlaybackControls(ctk.CTkFrame):
         self.canvas.first_step()
         
     def _go_to_rref(self):
+        """Salta al último paso (forma reducida final)."""
         self.canvas.last_step()
         
     def _toggle_staircase(self):
+        """Alterna la escalera y actualiza el texto y color del botón."""
         is_on = self.canvas.toggle_staircase()
         self.btn_toggle_stair.configure(
             text=f"🪜 Escalera: {'ON' if is_on else 'OFF'}",
@@ -607,6 +638,7 @@ class PlaybackControls(ctk.CTkFrame):
         )
     
     def _toggle_play(self):
+        """Alterna reproducción/pausa y el icono del botón."""
         if self.canvas.is_playing:
             self.canvas.pause()
             self.btn_play.configure(text="▶")
@@ -615,10 +647,12 @@ class PlaybackControls(ctk.CTkFrame):
             self.btn_play.configure(text="⏸")
     
     def _on_speed_change(self, value: str):
+        """Convierte un valor como '1.5x' a número y fija la velocidad."""
         speed = float(value.replace("x", ""))
         self.canvas.set_speed(speed)
     
     def _on_step_change(self, step_index: int, step: MatrixStep):
+        """Actualiza etiqueta y descripción del paso; en el último paso restablece el botón de play."""
         current, total, _ = self.canvas.get_current_step_info()
         self.step_label.configure(text=f"Paso {current} / {total}")
         self.desc_label.configure(text=step.descripcion)
@@ -629,6 +663,7 @@ class PlaybackControls(ctk.CTkFrame):
 
 
 def create_matrix_steps_from_gauss(pasos_gauss, matriz_original) -> List[MatrixStep]:
+    """Convierte los pasos del núcleo en MatrixStep, deduciendo pivote y ceros creados desde la descripción."""
     steps = []
     
     for i, paso in enumerate(pasos_gauss):
@@ -652,6 +687,7 @@ def create_matrix_steps_from_gauss(pasos_gauss, matriz_original) -> List[MatrixS
                         else:
                             zeros_created.append((r, c))
         
+        # El pivote no viene como dato: se extrae del texto de la descripción ("Fila k", "Columna c")
         if "Normalización" in desc:
             is_normalized = True
             parts = desc.split("Fila ")

@@ -1,8 +1,7 @@
-"""
-Pruebas exhaustivas para modulos/modulo_matrices.py.
-Verifica que todas las operaciones matriciales, determinantes, inversas y
-propiedades algebraicas se calculen con exactitud sin librerías externas.
-"""
+"""Pruebas de modulos/modulo_matrices.py: operaciones, determinantes, inversas y propiedades.
+Tema de clase: álgebra matricial y determinantes (sesiones 10 y 11), con resultados conocidos a mano.
+Se ejecutan como script: py tests/test_modulo_matrices.py
+Elaborado por: Grupo x"""
 import sys
 import os
 from fractions import Fraction
@@ -28,6 +27,7 @@ from modulos.modulo_matrices import (
 
 
 def run_all_tests():
+    """Ejecuta todas las pruebas del módulo; falla con AssertionError si alguna no se cumple."""
     print("Iniciando pruebas unitarias de modulos/modulo_matrices.py...")
 
     # 1. Suma y Resta

@@ -1,28 +1,21 @@
-"""
-UNIVERSIDAD AMERICANA (UAM)
-Facultad de Ingeniería y Arquitectura (FIA)
-Asignatura: Álgebra Lineal (MTM0120)
-
-PROGRAMA PRINCIPAL: main.py
-Punto de entrada de PyMatrix integrado con modulos/modulo_matrices.py.
-Contiene la interfaz de usuario interactiva por consola con menú de operaciones matriciales,
-soporte para entrada de matrices fraccionarias/decimales, ejemplos didácticos automáticos
-y documentación matemática teórica integrada dinámicamente en el resultado de cada ejercicio.
-"""
+"""Menú de consola de PyMatrix para las operaciones de modulos/modulo_matrices.py.
+Tema de clase: operaciones matriciales, determinantes, inversas y sus propiedades (sesiones 10 y 11).
+Aquí vive toda la entrada y salida; el módulo de cálculo no usa input() ni print().
+Elaborado por: Grupo x"""
 
 import sys
 import os
 from typing import List, Tuple, Optional, Any
 from fractions import Fraction
 
-# Asegurar codificación UTF-8 en salida estándar para caracteres matemáticos y bordes Unicode
+# La consola de Windows puede no usar UTF-8 y fallaría con los símbolos matemáticos.
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
-# Asegurar que el directorio raíz del proyecto esté en el PYTHONPATH
+# Permite importar modulos y src al ejecutar este archivo desde otra carpeta.
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from modulos.modulo_matrices import (
@@ -40,22 +33,18 @@ from modulos.modulo_matrices import (
 )
 
 
-# =============================================================================
-# FUNCIONES AUXILIARES DE ENTRADA Y FORMATEO POR CONSOLA
-# =============================================================================
-
 def limpiar_pantalla():
-    """Imprime una separación visual limpia entre opciones."""
+    """Imprime una línea separadora entre opciones del menú."""
     print("\n" + "═" * 78 + "\n")
 
 
 def pausar():
-    """Pausa la ejecución esperando que el usuario presione ENTER."""
+    """Espera a que el usuario presione ENTER antes de volver al menú."""
     input("\nPresione [ENTER] para regresar al menú principal...")
 
 
 def leer_entero(mensaje: str, min_val: int = 1, max_val: int = 10, valor_default: Optional[int] = None) -> int:
-    """Solicita un número entero dentro de un rango con validación continua."""
+    """Pide un entero entre min_val y max_val (o valor_default si se deja vacío) y repite hasta que sea válido."""
     def_str = f" [por defecto {valor_default}]" if valor_default is not None else ""
     while True:
         try:
@@ -71,7 +60,8 @@ def leer_entero(mensaje: str, min_val: int = 1, max_val: int = 10, valor_default
 
 
 def leer_matriz_consola(nombre: str, filas: int, columnas: int) -> MatrizF:
-    """Permite ingresar los elementos de una matriz fila por fila."""
+    """Lee por consola una matriz filas x columnas (enteros, fracciones o decimales) y la devuelve.
+    Repite cada fila hasta que tenga la cantidad exacta de valores."""
     print(f"\n>> Ingrese los valores para la matriz {nombre} ({filas} × {columnas}):")
     print("   (Puede escribir enteros como '3', fracciones como '1/2' o '-3/4', o decimales como '0.5').")
     print("   Formato: Ingrese los valores de cada fila separados por espacios.")
@@ -82,6 +72,7 @@ def leer_matriz_consola(nombre: str, filas: int, columnas: int) -> MatrizF:
             try:
                 linea = input(f"   Fila {i + 1} ({columnas} valores): ").strip()
                 partes = linea.split()
+                # Una fila con otra cantidad de valores daría una matriz irregular.
                 if len(partes) != columnas:
                     print(f"   ⚠️ Se esperaban {columnas} valores, pero ingresó {len(partes)}. Intente de nuevo.")
                     continue
@@ -96,7 +87,7 @@ def leer_matriz_consola(nombre: str, filas: int, columnas: int) -> MatrizF:
 def seleccionar_o_ejemplo_matriz(
     nombre: str, filas: int, columnas: int, ejemplo_default: List[List[Any]]
 ) -> MatrizF:
-    """Ofrece al usuario la opción de cargar una matriz de ejemplo o ingresarla manualmente."""
+    """Devuelve una matriz cargada de ejemplo_default o ingresada a mano, según elija el usuario."""
     print(f"\nConfiguración para matriz {nombre} ({filas}×{columnas}):")
     print(f"  [1] Usar ejemplo didáctico precargado")
     print(f"  [2] Ingresar valores manualmente")
@@ -110,11 +101,8 @@ def seleccionar_o_ejemplo_matriz(
         return M
 
 
-# =============================================================================
-# MANEJADORES DE CADA OPCIÓN DEL MENÚ CON DOCUMENTACIÓN MATEMÁTICA CONTEXTUAL
-# =============================================================================
-
 def opcion_1_suma():
+    """Opción 1: pide A y B, muestra A + B y su análisis."""
     limpiar_pantalla()
     print("=== [1] SUMA DE MATRICES (A + B) ===")
     m = leer_entero("Ingrese número de filas m", 1, 6, 2)
@@ -138,6 +126,7 @@ def opcion_1_suma():
 
 
 def opcion_2_resta():
+    """Opción 2: pide A y B, muestra A - B y su análisis."""
     limpiar_pantalla()
     print("=== [2] RESTA DE MATRICES (A - B) ===")
     m = leer_entero("Ingrese número de filas m", 1, 6, 2)
@@ -161,6 +150,7 @@ def opcion_2_resta():
 
 
 def opcion_3_multiplicacion_escalar():
+    """Opción 3: pide c y A, muestra c·A y su análisis."""
     limpiar_pantalla()
     print("=== [3] MULTIPLICACIÓN POR UN ESCALAR (c · A) ===")
     m = leer_entero("Ingrese número de filas m", 1, 6, 2)
@@ -184,6 +174,7 @@ def opcion_3_multiplicacion_escalar():
 
 
 def opcion_4_producto_matricial():
+    """Opción 4: pide A (m x n) y B (n x p), muestra el desglose de A·B y su análisis."""
     limpiar_pantalla()
     print("=== [4] PRODUCTO MATRICIAL (A_m×n × B_n×p → C_m×p) ===")
     m = leer_entero("Filas de A (m)", 1, 6, 2)
@@ -210,6 +201,7 @@ def opcion_4_producto_matricial():
 
 
 def opcion_5_transposicion():
+    """Opción 5: pide A, muestra Aᵀ y su análisis."""
     limpiar_pantalla()
     print("=== [5] TRANSPOSICIÓN DE MATRICES (Aᵀ) ===")
     m = leer_entero("Ingrese número de filas m", 1, 6, 2)
@@ -229,6 +221,8 @@ def opcion_5_transposicion():
 
 
 def opcion_6_determinante():
+    """Opción 6: calcula det(A) por cofactores, Sarrus (solo 3x3) y triangulación,
+    y explica la invertibilidad según el Teorema de la Matriz Invertible."""
     limpiar_pantalla()
     print("=== [6] CÁLCULO DE DETERMINANTE ===")
     n = leer_entero("Ingrese orden de la matriz cuadrada n (n×n)", 1, 6, 3)
@@ -246,14 +240,12 @@ def opcion_6_determinante():
     print(matriz_a_cadena(A))
     print("═" * 60)
 
-    # 1. Cofactores
     print("\n[MÉTODO 1: EXPANSIÓN POR COFACTORES (LAPLACE)]")
     det_cof, pasos_cof = determinante_cofactores(A)
     for p in pasos_cof:
         print(f"  {p}")
     print(f">> det(A) por Cofactores = {det_cof}")
 
-    # 2. Sarrus (si es 3x3)
     if n == 3:
         print("\n[MÉTODO 2: REGLA DE SARRUS (EXCLUSIVO 3×3)]")
         det_sar, pasos_sar = determinante_sarrus(A)
@@ -261,13 +253,13 @@ def opcion_6_determinante():
             print(f"  {p}")
         print(f">> det(A) por Sarrus = {det_sar}")
 
-    # 3. Triangulación
     print("\n[MÉTODO 3: REDUCCIÓN A MATRIZ TRIANGULAR]")
     det_tri, pasos_tri = determinante_triangulacion(A)
     for p in pasos_tri:
         print(f"  {p}")
     print(f">> det(A) por Triangulación = {det_tri}")
 
+    # Con Fraction se compara con != 0 de forma exacta; det(A) ≠ 0 equivale a que A sea invertible.
     es_inv = (det_cof != Fraction(0, 1))
 
     print("\n" + "─" * 70)
@@ -294,6 +286,7 @@ def opcion_6_determinante():
 
 
 def opcion_7_inversa_gauss_jordan():
+    """Opción 7: muestra la inversa de A por Gauss-Jordan, paso a paso, con su justificación."""
     limpiar_pantalla()
     print("=== [7] INVERSA POR GAUSS-JORDAN ([A | I] → [I | A⁻¹]) ===")
     n = leer_entero("Orden de la matriz cuadrada n (n×n)", 1, 6, 3)
@@ -325,6 +318,7 @@ def opcion_7_inversa_gauss_jordan():
 
 
 def opcion_8_inversa_adjunta():
+    """Opción 8: muestra la inversa de A por la matriz adjunta, paso a paso, con su justificación."""
     limpiar_pantalla()
     print("=== [8] INVERSA POR MATRIZ ADJUNTA: A⁻¹ = (1/det(A)) · adj(A) ===")
     n = leer_entero("Orden de la matriz cuadrada n (n×n)", 1, 6, 3)
@@ -356,10 +350,12 @@ def opcion_8_inversa_adjunta():
 
 
 def opcion_9_verificador_propiedades():
+    """Opción 9: verifica las seis propiedades de inversas y determinantes sobre A y B."""
     limpiar_pantalla()
     print("=== [9] VERIFICADOR DE PROPIEDADES ALGEBRAICAS (SESIONES 10 Y 11) ===")
     print("Se verificarán sistemáticamente las 6 propiedades con justificación teórica para cada una:\n")
     
+    # A y B deben ser cuadradas del mismo orden para que AB y las inversas existan.
     n = leer_entero("Orden n para las matrices cuadradas A y B", 2, 4, 2)
     ejemplo_A = [[2, 1], [5, 3]] if n == 2 else [[1, 2, 0], [-1, 3, 2], [2, 0, -1]]
     ejemplo_B = [[1, 2], [3, 4]] if n == 2 else [[2, 0, 1], [1, 1, 0], [0, 3, 1]]
@@ -371,7 +367,6 @@ def opcion_9_verificador_propiedades():
     print("DOCUMENTACIÓN Y COMPROBACIÓN DINÁMICA DE PROPIEDADES")
     print("═" * 78)
 
-    # 1. (A⁻¹)⁻¹ = A
     p1 = verificar_propiedad_inversa_de_inversa(A)
     print(f"\n1. {p1.nombre} [{p1.formula}]:")
     print(f"   • Teorema: La operación de inversión matricial es involutiva.")
@@ -379,7 +374,6 @@ def opcion_9_verificador_propiedades():
     print(f"   • A original =\n{p1.lado_derecho_str}")
     print(f"   • Veredicto: {'✓ SE CUMPLE IDENTICAMENTE' if p1.se_cumple else '✗ NO SE CUMPLE'}")
 
-    # 2. (AB)⁻¹ = B⁻¹ A⁻¹
     p2 = verificar_propiedad_inversa_del_producto(A, B)
     print(f"\n2. {p2.nombre} [{p2.formula}]:")
     print(f"   • Teorema: La inversa de un producto invierte el orden de los factores.")
@@ -388,7 +382,6 @@ def opcion_9_verificador_propiedades():
     print(f"   • Lado Derecho B⁻¹ · A⁻¹ =\n{p2.lado_derecho_str}")
     print(f"   • Veredicto: {'✓ SE CUMPLE IDENTICAMENTE' if p2.se_cumple else '✗ NO SE CUMPLE'}")
 
-    # 3. (Aᵀ)⁻¹ = (A⁻¹)ᵀ
     p3 = verificar_propiedad_inversa_de_traspuesta(A)
     print(f"\n3. {p3.nombre} [{p3.formula}]:")
     print(f"   • Teorema: La transposición conmuta con la inversión: Aᵀ(A⁻¹)ᵀ = (A⁻¹ A)ᵀ = Iᵀ = I.")
@@ -396,7 +389,6 @@ def opcion_9_verificador_propiedades():
     print(f"   • Lado Derecho (A⁻¹)ᵀ =\n{p3.lado_derecho_str}")
     print(f"   • Veredicto: {'✓ SE CUMPLE IDENTICAMENTE' if p3.se_cumple else '✗ NO SE CUMPLE'}")
 
-    # 4. det(A⁻¹) = 1 / det(A)
     p4 = verificar_propiedad_determinante_de_inversa(A)
     print(f"\n4. {p4.nombre} [{p4.formula}]:")
     print(f"   • Teorema: Puesto que det(A · A⁻¹) = det(I) = 1, y det(AB) = det(A)·det(B),")
@@ -404,7 +396,6 @@ def opcion_9_verificador_propiedades():
     print(f"   • {p4.lado_izquierdo_str}  vs  {p4.lado_derecho_str}")
     print(f"   • Veredicto: {'✓ SE CUMPLE IDENTICAMENTE' if p4.se_cumple else '✗ NO SE CUMPLE'}")
 
-    # 5. Operaciones de fila en det(A)
     p5_list = verificar_propiedades_operaciones_fila_det(A)
     print("\n5. Propiedades de Operaciones Elementales de Fila en det(A):")
     for p in p5_list:
@@ -413,7 +404,6 @@ def opcion_9_verificador_propiedades():
         print(f"     Justificación: {p.explicacion}")
         print(f"     Estado: {'✓ VERIFICADA' if p.se_cumple else '✗ DISCREPANCIA'}")
 
-    # 6. Matriz triangular
     p6 = verificar_propiedad_matriz_triangular(A)
     print(f"\n6. {p6.nombre} [{p6.formula}]:")
     print(f"   • Teorema: En una matriz triangular, todos los cofactores correspondientes a las celdas")
@@ -429,6 +419,7 @@ def opcion_9_verificador_propiedades():
 
 
 def opcion_10_abrir_gui():
+    """Opción 10: abre la calculadora gráfica; si falla, informa el error en vez de cerrar el programa."""
     limpiar_pantalla()
     print("Iniciando la Calculadora Gráfica PyMatrix (CustomTkinter)...")
     try:
@@ -440,12 +431,8 @@ def opcion_10_abrir_gui():
         pausar()
 
 
-# =============================================================================
-# MENÚ PRINCIPAL
-# =============================================================================
-
 def menu_principal():
-    """Muestra el menú interactivo de 9 operaciones con justificación contextual."""
+    """Muestra el menú y ejecuta la opción elegida hasta que el usuario seleccione 0."""
     while True:
         limpiar_pantalla()
         print("  ┌──────────────────────────────────────────────────────────────────┐")
@@ -495,7 +482,7 @@ def menu_principal():
 
 
 def main():
-    """Función de arranque principal."""
+    """Arranca la interfaz gráfica con --gui o -g; en otro caso, el menú de consola."""
     if len(sys.argv) > 1 and sys.argv[1].lower() in ("--gui", "-g"):
         opcion_10_abrir_gui()
     else:

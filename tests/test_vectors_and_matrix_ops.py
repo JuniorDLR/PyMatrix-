@@ -1,7 +1,7 @@
-"""
-Pruebas automatizadas para los módulos de Vectores y Operaciones Matriciales.
-Verifica los ejercicios y teoremas de las diapositivas de la UAM (Programa 3).
-"""
+"""Pruebas de src/core: vectores, combinación lineal, independencia lineal, Ax = b e inversas.
+Tema de clase: vectores en Rn y operaciones matriciales (Programa 3), con ejercicios de las diapositivas.
+Se ejecutan como script: py tests/test_vectors_and_matrix_ops.py
+Elaborado por: Grupo x"""
 
 import sys
 import os
@@ -12,7 +12,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-# Asegurar que la raíz del proyecto esté en PYTHONPATH
+# Permite importar src al ejecutar el archivo desde cualquier carpeta.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.core.vectors import (
@@ -33,6 +33,7 @@ from src.core.domain import convertir_texto_a_modo
 
 
 def test_operaciones_vectoriales_basicas():
+    """Prueba suma, resta, escalar, producto punto, norma y combinaciones de k vectores."""
     print("=== Test 1: Operaciones Vectoriales Básicas ===")
     # Slide 4: u = [1, -2]^T, v = [2, 5]^T
     u = [1.0, -2.0]
@@ -86,6 +87,7 @@ def test_operaciones_vectoriales_basicas():
 
 
 def test_combinacion_lineal():
+    """Prueba que b ∈ Gen{v1..vk} se decide con [v1 ... vk | b], consistente o no."""
     print("\n=== Test 2: Evaluación de Combinación Lineal ===")
     # Slide 11: a1 = [1, -2, -5], a2 = [2, 5, 6], b = [7, 4, -3]
     a1 = [1.0, -2.0, -5.0]
@@ -108,6 +110,7 @@ def test_combinacion_lineal():
 
 
 def test_independencia_lineal():
+    """Prueba casos L.I. y L.D.: sistema homogéneo, múltiplos, p > n y vector cero."""
     print("\n=== Test 3: Independencia y Dependencia Lineal ===")
     # Slide 12-14: v1=[1, -2, 3], v2=[2, -2, 0], v3=[0, 1, 7] -> L.I.
     v1 = [1.0, -2.0, 3.0]
@@ -154,6 +157,7 @@ def test_independencia_lineal():
 
 
 def test_operaciones_matriciales():
+    """Prueba suma, resta, escalar, producto (y su no conmutatividad) y dimensiones incompatibles."""
     print("\n=== Test 4: Operaciones Matriciales Básicas ===")
     A = [[1.0, 2.0], [3.0, 4.0]]
     B = [[5.0, 6.0], [7.0, 8.0]]
@@ -217,6 +221,7 @@ def test_operaciones_matriciales():
 
 
 def test_ecuaciones_matriciales():
+    """Prueba el producto matriz-vector y la resolución de Ax = b."""
     print("\n=== Test 5: Ecuaciones Matriciales (Ax = b) ===")
     # Slide 4: A = [[1, 2, -1], [0, -5, 3]], x = [4, 3, 7] -> [3, 6]
     A = [[1.0, 2.0, -1.0], [0.0, -5.0, 3.0]]
@@ -240,6 +245,7 @@ def test_ecuaciones_matriciales():
 
 
 def test_propiedades_producto_ax():
+    """Prueba A(u+v) = Au+Av y A(cu) = c(Au), y su generalización a k vectores."""
     print("\n=== Test 6: Propiedades del Producto Matriz - Vector Ax ===")
     
     # --- 6.1: Ejercicio de Asignación Diapositiva 10 ---
@@ -283,6 +289,7 @@ def test_propiedades_producto_ax():
 
 
 def test_conversion_formato_numerico():
+    """Prueba la conversión de texto entre modo fracción y decimal."""
     print("\n=== Test 7: Conversión Dinámica Fracción / Decimal ===")
     assert convertir_texto_a_modo("0.5", "fraccion") == "1/2"
     assert convertir_texto_a_modo("1/2", "decimal") == "0.5"
@@ -298,6 +305,7 @@ def test_conversion_formato_numerico():
 
 
 def test_inversa_determinante_y_traspuesta():
+    """Prueba traspuesta, determinantes 2x2 y 3x3 e inversa (incluida la singular)."""
     print("\n=== Test 8: Traspuesta, Determinante e Inversa (Programa 4) ===")
     
     # Traspuesta de 2x3 a 3x2

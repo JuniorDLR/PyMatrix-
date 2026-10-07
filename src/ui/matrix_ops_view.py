@@ -1,10 +1,7 @@
 """
-Módulo de Interfaz Gráfica para Operaciones Matriciales y Ecuaciones Matriciales (PyMatrix).
-
-Proporciona vistas interactivas para:
-1. Operaciones básicas con matrices: A + B, A - B, c·A, A · B.
-2. Producto matriz-vector A · x con desglose por filas y como combinación de columnas.
-3. Resolución de la ecuación matricial Ax = b mediante [A | b] → Gauss-Jordan.
+Vista de operaciones matriciales de PyMatrix: suma, resta, escalar, producto, traspuesta,
+inversa, determinantes, ecuación Ax = b y propiedades de Ax, con procedimiento paso a paso.
+Elaborado por: Grupo x
 """
 
 import random
@@ -25,11 +22,11 @@ from src.core.vectors import Vector
 from src.core.domain import Matriz, formatear_numero, a_subindice, convertir_texto_a_modo
 
 
-
 class MatrixOpsView(ctk.CTkFrame):
-    """Panel principal para operaciones matriciales y ecuaciones Ax = b."""
+    """Vista con pestañas: operaciones matriciales, Ax = b, propiedades de Ax, traspuesta/inversa y determinantes."""
 
     def __init__(self, master, get_modo_numero_cb, **kwargs):
+        """Inicializa el panel; recibe el callback que entrega el modo numérico (Fracción/Decimal)."""
         super().__init__(master, **kwargs)
         self.get_modo_numero = get_modo_numero_cb
         self._ultimo_calc_ops = None
@@ -44,6 +41,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._setup_ui()
 
     def _setup_ui(self):
+        """Crea las pestañas y construye el contenido de cada una."""
         self.tabview = ctk.CTkTabview(self)
         self.tabview.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
@@ -59,10 +57,11 @@ class MatrixOpsView(ctk.CTkFrame):
         self._setup_tab_det()
 
     def refresh_format(self):
-        """Refresca entradas y salidas cuando cambia el formato global (Fracción/Decimal)."""
+        """Convierte las entradas al formato global vigente y recalcula la última operación de cada pestaña."""
         modo = self.get_modo_numero()
 
         def _convertir(entry):
+            """Reescribe el texto de una entrada en el modo numérico actual, ignorando widgets ya destruidos."""
             try:
                 if entry is not None and entry.winfo_exists():
                     val = entry.get()
@@ -73,7 +72,6 @@ class MatrixOpsView(ctk.CTkFrame):
             except Exception:
                 pass
 
-        # Tab 1: Operaciones
         if hasattr(self, "entries_A"):
             for fila in self.entries_A:
                 for e in fila:
@@ -85,13 +83,11 @@ class MatrixOpsView(ctk.CTkFrame):
         if hasattr(self, "entry_ops_c"):
             _convertir(self.entry_ops_c)
 
-        # Tab 2: Ax = b
         if hasattr(self, "entries_axb"):
             for fila in self.entries_axb:
                 for e in fila:
                     _convertir(e)
 
-        # Tab 3: Propiedades Ax
         if hasattr(self, "entries_prop_A"):
             for fila in self.entries_prop_A:
                 for e in fila:
@@ -104,19 +100,16 @@ class MatrixOpsView(ctk.CTkFrame):
             for e in self.entries_prop_c:
                 _convertir(e)
 
-        # Tab 4: Traspuesta e Inversa
         if hasattr(self, "entries_inv"):
             for fila in self.entries_inv:
                 for e in fila:
                     _convertir(e)
 
-        # Tab 5: Determinantes
         if hasattr(self, "entries_det"):
             for fila in self.entries_det:
                 for e in fila:
                     _convertir(e)
 
-        # Refrescar salidas calculadas activas
         if self._ultimo_calc_ops:
             self._calc_op(self._ultimo_calc_ops)
         if self._ultimo_calc_axb == "ax":
@@ -136,23 +129,18 @@ class MatrixOpsView(ctk.CTkFrame):
         if self._ultimo_calc_det == "determinante":
             self._calc_determinante()
 
-
-    # =========================================================================
-    # SUB-PESTAÑA 1: OPERACIONES BÁSICAS CON MATRICES
-    # =========================================================================
     def _setup_tab_ops(self):
+        """Construye la pestaña de suma, resta, escalar por matriz y producto de matrices."""
         tab = self.tab_ops
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        # Panel izquierdo: Entrada de matrices
         left = ctk.CTkFrame(tab, width=500, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
-        # Controles de dimensión
         dim_frame = ctk.CTkFrame(left, fg_color="transparent")
         dim_frame.pack(fill="x", padx=14, pady=(12, 4))
 
@@ -196,11 +184,9 @@ class MatrixOpsView(ctk.CTkFrame):
         self.entry_ops_c.pack(side="left", padx=2)
         self.entry_ops_c.insert(0, "2")
 
-        # Scroll con cuadrículas de A y B
         self.scroll_ops = ctk.CTkScrollableFrame(left, height=170)
         self.scroll_ops.pack(fill="both", expand=True, padx=14, pady=4)
 
-        # Botones de operación (exactamente las 4 operaciones requeridas)
         op_grid = ctk.CTkFrame(left, fg_color="transparent")
         op_grid.pack(fill="x", padx=14, pady=(6, 12))
         op_grid.grid_columnconfigure((0, 1), weight=1)
@@ -221,8 +207,6 @@ class MatrixOpsView(ctk.CTkFrame):
                       fg_color=("#7c3aed", "#6d28d9"), font=ctk.CTkFont(size=12, weight="bold"), height=34
                       ).grid(row=1, column=1, padx=3, pady=3, sticky="ew")
 
-
-        # Panel derecho: resultados
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -237,13 +221,12 @@ class MatrixOpsView(ctk.CTkFrame):
         self.txt_res_ops.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_ops.configure(state="disabled")
 
-
-        # Variables internas
         self.entries_A: List[List[ctk.CTkEntry]] = []
         self.entries_B: List[List[ctk.CTkEntry]] = []
         self._generar_matrices_ops()
 
     def _generar_matrices_ops(self):
+        """Regenera las cuadrículas de A y B según las dimensiones escritas (limitadas a 1..8)."""
         try:
             mA = max(1, min(8, int(self.entry_ops_mA.get())))
             nA = max(1, min(8, int(self.entry_ops_nA.get())))
@@ -257,7 +240,6 @@ class MatrixOpsView(ctk.CTkFrame):
         self.entries_A = []
         self.entries_B = []
 
-        # Título A
         ctk.CTkLabel(
             self.scroll_ops, text=f"Matriz A  ({mA} × {nA})",
             font=ctk.CTkFont(size=12, weight="bold"), text_color=("#38bdf8", "#38bdf8")
@@ -266,7 +248,6 @@ class MatrixOpsView(ctk.CTkFrame):
 
         ctk.CTkLabel(self.scroll_ops, text="").pack(pady=4)
 
-        # Título B
         ctk.CTkLabel(
             self.scroll_ops, text=f"Matriz B  ({mB} × {nB})",
             font=ctk.CTkFont(size=12, weight="bold"), text_color=("#34d399", "#34d399")
@@ -276,7 +257,7 @@ class MatrixOpsView(ctk.CTkFrame):
     def _crear_grid_matriz(self, parent, m: int, n: int,
                            entries_dest: List[List[ctk.CTkEntry]],
                            color_col_last: bool = True):
-        """Crea una cuadrícula m × n de CTkEntry dentro de parent."""
+        """Crea una cuadrícula m×n de CTkEntry dentro de parent y guarda las celdas en entries_dest."""
         header = ctk.CTkFrame(parent, fg_color="transparent")
         header.pack(fill="x", pady=1)
         ctk.CTkLabel(header, text="", width=30).pack(side="left")
@@ -303,12 +284,14 @@ class MatrixOpsView(ctk.CTkFrame):
             entries_dest.append(fila_entries)
 
     def _leer_matriz_entries(self, entries: List[List[ctk.CTkEntry]]) -> Matriz:
+        """Lee una cuadrícula de entradas y devuelve la Matriz; lanza ValueError si algún valor es inválido."""
         mat: Matriz = []
         for i, row in enumerate(entries):
             fila = []
             for j, e in enumerate(row):
                 val_str = e.get().strip()
                 try:
+                    # Las fracciones 'a/b' se dividen en float; un denominador 0 cae en el except y se reporta como valor inválido
                     if "/" in val_str:
                         n, d = val_str.split("/")
                         fila.append(float(n) / float(d))
@@ -320,22 +303,20 @@ class MatrixOpsView(ctk.CTkFrame):
         return mat
 
     def _cargar_ejemplo_ops(self):
+        """Carga al azar un ejemplo de operaciones matriciales en las cuadrículas."""
         ejemplos = [
-            # Slide 9: Suma/Resta de matrices 2x2
             {
                 "mA": 2, "nA": 2, "mB": 2, "nB": 2,
                 "A": [[1, -4], [0, 3]],
                 "B": [[2, 3], [-7, 5]],
                 "c": 3, "desc": "Diapositiva 9: Suma/Resta de matrices 2×2"
             },
-            # Producto matricial A (2x3) x B (3x2)
             {
                 "mA": 2, "nA": 3, "mB": 3, "nB": 2,
                 "A": [[1, 2, -1], [0, -5, 3]],
                 "B": [[4, 1], [3, 0], [7, 2]],
                 "c": 2, "desc": "Producto Matricial A(2×3) × B(3×2) — Desglose de sumas de productos"
             },
-            # Slide 7 Ej: A (3x3) x B (3x3)
             {
                 "mA": 3, "nA": 3, "mB": 3, "nB": 3,
                 "A": [[2, 3, 4], [1, -2, 0], [3, 1, -1]],
@@ -343,7 +324,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 "cA": -1, "cB": 2,
                 "desc": "Matrices 3×3: Compara A×B vs B×A (Demostración de No Conmutatividad)"
             },
-            # Dimensiones compatibles en una sola dirección
             {
                 "mA": 2, "nA": 3, "mB": 2, "nB": 2,
                 "A": [[1, 2, 3], [4, 5, 6]],
@@ -373,6 +353,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_ops(f"🎲 Ejemplo cargado: {ej['desc']}\nSeleccione la operación a realizar.", limpiar=True)
 
     def _calc_op(self, op: str):
+        """Ejecuta la operación `op` (suma, resta, escalar o multiplicación) y muestra su procedimiento."""
         self._ultimo_calc_ops = op
         modo = self.get_modo_numero()
         try:
@@ -399,6 +380,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 lineas.append(f"B ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
                 lineas.append("Procedimiento: C_ij = A_ij + B_ij para cada posición.")
                 lineas.append(f"\nResultado C = A + B ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
+                # El análisis extra usa fracciones exactas (crear_matriz) para evitar errores de redondeo
                 from modulos.modulo_matrices import crear_matriz, analizar_suma_matrices
                 A_f = crear_matriz(A); B_f = crear_matriz(B); R_f = crear_matriz(R)
                 lineas.append("\n" + "\n".join(analizar_suma_matrices(A_f, B_f, R_f)))
@@ -451,36 +433,33 @@ class MatrixOpsView(ctk.CTkFrame):
 
         self._log_ops("\n".join(lineas), limpiar=True)
 
-
     def _fmt_mat(self, mat: Matriz, modo: str) -> str:
+        """Devuelve la matriz como texto, una fila por línea, según el modo numérico."""
         s = ""
         for fila in mat:
             s += "  [ " + "  ".join([f"{formatear_numero(x, modo):>8}" for x in fila]) + " ]\n"
         return s
 
     def _log_ops(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el panel de resultados de operaciones; limpiar=True borra lo anterior."""
         self.txt_res_ops.configure(state="normal")
         if limpiar:
             self.txt_res_ops.delete("1.0", "end")
         self.txt_res_ops.insert("end", texto + "\n")
         self.txt_res_ops.configure(state="disabled")
 
-    # =========================================================================
-    # SUB-PESTAÑA 2: ECUACIÓN MATRICIAL Ax = b
-    # =========================================================================
     def _setup_tab_axb(self):
+        """Construye la pestaña de la ecuación matricial Ax = b."""
         tab = self.tab_axb
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        # Panel izquierdo
         left = ctk.CTkFrame(tab, width=460, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
-        # Controles
         ctrl = ctk.CTkFrame(left, fg_color="transparent")
         ctrl.pack(fill="x", padx=14, pady=(12, 4))
 
@@ -509,11 +488,9 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=11), text_color=("gray60", "gray70")
         ).pack(anchor="w", padx=14, pady=(2, 4))
 
-        # Grid de [A | b]
         self.scroll_axb = ctk.CTkScrollableFrame(left, height=250)
         self.scroll_axb.pack(fill="both", expand=True, padx=14, pady=4)
 
-        # Dos botones: Calcular Ax y Resolver Ax = b
         btns_axb = ctk.CTkFrame(left, fg_color="transparent")
         btns_axb.pack(fill="x", padx=14, pady=(6, 12))
         btns_axb.grid_columnconfigure((0, 1), weight=1)
@@ -529,7 +506,6 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"), height=34
         ).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
 
-        # Panel derecho: Resultados
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -544,12 +520,11 @@ class MatrixOpsView(ctk.CTkFrame):
         self.txt_res_axb.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_axb.configure(state="disabled")
 
-
-        # Estado interno
         self.entries_axb: List[List[ctk.CTkEntry]] = []
         self._generar_axb()
 
     def _generar_axb(self):
+        """Regenera la cuadrícula de la matriz aumentada [A | b] (dimensiones limitadas a 1..8)."""
         try:
             m = max(1, min(8, int(self.entry_axb_m.get())))
             n = max(1, min(8, int(self.entry_axb_n.get())))
@@ -560,7 +535,6 @@ class MatrixOpsView(ctk.CTkFrame):
             w.destroy()
         self.entries_axb = []
 
-        # Cabecera
         header = ctk.CTkFrame(self.scroll_axb, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="", width=30).pack(side="left")
@@ -584,7 +558,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 e.pack(side="left", padx=2)
                 e.insert(0, "0")
                 fila_entries.append(e)
-            # Columna b
             eb = ctk.CTkEntry(
                 row_f, width=55, height=26, justify="center",
                 fg_color=("#ffe4e6", "#3f1a24"), text_color=("#be123c", "#fca5a5")
@@ -595,7 +568,7 @@ class MatrixOpsView(ctk.CTkFrame):
             self.entries_axb.append(fila_entries)
 
     def _leer_axb(self):
-        """Lee la cuadrícula y devuelve (A, b)."""
+        """Lee la cuadrícula y devuelve (A, b); lanza ValueError si algún valor es inválido."""
         n = len(self.entries_axb[0]) - 1  # columnas de A
         A: Matriz = []
         b: Vector = []
@@ -618,29 +591,26 @@ class MatrixOpsView(ctk.CTkFrame):
         return A, b
 
     def _cargar_ejemplo_axb(self):
+        """Carga al azar un sistema Ax = b de ejemplo en la cuadrícula."""
         ejemplos = [
-            # Slide 4: A(2x3), x dado, calcular Ax
             {
                 "m": 2, "n": 3,
                 "A": [[1, 2, -1], [0, -5, 3]],
                 "b": [3, 6],
                 "desc": "Diapositiva 4: A(2×3), b=[3, 6] → resolver Ax = b"
             },
-            # Slide 5: A(3x2), x=[4, 7], b=[-13, 32, -6]
             {
                 "m": 3, "n": 2,
                 "A": [[2, -3], [8, 0], [-5, 2]],
                 "b": [-13, 32, -6],
                 "desc": "Diapositiva 5: A(3×2), b=[-13, 32, -6] → resolución Ax = b"
             },
-            # Sistema con solución única 3x3
             {
                 "m": 3, "n": 3,
                 "A": [[2, 1, -1], [-3, -1, 2], [-2, 1, 2]],
                 "b": [8, -11, -3],
                 "desc": "Sistema 3×3 Solución Única — clásico (x₁=2, x₂=3, x₃=-1)"
             },
-            # Slide 7 Ej: Inconsistente
             {
                 "m": 3, "n": 3,
                 "A": [[1, 0, -3], [0, 1, 1], [5, -3, -14]],
@@ -665,10 +635,11 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_axb(f"🎲 Ejemplo cargado: {ej['desc']}\nPresione 'Resolver Ax = b'.", limpiar=True)
 
     def _calcular_ax(self):
-        """Calcula el producto A·x usando el vector b como x."""
+        """Calcula A·x tomando como x la columna b de la cuadrícula; se dispara con el botón Calcular A · x."""
         self._ultimo_calc_axb = "ax"
         modo = self.get_modo_numero()
         try:
+            # Se reutiliza la columna b de la cuadrícula como vector x
             A, x = self._leer_axb()
         except ValueError as e:
             self._log_axb(f"❌ {e}", limpiar=True)
@@ -699,6 +670,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_axb("\n".join(lineas), limpiar=True)
 
     def _resolver_axb(self):
+        """Resuelve Ax = b con Gauss-Jordan sobre [A | b] y muestra los pasos, la RREF y la clasificación."""
         self._ultimo_calc_axb = "axb"
         modo = self.get_modo_numero()
         try:
@@ -725,9 +697,10 @@ class MatrixOpsView(ctk.CTkFrame):
             "--- 1. MATRIZ AUMENTADA INICIAL [A | b] ---",
             self._fmt_mat_aumentada(res.matriz_aumentada, modo),
         ]
-        
+
         if res.pasos_gauss and len(res.pasos_gauss) > 1:
             lineas.append("--- 2. PROCESO DE REDUCCIÓN PASO A PASO (GAUSS-JORDAN) ---")
+            # pasos_gauss[0] es la matriz inicial, que ya se imprimió como [A | b]
             for num_p, paso in enumerate(res.pasos_gauss[1:], 1):
                 lineas.append(f">> Paso {num_p}: {paso.descripcion}")
                 lineas.append(self._fmt_mat_aumentada(paso.matriz_estado, modo))
@@ -740,8 +713,8 @@ class MatrixOpsView(ctk.CTkFrame):
         ])
         self._log_axb("\n".join(lineas), limpiar=True)
 
-
     def _fmt_mat_aumentada(self, mat: Matriz, modo: str) -> str:
+        """Devuelve la matriz aumentada como texto, separando la última columna con una barra."""
         s = ""
         for fila in mat:
             coefs = fila[:-1]
@@ -751,28 +724,25 @@ class MatrixOpsView(ctk.CTkFrame):
         return s
 
     def _log_axb(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el panel de resultados de Ax = b; limpiar=True borra lo anterior."""
         self.txt_res_axb.configure(state="normal")
         if limpiar:
             self.txt_res_axb.delete("1.0", "end")
         self.txt_res_axb.insert("end", texto + "\n")
         self.txt_res_axb.configure(state="disabled")
 
-    # =========================================================================
-    # SUB-PESTAÑA 3: PROPIEDADES DEL PRODUCTO MATRIZ-VECTOR Ax
-    # =========================================================================
     def _setup_tab_propiedades(self):
+        """Construye la pestaña de propiedades del producto matriz-vector Ax y de inversas/determinantes."""
         tab = self.tab_props
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        # ── Panel izquierdo ────────────────────────────────────────────────
         left = ctk.CTkFrame(tab, width=470, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
-        # Encabezado teórico
         ctk.CTkLabel(
             left,
             text="Propiedades del Producto Matriz-Vector  A·x",
@@ -790,7 +760,6 @@ class MatrixOpsView(ctk.CTkFrame):
             justify="left",
         ).pack(anchor="w", padx=18, pady=(0, 6))
 
-        # Controles de dimensión (m filas, n columnas, k vectores)
         ctrl = ctk.CTkFrame(left, fg_color="transparent")
         ctrl.pack(fill="x", padx=14, pady=(2, 2))
 
@@ -809,7 +778,6 @@ class MatrixOpsView(ctk.CTkFrame):
         self.entry_prop_k.grid(row=0, column=5, padx=2)
         self.entry_prop_k.insert(0, "2")
 
-        # Botones Generar / Asignación Diap. 10 / Ejemplo
         btn_row_p = ctk.CTkFrame(left, fg_color="transparent")
         btn_row_p.pack(fill="x", padx=14, pady=4)
 
@@ -831,11 +799,9 @@ class MatrixOpsView(ctk.CTkFrame):
             fg_color=("gray50", "#374151"), hover_color=("gray40", "#4b5563")
         ).pack(side="left", padx=2)
 
-        # Scrollable frame para A y para los vectores
         self.scroll_prop = ctk.CTkScrollableFrame(left, height=250)
         self.scroll_prop.pack(fill="both", expand=True, padx=14, pady=4)
 
-        # Botones de verificación de teoremas
         btns_p = ctk.CTkFrame(left, fg_color="transparent")
         btns_p.pack(fill="x", padx=14, pady=(4, 10))
         btns_p.grid_columnconfigure((0, 1), weight=1)
@@ -884,7 +850,6 @@ class MatrixOpsView(ctk.CTkFrame):
         )
         self.btn_verif_sesiones10_11.grid(row=2, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
 
-        # ── Panel derecho: Resultados ──────────────────────────────────────
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -903,17 +868,17 @@ class MatrixOpsView(ctk.CTkFrame):
         self.txt_res_prop.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self.txt_res_prop.configure(state="disabled")
 
-        # Estado interno
         self.entries_prop_A: List[List[ctk.CTkEntry]] = []
         self.entries_prop_vecs: List[List[ctk.CTkEntry]] = []  # [componente_i][vector_j]
         self.entries_prop_c: List[ctk.CTkEntry] = []            # [vector_j]
         self._generar_prop()
 
     def _generar_prop(self):
-        """Genera las cuadrículas de A (m×n), y de k vectores en ℝⁿ con sus escalares."""
+        """Genera las cuadrículas de A (m×n) y de k vectores en ℝⁿ con sus escalares."""
         try:
             m = max(1, min(10, int(self.entry_prop_m.get().strip())))
             n = max(1, min(10, int(self.entry_prop_n.get().strip())))
+            # k ≥ 2: la propiedad aditiva A(u + v) necesita al menos dos vectores
             k = max(2, min(8, int(self.entry_prop_k.get().strip())))
         except ValueError:
             return
@@ -927,7 +892,6 @@ class MatrixOpsView(ctk.CTkFrame):
         es_dos = (k == 2)
         nombres = ["u", "v"] if es_dos else [f"v{a_subindice(j+1)}" for j in range(k)]
 
-        # Actualizar textos de botones según la cantidad de vectores
         if hasattr(self, "btn_verif_aditiva"):
             if es_dos:
                 self.btn_verif_aditiva.configure(text="✓ Verificar A(u+v) = Au+Av")
@@ -936,7 +900,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 self.btn_verif_aditiva.configure(text=f"✓ Verificar A({' + '.join(nombres)})")
                 self.btn_verif_escalar.configure(text=f"✓ Verificar A(c₁·v₁) = c₁(A·v₁)")
 
-        # ── 1. Matriz A ──
         ctk.CTkLabel(
             self.scroll_prop,
             text=f"1. Matriz A ({m}×{n}):",
@@ -965,7 +928,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 fila_entries.append(e)
             self.entries_prop_A.append(fila_entries)
 
-        # ── 2. Vectores y Escalares ──
         sec_title = f"2. Vectores en ℝ{a_subindice(n)} y Escalares ({k} vectores):" if not es_dos else f"2. Vectores u, v en ℝ{a_subindice(n)} y Escalares:"
         ctk.CTkLabel(
             self.scroll_prop,
@@ -974,7 +936,6 @@ class MatrixOpsView(ctk.CTkFrame):
             text_color=("#38bdf8", "#38bdf8")
         ).pack(anchor="w", pady=(10, 2))
 
-        # Cabecera de nombres de vectores
         hdr_vecs = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
         hdr_vecs.pack(fill="x")
         ctk.CTkLabel(hdr_vecs, text="", width=68).pack(side="left")
@@ -984,7 +945,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 text_color=("#0284c7", "#38bdf8")
             ).pack(side="left", padx=2)
 
-        # Fila de Escalares cᵢ
         row_c = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
         row_c.pack(fill="x", pady=(2, 4))
         ctk.CTkLabel(
@@ -1001,7 +961,6 @@ class MatrixOpsView(ctk.CTkFrame):
             ec.insert(0, str(2 if j == 0 else 1))
             self.entries_prop_c.append(ec)
 
-        # Filas de Componentes
         for i in range(n):
             row_v = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
             row_v.pack(fill="x", pady=1)
@@ -1014,9 +973,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 self.entries_prop_vecs[i].append(ev)
 
     def _leer_prop(self):
-        """Lee A, la lista de k vectores y la lista de k escalares.
-        Retorna (A: Matriz, vectores: List[Vector], escalares: List[float]).
-        """
+        """Lee A, los k vectores y los k escalares; devuelve (A, vectores, escalares) o lanza ValueError."""
         A: List[List[float]] = []
         for i, fila in enumerate(self.entries_prop_A):
             row_A = []
@@ -1056,26 +1013,21 @@ class MatrixOpsView(ctk.CTkFrame):
         return A, vectores, escalares
 
     def _cargar_ejercicio_asignacion_diap10(self):
-        """Carga exactamente el ejercicio de la Diapositiva 10:
-        A = [[2, 5], [3, 1]], u = [4, -1], v = [-3, 5], c = 2.
-        """
+        """Carga el ejercicio de la Diapositiva 10: A = [[2,5],[3,1]], u = [4,-1], v = [-3,5]."""
         self.entry_prop_m.delete(0, "end"); self.entry_prop_m.insert(0, "2")
         self.entry_prop_n.delete(0, "end"); self.entry_prop_n.insert(0, "2")
         self.entry_prop_k.delete(0, "end"); self.entry_prop_k.insert(0, "2")
         self._generar_prop()
 
-        # Matriz A
         mat_A = [[2, 5], [3, 1]]
         for i in range(2):
             for j in range(2):
                 self.entries_prop_A[i][j].delete(0, "end")
                 self.entries_prop_A[i][j].insert(0, str(mat_A[i][j]))
 
-        # Escalares (c = 2)
         self.entries_prop_c[0].delete(0, "end"); self.entries_prop_c[0].insert(0, "2")
         self.entries_prop_c[1].delete(0, "end"); self.entries_prop_c[1].insert(0, "3")
 
-        # Vectores u = [4, -1], v = [-3, 5]
         u = [4, -1]
         v = [-3, 5]
         for i in range(2):
@@ -1095,9 +1047,8 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_prop(msg, limpiar=True)
 
     def _cargar_ejemplo_prop(self):
-        """Carga ejemplos adaptables: 2 vectores en R^2, 3 vectores en R^3, 2 vectores en R^3, etc."""
+        """Carga al azar un ejemplo de propiedades de Ax (distintos tamaños de A y cantidad de vectores)."""
         ejemplos = [
-            # Caso 1: Diapositiva 10 (2x2, 2 vecs en R^2)
             {
                 "m": 2, "n": 2, "k": 2,
                 "A": [[2, 5], [3, 1]],
@@ -1105,7 +1056,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 "cs": [2, 3],
                 "desc": "Diapositiva 10: A(2×2), u=[4, -1]ᵀ, v=[-3, 5]ᵀ en ℝ²"
             },
-            # Caso 2: 3 vectores en R^3 con A(3x3)
             {
                 "m": 3, "n": 3, "k": 3,
                 "A": [[1, 2, 0], [0, 3, -1], [2, 1, 1]],
@@ -1113,7 +1063,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 "cs": [2, -1, 3],
                 "desc": "General: 3 vectores en ℝ³ con matriz A(3×3) y escalares [2, -1, 3]"
             },
-            # Caso 3: Matriz rectangular 2x3 con 3 vectores en R^3
             {
                 "m": 2, "n": 3, "k": 3,
                 "A": [[1, 2, -1], [0, -5, 3]],
@@ -1121,7 +1070,6 @@ class MatrixOpsView(ctk.CTkFrame):
                 "cs": [1, 2, -1],
                 "desc": "Rectangular A(2×3) (Slide 4) con 3 vectores en ℝ³"
             },
-            # Caso 4: Matriz rectangular 3x2 con 2 vectores en R^2
             {
                 "m": 3, "n": 2, "k": 2,
                 "A": [[2, -3], [8, 0], [-5, 2]],
@@ -1154,7 +1102,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_prop(f"🎲 Ejemplo cargado: {ej['desc']}\nSeleccione una propiedad para verificar el teorema.", limpiar=True)
 
     def _calc_propiedad_aditiva(self):
-        """Calcula y muestra la verificación de la propiedad aditiva/distributiva."""
+        """Verifica y muestra A(u + v) = Au + Av (generalizado a k vectores)."""
         self._ultimo_calc_prop = "aditiva"
         modo = self.get_modo_numero()
         try:
@@ -1172,7 +1120,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
 
     def _calc_propiedad_escalar(self):
-        """Calcula y muestra la verificación de A(cu) = c(Au) para el primer vector."""
+        """Verifica y muestra A(cu) = c(Au) para el primer vector y su escalar."""
         self._ultimo_calc_prop = "escalar"
         modo = self.get_modo_numero()
         try:
@@ -1183,6 +1131,7 @@ class MatrixOpsView(ctk.CTkFrame):
 
         k = len(vecs)
         nom = "u" if k == 2 else "v₁"
+        # A(cu) = c(Au) se verifica con el primer vector y su escalar
         c_val = escalares[0]
         u_vec = vecs[0]
 
@@ -1195,7 +1144,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
 
     def _calc_linealidad_general(self):
-        """Calcula y muestra la verificación del principio de superposición / linealidad general."""
+        """Verifica y muestra A(Σ cᵢvᵢ) = Σ cᵢ(Avᵢ)."""
         self._ultimo_calc_prop = "linealidad"
         modo = self.get_modo_numero()
         try:
@@ -1213,7 +1162,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
 
     def _calc_propiedades_sesiones_10_11(self):
-        """Verifica sistemáticamente las 6 propiedades clave de inversas y determinantes (Sesiones 10 y 11)."""
+        """Verifica seis propiedades de inversas y determinantes (Sesiones 10 y 11); A debe ser cuadrada."""
         self._ultimo_calc_prop = "sesiones10_11"
         try:
             A, vecs, escalares = self._leer_prop()
@@ -1222,6 +1171,7 @@ class MatrixOpsView(ctk.CTkFrame):
             return
 
         mA, nA = len(A), len(A[0])
+        # Inversas y determinantes solo existen para matrices cuadradas
         if mA != nA:
             self._log_prop("❌ Para verificar las propiedades de Sesiones 10 y 11, la matriz A debe ser cuadrada (m = n).", limpiar=True)
             return
@@ -1235,7 +1185,7 @@ class MatrixOpsView(ctk.CTkFrame):
         )
 
         A_f = crear_matriz(A)
-        # Matriz B auxiliar para el producto (AB)⁻¹ = B⁻¹A⁻¹
+        # B auxiliar fija (1 en la diagonal, 2 fuera de ella) para ilustrar (AB)⁻¹ = B⁻¹A⁻¹
         B_f = [[Fraction(1 if i == j else 2, 1) for j in range(nA)] for i in range(nA)]
 
         lineas = [
@@ -1268,26 +1218,21 @@ class MatrixOpsView(ctk.CTkFrame):
         lineas += ["═" * 70, "✓ Todas las propiedades evaluadas con exactitud racional.", "═" * 70]
         self._log_prop("\n".join(lineas), limpiar=True)
 
-
     def _log_prop(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el panel de propiedades; limpiar=True borra lo anterior."""
         self.txt_res_prop.configure(state="normal")
         if limpiar:
             self.txt_res_prop.delete("1.0", "end")
         self.txt_res_prop.insert("end", texto + "\n")
         self.txt_res_prop.configure(state="disabled")
 
-
-    # =========================================================================
-    # SUB-PESTAÑA 4: TRASPUESTA E INVERSA
-    # =========================================================================
     def _setup_tab_inv(self):
-        """Panel para calcular la traspuesta Aᵀ y la inversa A⁻¹ de una matriz."""
+        """Construye la pestaña para calcular la traspuesta Aᵀ y la inversa A⁻¹."""
         tab = self.tab_inv
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        # --- Panel izquierdo: Entrada ---
         left = ctk.CTkFrame(tab, width=420, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
@@ -1299,7 +1244,6 @@ class MatrixOpsView(ctk.CTkFrame):
             text_color=("#7c3aed", "#a78bfa")
         ).pack(anchor="w", padx=14, pady=(14, 4))
 
-        # Dimensiones
         dim_frame = ctk.CTkFrame(left, fg_color="transparent")
         dim_frame.pack(fill="x", padx=14, pady=(0, 4))
         ctk.CTkLabel(dim_frame, text="Filas (n):").pack(side="left")
@@ -1311,7 +1255,6 @@ class MatrixOpsView(ctk.CTkFrame):
         self.entry_inv_m.pack(side="left", padx=4)
         self.entry_inv_m.insert(0, "3")
 
-        # Botones Generar / Ejemplo
         btn_row = ctk.CTkFrame(left, fg_color="transparent")
         btn_row.pack(fill="x", padx=14, pady=4)
         ctk.CTkButton(btn_row, text="Generar", width=80, command=self._generar_grid_inv).pack(side="left", padx=2)
@@ -1320,13 +1263,11 @@ class MatrixOpsView(ctk.CTkFrame):
             fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563")
         ).pack(side="left", padx=4)
 
-        # Grid de la matriz A
         self.scroll_inv = ctk.CTkScrollableFrame(left, height=200)
         self.scroll_inv.pack(fill="both", expand=True, padx=14, pady=4)
         self.entries_inv: List[List[ctk.CTkEntry]] = []
         self._generar_grid_inv()
 
-        # Botones de operación
         op_frame = ctk.CTkFrame(left, fg_color="transparent")
         op_frame.pack(fill="x", padx=14, pady=(6, 12))
         op_frame.grid_columnconfigure((0, 1), weight=1)
@@ -1352,14 +1293,12 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=12, weight="bold"), height=36
         ).grid(row=1, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
 
-        # Nota
         ctk.CTkLabel(
             left,
             text="Nota: La inversa requiere matriz cuadrada n×n.",
             font=ctk.CTkFont(size=11), text_color=("gray50", "gray60")
         ).pack(anchor="w", padx=14, pady=(0, 8))
 
-        # --- Panel derecho: Resultados ---
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -1375,6 +1314,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self.txt_res_inv.configure(state="disabled")
 
     def _generar_grid_inv(self):
+        """Regenera la cuadrícula de A para la pestaña de inversa (dimensiones limitadas a 1..8)."""
         try:
             n = max(1, min(8, int(self.entry_inv_n.get())))
             m = max(1, min(8, int(self.entry_inv_m.get())))
@@ -1390,7 +1330,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._crear_grid_matriz(self.scroll_inv, n, m, self.entries_inv, color_col_last=False)
 
     def _cargar_ejemplo_inv(self):
-        """Carga el ejemplo canónico de traspuesta/inversa 3×3."""
+        """Carga un ejemplo 3×3 en la cuadrícula de traspuesta/inversa."""
         self.entry_inv_n.delete(0, "end"); self.entry_inv_n.insert(0, "3")
         self.entry_inv_m.delete(0, "end"); self.entry_inv_m.insert(0, "3")
         self._generar_grid_inv()
@@ -1401,7 +1341,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 self.entries_inv[i][j].insert(0, str(v))
 
     def _leer_matriz_inv(self):
-        """Lee la matriz A desde la grilla del tab Inversa."""
+        """Lee A desde la cuadrícula de inversa y la devuelve como Matriz de floats; lanza ValueError si hay error."""
         try:
             n = int(self.entry_inv_n.get())
             m = int(self.entry_inv_m.get())
@@ -1416,6 +1356,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 if not txt:
                     raise ValueError(f"Celda A[{i+1},{j+1}] está vacía.")
                 try:
+                    # Fraction interpreta 'a/b' y decimales de forma exacta; luego se pasa a float porque el núcleo lo requiere
                     fila.append(Fraction(txt))
                 except Exception:
                     try:
@@ -1426,6 +1367,7 @@ class MatrixOpsView(ctk.CTkFrame):
         return [[float(x) for x in fila] for fila in A]
 
     def _calc_traspuesta(self):
+        """Calcula y muestra Aᵀ, donde (Aᵀ)ᵢⱼ = Aⱼᵢ."""
         self._ultimo_calc_inv = "traspuesta"
         modo = self.get_modo_numero()
         try:
@@ -1441,6 +1383,7 @@ class MatrixOpsView(ctk.CTkFrame):
         m_new  = len(AT[0])
 
         def fmt_mat(mat, rows, cols):
+            """Da formato de texto a una matriz de rows×cols."""
             lines = []
             for i in range(rows):
                 row_str = "  ".join(
@@ -1470,6 +1413,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_inv("\n".join(lineas), limpiar=True)
 
     def _calc_inversa(self):
+        """Calcula A⁻¹ por Gauss-Jordan y comprueba que A·A⁻¹ = I."""
         self._ultimo_calc_inv = "inversa"
         modo = self.get_modo_numero()
         try:
@@ -1479,6 +1423,7 @@ class MatrixOpsView(ctk.CTkFrame):
             return
 
         n = len(A)
+        # Solo una matriz cuadrada puede tener inversa
         if n != len(A[0]):
             self._log_inv("❌ La inversa solo está definida para matrices cuadradas (n×n).", limpiar=True)
             return
@@ -1495,6 +1440,7 @@ class MatrixOpsView(ctk.CTkFrame):
 
         if res.es_invertible and res.matriz_inversa:
             def fmt_mat(mat):
+                """Da formato de texto a una matriz, una fila por línea."""
                 lines = []
                 for fila in mat:
                     row_str = "  ".join(f"{formatear_numero(x, modo):>10}" for x in fila)
@@ -1502,7 +1448,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 return "\n".join(lines)
             lineas += ["", f"  A⁻¹  ({n} × {n}):", fmt_mat(res.matriz_inversa)]
 
-            # Comprobación automática obligatoria: A · A⁻¹ = I
+            # crear_matriz redondea a fracciones (denominador ≤ 10⁶): A·A⁻¹ se compara con I sin ruido de coma flotante
             from modulos.modulo_matrices import crear_matriz, multiplicar_matrices, matriz_identidad, son_matrices_iguales, matriz_a_cadena
             A_f = crear_matriz(A)
             A_inv_f = crear_matriz(res.matriz_inversa)
@@ -1523,7 +1469,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_inv("\n".join(lineas), limpiar=True)
 
     def _calc_inversa_adjunta(self):
-        """Calcula la matriz inversa A⁻¹ mediante la fórmula de la matriz adjunta."""
+        """Calcula A⁻¹ con la fórmula de la matriz adjunta (solo matrices cuadradas)."""
         self._ultimo_calc_inv = "inversa_adjunta"
         modo = self.get_modo_numero()
         try:
@@ -1533,6 +1479,7 @@ class MatrixOpsView(ctk.CTkFrame):
             return
 
         n = len(A)
+        # Solo una matriz cuadrada puede tener inversa
         if n != len(A[0]):
             self._log_inv("❌ La inversa solo está definida para matrices cuadradas (n×n).", limpiar=True)
             return
@@ -1555,24 +1502,20 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_inv("\n".join(lineas), limpiar=True)
 
     def _log_inv(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el panel de traspuesta/inversa; limpiar=True borra lo anterior."""
         self.txt_res_inv.configure(state="normal")
         if limpiar:
             self.txt_res_inv.delete("1.0", "end")
         self.txt_res_inv.insert("end", texto + "\n")
         self.txt_res_inv.configure(state="disabled")
 
-
-    # =========================================================================
-    # SUB-PESTAÑA 5: DETERMINANTES
-    # =========================================================================
     def _setup_tab_det(self):
-        """Panel para calcular el determinante det(A) paso a paso."""
+        """Construye la pestaña de determinantes (triangulación, cofactores y Sarrus)."""
         tab = self.tab_det
         tab.grid_columnconfigure(0, weight=0)
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        # --- Panel izquierdo: Entrada ---
         left = ctk.CTkFrame(tab, width=420, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         left.grid_propagate(False)
@@ -1584,7 +1527,6 @@ class MatrixOpsView(ctk.CTkFrame):
             text_color=("#ea580c", "#fb923c")
         ).pack(anchor="w", padx=14, pady=(14, 4))
 
-        # Dimensión n×n
         dim_frame = ctk.CTkFrame(left, fg_color="transparent")
         dim_frame.pack(fill="x", padx=14, pady=(0, 4))
         ctk.CTkLabel(dim_frame, text="Orden n (n×n):").pack(side="left")
@@ -1592,7 +1534,6 @@ class MatrixOpsView(ctk.CTkFrame):
         self.entry_det_n.pack(side="left", padx=(4, 0))
         self.entry_det_n.insert(0, "3")
 
-        # Botones Generar / Ejemplo
         btn_row = ctk.CTkFrame(left, fg_color="transparent")
         btn_row.pack(fill="x", padx=14, pady=4)
         ctk.CTkButton(btn_row, text="Generar", width=80, command=self._generar_grid_det).pack(side="left", padx=2)
@@ -1605,13 +1546,11 @@ class MatrixOpsView(ctk.CTkFrame):
             fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563")
         ).pack(side="left", padx=4)
 
-        # Grid de la matriz A
         self.scroll_det = ctk.CTkScrollableFrame(left, height=220)
         self.scroll_det.pack(fill="both", expand=True, padx=14, pady=4)
         self.entries_det: List[List[ctk.CTkEntry]] = []
         self._generar_grid_det()
 
-        # Botones de cálculo de determinante
         btn_det_frame = ctk.CTkFrame(left, fg_color="transparent")
         btn_det_frame.pack(fill="x", padx=14, pady=(6, 12))
         btn_det_frame.grid_columnconfigure((0, 1), weight=1)
@@ -1637,7 +1576,6 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=12, weight="bold"), height=36
         ).grid(row=1, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
 
-        # --- Panel derecho: Resultados ---
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         right.grid_columnconfigure(0, weight=1)
@@ -1653,6 +1591,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self.txt_res_det.configure(state="disabled")
 
     def _generar_grid_det(self):
+        """Regenera la cuadrícula de A (n×n) para determinantes (n limitado a 1..8)."""
         try:
             n = max(1, min(8, int(self.entry_det_n.get())))
         except ValueError:
@@ -1667,7 +1606,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._crear_grid_matriz(self.scroll_det, n, n, self.entries_det, color_col_last=False)
 
     def _cargar_ejemplo_det(self):
-        """Ejemplo 3×3 con det = -14."""
+        """Carga un ejemplo 3×3 con det = -14."""
         self.entry_det_n.delete(0, "end"); self.entry_det_n.insert(0, "3")
         self._generar_grid_det()
         vals = [[1, 2, 3], [4, 5, 6], [7, 2, 9]]
@@ -1677,7 +1616,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 self.entries_det[i][j].insert(0, str(v))
 
     def _cargar_ejemplo_det_2x2(self):
-        """Ejemplo 2×2: A = [[3,-2],[4,1]] → det = 11."""
+        """Carga A = [[3,-2],[4,1]], cuyo det = 11."""
         self.entry_det_n.delete(0, "end"); self.entry_det_n.insert(0, "2")
         self._generar_grid_det()
         vals = [[3, -2], [4, 1]]
@@ -1687,7 +1626,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 self.entries_det[i][j].insert(0, str(v))
 
     def _leer_matriz_det(self):
-        """Lee la matriz cuadrada desde la grilla del tab Determinante."""
+        """Lee la matriz cuadrada de la cuadrícula de determinantes; lanza ValueError si hay error."""
         try:
             n = int(self.entry_det_n.get())
         except ValueError:
@@ -1711,6 +1650,7 @@ class MatrixOpsView(ctk.CTkFrame):
         return A
 
     def _calc_determinante(self):
+        """Calcula det(A) por triangulación y muestra si A es invertible."""
         self._ultimo_calc_det = "determinante"
         modo = self.get_modo_numero()
         try:
@@ -1736,6 +1676,7 @@ class MatrixOpsView(ctk.CTkFrame):
             "═" * 60,
         ]
 
+        # A es invertible si y solo si det(A) ≠ 0
         veredicto = "✅ La matriz ES INVERTIBLE  (det ≠ 0)" if res.es_invertible \
                     else "❌ La matriz NO ES INVERTIBLE  (det = 0, es singular)"
         lineas += ["", veredicto]
@@ -1743,6 +1684,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_det("\n".join(lineas), limpiar=True)
 
     def _log_det(self, texto: str, limpiar: bool = False):
+        """Escribe texto en el panel de determinantes; limpiar=True borra lo anterior."""
         self.txt_res_det.configure(state="normal")
         if limpiar:
             self.txt_res_det.delete("1.0", "end")
@@ -1750,7 +1692,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self.txt_res_det.configure(state="disabled")
 
     def _calc_det_cofactores(self):
-        """Calcula el determinante mediante expansión por cofactores (Laplace)."""
+        """Calcula det(A) por expansión de cofactores (Laplace)."""
         self._ultimo_calc_det = "cofactores"
         modo = self.get_modo_numero()
         try:
@@ -1761,6 +1703,7 @@ class MatrixOpsView(ctk.CTkFrame):
 
         from modulos.modulo_matrices import crear_matriz, determinante_cofactores
         A_f = crear_matriz(A)
+        # Fracciones exactas: el criterio det(A) ≠ 0 ⇔ A invertible no debe fallar por redondeo
         det_val, pasos = determinante_cofactores(A_f)
 
         lineas = ["═" * 60, "  DETERMINANTE — EXPANSIÓN POR COFACTORES (LAPLACE)", "═" * 60, ""]
@@ -1776,7 +1719,7 @@ class MatrixOpsView(ctk.CTkFrame):
         self._log_det("\n".join(lineas), limpiar=True)
 
     def _calc_det_sarrus(self):
-        """Calcula el determinante para matriz 3×3 mediante la regla de Sarrus."""
+        """Calcula det(A) con la regla de Sarrus; solo aplica a matrices 3×3."""
         self._ultimo_calc_det = "sarrus"
         modo = self.get_modo_numero()
         try:
@@ -1785,12 +1728,14 @@ class MatrixOpsView(ctk.CTkFrame):
             self._log_det(f"❌ {e}", limpiar=True)
             return
 
+        # Sarrus es un atajo válido solo para 3×3; no se generaliza a n ≥ 4
         if len(A) != 3 or len(A[0]) != 3:
             self._log_det("❌ La Regla de Sarrus es aplicable exclusivamente a matrices de 3×3.", limpiar=True)
             return
 
         from modulos.modulo_matrices import crear_matriz, determinante_sarrus
         A_f = crear_matriz(A)
+        # Fracciones exactas: el criterio det(A) ≠ 0 ⇔ A invertible no debe fallar por redondeo
         det_val, pasos = determinante_sarrus(A_f)
 
         lineas = ["═" * 60, "  DETERMINANTE — REGLA DE SARRUS (3×3)", "═" * 60, ""]
@@ -1804,5 +1749,3 @@ class MatrixOpsView(ctk.CTkFrame):
             "✅ La matriz ES INVERTIBLE  (det ≠ 0)" if det_val != 0 else "❌ La matriz NO ES INVERTIBLE  (det = 0, es singular)"
         ]
         self._log_det("\n".join(lineas), limpiar=True)
-
-
