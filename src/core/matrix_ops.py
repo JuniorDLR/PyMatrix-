@@ -1092,3 +1092,76 @@ def calcular_determinante(A: Matriz, modo: str = "fraccion") -> ResultadoDetermi
         pasos=pasos, explicacion=expl
     )
 
+
+# =========================================================================
+# 8. INTEGRACIÓN CON modulo_matrices (ADJUNTA, COFACTORES, SARRUS Y SESIONES 10-11)
+# =========================================================================
+
+from modulos.modulo_matrices import (
+    crear_matriz as crear_matriz_frac,
+    inversa_adjunta as inv_adj_frac,
+    inversa_gauss_jordan as inv_gj_frac,
+    determinante_cofactores as det_cof_frac,
+    determinante_sarrus as det_sar_frac,
+    determinante_triangulacion as det_tri_frac,
+    verificar_propiedad_inversa_de_inversa as v_prop_inv_inv,
+    verificar_propiedad_inversa_del_producto as v_prop_inv_prod,
+    verificar_propiedad_inversa_de_traspuesta as v_prop_inv_tras,
+    verificar_propiedad_determinante_de_inversa as v_prop_det_inv,
+    verificar_propiedades_operaciones_fila_det as v_prop_ops_fila,
+    verificar_propiedad_matriz_triangular as v_prop_triang,
+    matriz_a_cadena, matriz_cofactores as mat_cof_frac, matriz_adjunta as mat_adj_frac
+)
+
+
+def invertir_matriz_adjunta(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatriz:
+    """Calcula la matriz inversa A⁻¹ mediante la fórmula de la adjunta: (1 / det(A)) · adj(A)."""
+    A_frac = crear_matriz_frac(A)
+    res = inv_adj_frac(A_frac)
+    
+    inversa_float = None
+    if res.es_invertible and res.matriz_inversa is not None:
+        inversa_float = [[float(val) for val in row] for row in res.matriz_inversa]
+    
+    expl = (
+        "✓ MATRIZ INVERTIBLE (det ≠ 0). Inversa calculada por la matriz adjunta y verificada con A · A⁻¹ = I."
+        if res.es_invertible else
+        "✗ MATRIZ SINGULAR: det(A) = 0. No se puede invertir por fórmula de la adjunta."
+    )
+    
+    return ResultadoInversionMatriz(
+        es_invertible=res.es_invertible,
+        matriz_original=A,
+        matriz_inversa=inversa_float,
+        matriz_aumentada_inicial=[],
+        matriz_aumentada_final=[],
+        pasos=res.pasos,
+        explicacion=expl
+    )
+
+
+def calcular_determinante_cofactores_core(A: Matriz, modo: str = "fraccion") -> ResultadoDeterminante:
+    """Calcula el determinante por expansión por cofactores (Laplace)."""
+    A_frac = crear_matriz_frac(A)
+    det_val, pasos = det_cof_frac(A_frac)
+    det_float = float(det_val)
+    es_inv = abs(det_float) > 1e-10
+    expl = f"det(A) = {det_val}. {'Invertible' if es_inv else 'Singular'}."
+    return ResultadoDeterminante(
+        matriz=A, orden=len(A), determinante=det_float, es_invertible=es_inv,
+        pasos=pasos, explicacion=expl
+    )
+
+
+def calcular_determinante_sarrus_core(A: Matriz, modo: str = "fraccion") -> ResultadoDeterminante:
+    """Calcula el determinante de matriz 3×3 mediante la regla de Sarrus."""
+    A_frac = crear_matriz_frac(A)
+    det_val, pasos = det_sar_frac(A_frac)
+    det_float = float(det_val)
+    es_inv = abs(det_float) > 1e-10
+    expl = f"det(A) = {det_val} (Regla de Sarrus). {'Invertible' if es_inv else 'Singular'}."
+    return ResultadoDeterminante(
+        matriz=A, orden=3, determinante=det_float, es_invertible=es_inv,
+        pasos=pasos, explicacion=expl
+    )
+

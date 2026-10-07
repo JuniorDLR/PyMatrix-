@@ -29,15 +29,27 @@
     git clone https://github.com/JuniorDLR/PyMatrix-.git
     cd PyMatrix-
     ```
-2.  Instala la dependencia de interfaz gráfica:
-    ```bash
-    pip install customtkinter
+2.  Instala Python 3.10 o posterior desde https://www.python.org/downloads/.
+    Durante la instalación, activa la casilla **Add python.exe to PATH**.
+3.  Abre una terminal nueva en la carpeta del proyecto y comprueba la instalación:
+    ```powershell
+    py --version
     ```
-3.  Ejecuta el programa:
+    Si `py` no está disponible, usa `python --version`.
+4.  Instala la dependencia de interfaz gráfica (`customtkinter`, no “custom thinker”):
+    ```bash
+    py -m pip install -r requirements.txt
+    ```
+    Alternativamente:
+    ```bash
+    python -m pip install customtkinter
+    ```
+5.  Ejecuta el programa:
     ```bash
     python main.py
     ```
-    *(o también: `python "Programa 1_Grupox.py"`)*
+    En Windows también puedes usar: `py main.py`.
+    *(o también: `py "Programa 1_Grupox.py"`)*
 
 ## 📂 Arquitectura del Código
 
