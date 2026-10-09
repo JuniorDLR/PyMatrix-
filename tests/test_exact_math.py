@@ -1,6 +1,6 @@
-"""Pruebas de modulos/modulo_matrices.py: operaciones, determinantes, inversas y propiedades.
+"""Pruebas de modulos/exact_math.py: operaciones, determinantes, inversas y propiedades.
 Tema de clase: álgebra matricial y determinantes (sesiones 10 y 11), con resultados conocidos a mano.
-Se ejecutan como script: py tests/test_modulo_matrices.py
+Se ejecutan como script: py tests/test_exact_math.py
 Elaborado por: Grupo x"""
 import sys
 import os
@@ -14,7 +14,7 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from modulos.modulo_matrices import (
+from src.core.exact_math import (
     crear_matriz, sumar_matrices, restar_matrices, multiplicar_escalar,
     multiplicar_matrices, trasponer_matriz, determinante_cofactores,
     determinante_sarrus, determinante_triangulacion, inversa_gauss_jordan,
@@ -28,7 +28,7 @@ from modulos.modulo_matrices import (
 
 def run_all_tests():
     """Ejecuta todas las pruebas del módulo; falla con AssertionError si alguna no se cumple."""
-    print("Iniciando pruebas unitarias de modulos/modulo_matrices.py...")
+    print("Iniciando pruebas unitarias de modulos/exact_math.py...")
 
     # 1. Suma y Resta
     A = crear_matriz([[1, 2], [3, 4]])
@@ -118,7 +118,7 @@ def run_all_tests():
     assert p6.se_cumple, "Fallo en propiedad 6"
     print(f"✓ Propiedad matriz triangular verificada: {p6.formula}")
 
-    print("\n🎉 TODAS LAS PRUEBAS DE modulo_matrices.py PASARON EXITOSAMENTE.")
+    print("\n🎉 TODAS LAS PRUEBAS DE exact_math.py PASARON EXITOSAMENTE.")
 
 
 if __name__ == "__main__":

@@ -126,8 +126,19 @@ class MatrixOpsView(ctk.CTkFrame):
             self._calc_traspuesta()
         elif self._ultimo_calc_inv == "inversa":
             self._calc_inversa()
+        elif self._ultimo_calc_inv == "inversa_adjunta":
+            self._calc_inversa_adjunta()
+        elif self._ultimo_calc_inv and self._ultimo_calc_inv.startswith("tarea5_"):
+            self._calc_propiedad_tarea5_inv(self._ultimo_calc_inv.split("_", 1)[1])
+
         if self._ultimo_calc_det == "determinante":
             self._calc_determinante()
+        elif self._ultimo_calc_det == "cofactores":
+            self._calc_det_cofactores()
+        elif self._ultimo_calc_det == "sarrus":
+            self._calc_det_sarrus()
+        elif self._ultimo_calc_det and self._ultimo_calc_det.startswith("tarea5_"):
+            self._calc_propiedad_tarea5_det(self._ultimo_calc_det.split("_", 1)[1])
 
     def _setup_tab_ops(self):
         """Construye la pestaña de suma, resta, escalar por matriz y producto de matrices."""
@@ -136,9 +147,8 @@ class MatrixOpsView(ctk.CTkFrame):
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(tab, width=500, corner_radius=10)
+        left = ctk.CTkFrame(tab, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
         dim_frame = ctk.CTkFrame(left, fg_color="transparent")
@@ -381,7 +391,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 lineas.append("Procedimiento: C_ij = A_ij + B_ij para cada posición.")
                 lineas.append(f"\nResultado C = A + B ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
                 # El análisis extra usa fracciones exactas (crear_matriz) para evitar errores de redondeo
-                from modulos.modulo_matrices import crear_matriz, analizar_suma_matrices
+                from src.core.exact_math import crear_matriz, analizar_suma_matrices
                 A_f = crear_matriz(A); B_f = crear_matriz(B); R_f = crear_matriz(R)
                 lineas.append("\n" + "\n".join(analizar_suma_matrices(A_f, B_f, R_f)))
 
@@ -394,7 +404,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 lineas.append(f"B ({mB}×{nB}):\n{self._fmt_mat(B, modo)}")
                 lineas.append("Procedimiento: C_ij = A_ij − B_ij para cada posición.")
                 lineas.append(f"\nResultado C = A − B ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
-                from modulos.modulo_matrices import crear_matriz, analizar_resta_matrices
+                from src.core.exact_math import crear_matriz, analizar_resta_matrices
                 A_f = crear_matriz(A); B_f = crear_matriz(B); R_f = crear_matriz(R)
                 lineas.append("\n" + "\n".join(analizar_resta_matrices(A_f, B_f, R_f)))
 
@@ -405,7 +415,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 lineas.append(f"Matriz A ({mA}×{nA}):\n{self._fmt_mat(A, modo)}")
                 lineas.append("Procedimiento: (c·A)_ij = c · A_ij entrada por entrada.")
                 lineas.append(f"\nResultado {c_fmt}·A ({mA}×{nA}):\n{self._fmt_mat(R, modo)}")
-                from modulos.modulo_matrices import crear_matriz, parsear_fraccion, analizar_escalar_matriz
+                from src.core.exact_math import crear_matriz, parsear_fraccion, analizar_escalar_matriz
                 A_f = crear_matriz(A); R_f = crear_matriz(R); c_f = parsear_fraccion(c)
                 lineas.append("\n" + "\n".join(analizar_escalar_matriz(c_f, A_f, R_f)))
 
@@ -424,7 +434,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 for paso in res.desglose_pasos:
                     lineas.append(f"  {paso}")
                 lineas.append(f"\nResultado C = A × B ({mR}×{pR}):\n{self._fmt_mat(res.matriz_resultado, modo)}")
-                from modulos.modulo_matrices import crear_matriz, analizar_producto_matricial
+                from src.core.exact_math import crear_matriz, analizar_producto_matricial
                 A_f = crear_matriz(A); B_f = crear_matriz(B); C_f = crear_matriz(res.matriz_resultado)
                 lineas.append("\n" + "\n".join(analizar_producto_matricial(A_f, B_f, C_f)))
 
@@ -455,9 +465,8 @@ class MatrixOpsView(ctk.CTkFrame):
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(tab, width=460, corner_radius=10)
+        left = ctk.CTkFrame(tab, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
         ctrl = ctk.CTkFrame(left, fg_color="transparent")
@@ -738,9 +747,8 @@ class MatrixOpsView(ctk.CTkFrame):
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(tab, width=470, corner_radius=10)
+        left = ctk.CTkFrame(tab, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -749,16 +757,6 @@ class MatrixOpsView(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color=("gray20", "gray90"),
         ).pack(anchor="w", padx=14, pady=(10, 2))
-        ctk.CTkLabel(
-            left,
-            text="Teorema: Si A es m×n, u, v (o k vectores) están en ℝⁿ, y c es un escalar:\n"
-                 "   a) A(u + v) = Au + Av  [o generalizado a k vectores]\n"
-                 "   b) A(cu) = c(Au)\n"
-                 "   c) Principio de Linealidad General: A(∑ cᵢvᵢ) = ∑ cᵢ(Avᵢ)",
-            font=ctk.CTkFont(size=11),
-            text_color=("gray50", "gray60"),
-            justify="left",
-        ).pack(anchor="w", padx=18, pady=(0, 6))
 
         ctrl = ctk.CTkFrame(left, fg_color="transparent")
         ctrl.pack(fill="x", padx=14, pady=(2, 2))
@@ -838,17 +836,6 @@ class MatrixOpsView(ctk.CTkFrame):
             height=32,
         )
         self.btn_verif_linealidad.grid(row=1, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
-
-        self.btn_verif_sesiones10_11 = ctk.CTkButton(
-            btns_p,
-            text="🔬 Propiedades Sesiones 10 y 11 (Inversas y Determinantes)",
-            command=self._calc_propiedades_sesiones_10_11,
-            fg_color=("#ea580c", "#c2410c"),
-            hover_color=("#c2410c", "#9a3412"),
-            font=ctk.CTkFont(size=11, weight="bold"),
-            height=32,
-        )
-        self.btn_verif_sesiones10_11.grid(row=2, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
 
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
@@ -1051,6 +1038,13 @@ class MatrixOpsView(ctk.CTkFrame):
         ejemplos = [
             {
                 "m": 2, "n": 2, "k": 2,
+                "A": [[1, 2], [3, 4]],
+                "vecs": [[0, 1], [1, 1]],
+                "cs": [1, 1],
+                "desc": "Caso de Prueba Sugerido PDF Tarea 5: A = [[1,2],[3,4]] y B = [[0,1],[1,1]]"
+            },
+            {
+                "m": 2, "n": 2, "k": 2,
                 "A": [[2, 5], [3, 1]],
                 "vecs": [[4, -1], [-3, 5]],
                 "cs": [2, 3],
@@ -1161,62 +1155,113 @@ class MatrixOpsView(ctk.CTkFrame):
 
         self._log_prop("\n".join(resultado.desglose_pasos), limpiar=True)
 
-    def _calc_propiedades_sesiones_10_11(self):
-        """Verifica seis propiedades de inversas y determinantes (Sesiones 10 y 11); A debe ser cuadrada."""
-        self._ultimo_calc_prop = "sesiones10_11"
+    def _calc_propiedad_tarea5_inv(self, prop_id: str):
+        """Verifica una de las propiedades de Inversa de la Tarea 5."""
+        self._ultimo_calc_inv = f"tarea5_{prop_id}"
         try:
-            A, vecs, escalares = self._leer_prop()
+            A = self._leer_matriz_inv()
         except ValueError as e:
-            self._log_prop(f"❌ {e}", limpiar=True)
+            self._log_inv(f"❌ Error al leer datos: {e}", limpiar=True)
             return
 
         mA, nA = len(A), len(A[0])
-        # Inversas y determinantes solo existen para matrices cuadradas
         if mA != nA:
-            self._log_prop("❌ Para verificar las propiedades de Sesiones 10 y 11, la matriz A debe ser cuadrada (m = n).", limpiar=True)
+            self._log_inv(
+                "❌ Para verificar esta propiedad, la matriz A debe ser cuadrada (n × n).\n"
+                f"   Actualmente A es de dimensión {mA} × {nA}.\n",
+                limpiar=True
+            )
             return
 
-        from fractions import Fraction
-        from modulos.modulo_matrices import (
-            crear_matriz, verificar_propiedad_inversa_de_inversa,
-            verificar_propiedad_inversa_del_producto, verificar_propiedad_inversa_de_traspuesta,
-            verificar_propiedad_determinante_de_inversa, verificar_propiedades_operaciones_fila_det,
-            verificar_propiedad_matriz_triangular
-        )
+        try:
+            from fractions import Fraction
+            from src.core.exact_math import (
+                crear_matriz, verificar_propiedad_inversa_de_inversa,
+                verificar_propiedad_inversa_del_producto, verificar_propiedad_inversa_de_traspuesta,
+                matriz_a_cadena
+            )
 
-        A_f = crear_matriz(A)
-        # B auxiliar fija (1 en la diagonal, 2 fuera de ella) para ilustrar (AB)⁻¹ = B⁻¹A⁻¹
-        B_f = [[Fraction(1 if i == j else 2, 1) for j in range(nA)] for i in range(nA)]
+            A_f = crear_matriz(A)
+            
+            lineas = [
+                "═" * 70,
+                f"Matriz A ({nA}×{nA}):",
+                matriz_a_cadena(A_f),
+                "─" * 70,
+                ""
+            ]
 
-        lineas = [
-            "═" * 70,
-            "  VERIFICADOR DE PROPIEDADES ALGEBRAICAS — SESIONES 10 Y 11",
-            "═" * 70,
-            ""
-        ]
+            if prop_id == "inv_inv":
+                p = verificar_propiedad_inversa_de_inversa(A_f)
+                lineas += [f"Propiedad 1: {p.nombre} [{p.formula}]", f"Explicación:\n{p.explicacion}", f"\nEstado: {'✓ SE CUMPLE' if p.se_cumple else '✗ NO SE CUMPLE'}"]
 
-        p1 = verificar_propiedad_inversa_de_inversa(A_f)
-        lineas += [f"1. {p1.nombre} [{p1.formula}]:", f"   {p1.explicacion}", f"   Estado: {'✓ SE CUMPLE IDENTICAMENTE' if p1.se_cumple else '✗ NO SE CUMPLE'}\n"]
+            elif prop_id == "inv_prod":
+                # Como no leemos vectores en esta pestaña, creamos una B_f estándar invertible
+                B_f = [[Fraction(1 if i == j else 2, 1) for j in range(nA)] for i in range(nA)]
+                lineas.insert(4, f"Matriz B Auxiliar ({nA}×{nA}):")
+                lineas.insert(5, matriz_a_cadena(B_f))
+                
+                p = verificar_propiedad_inversa_del_producto(A_f, B_f)
+                lineas += [f"Propiedad 2: {p.nombre} [{p.formula}]", f"Explicación:\n{p.explicacion}", f"\nEstado: {'✓ SE CUMPLE' if p.se_cumple else '✗ NO SE CUMPLE'}"]
 
-        p2 = verificar_propiedad_inversa_del_producto(A_f, B_f)
-        lineas += [f"2. {p2.nombre} [{p2.formula}]:", f"   {p2.explicacion}", f"   Estado: {'✓ SE CUMPLE IDENTICAMENTE' if p2.se_cumple else '✗ NO SE CUMPLE'}\n"]
+            elif prop_id == "inv_tras":
+                p = verificar_propiedad_inversa_de_traspuesta(A_f)
+                lineas += [f"Propiedad 3: {p.nombre} [{p.formula}]", f"Explicación:\n{p.explicacion}", f"\nEstado: {'✓ SE CUMPLE' if p.se_cumple else '✗ NO SE CUMPLE'}"]
 
-        p3 = verificar_propiedad_inversa_de_traspuesta(A_f)
-        lineas += [f"3. {p3.nombre} [{p3.formula}]:", f"   {p3.explicacion}", f"   Estado: {'✓ SE CUMPLE IDENTICAMENTE' if p3.se_cumple else '✗ NO SE CUMPLE'}\n"]
+            lineas += ["", "═" * 70]
+            self._log_inv("\n".join(lineas), limpiar=True)
 
-        p4 = verificar_propiedad_determinante_de_inversa(A_f)
-        lineas += [f"4. {p4.nombre} [{p4.formula}]:", f"   {p4.lado_izquierdo_str}  vs  {p4.lado_derecho_str}", f"   Estado: {'✓ SE CUMPLE IDENTICAMENTE' if p4.se_cumple else '✗ NO SE CUMPLE'}\n"]
+        except Exception as ex:
+            import traceback
+            self._log_inv(f"❌ Error inesperado:\n{ex}\n\n{traceback.format_exc()}", limpiar=True)
 
-        lineas += ["5. Efectos de Operaciones Elementales de Fila en det(A):"]
-        for p in verificar_propiedades_operaciones_fila_det(A_f):
-            lineas += [f"   • {p.nombre} [{p.formula}]: {'✓ VERIFICADO' if p.se_cumple else '✗ DISCREPANCIA'}"]
-        lineas += [""]
+    def _calc_propiedad_tarea5_det(self, prop_id: str):
+        """Verifica una de las propiedades de Determinante de la Tarea 5."""
+        self._ultimo_calc_det = f"tarea5_{prop_id}"
+        try:
+            A = self._leer_matriz_det()
+        except ValueError as e:
+            self._log_det(f"❌ Error al leer datos: {e}", limpiar=True)
+            return
 
-        p6 = verificar_propiedad_matriz_triangular(A_f)
-        lineas += [f"6. {p6.nombre} [{p6.formula}]:", f"   {p6.lado_izquierdo_str}", f"   {p6.lado_derecho_str}", f"   Estado: {'✓ SE CUMPLE IDENTICAMENTE' if p6.se_cumple else '✗ NO SE CUMPLE'}\n"]
+        nA = len(A)
+        try:
+            from fractions import Fraction
+            from src.core.exact_math import (
+                crear_matriz, verificar_propiedad_determinante_de_inversa, 
+                verificar_propiedades_operaciones_fila_det,
+                verificar_propiedad_matriz_triangular, matriz_a_cadena
+            )
 
-        lineas += ["═" * 70, "✓ Todas las propiedades evaluadas con exactitud racional.", "═" * 70]
-        self._log_prop("\n".join(lineas), limpiar=True)
+            A_f = crear_matriz(A)
+            
+            lineas = [
+                "═" * 70,
+                f"Matriz A ({nA}×{nA}):",
+                matriz_a_cadena(A_f),
+                "─" * 70,
+                ""
+            ]
+
+            if prop_id == "det_inv":
+                p = verificar_propiedad_determinante_de_inversa(A_f)
+                lineas += [f"Propiedad 4: {p.nombre} [{p.formula}]", f"{p.lado_izquierdo_str}  vs  {p.lado_derecho_str}", f"\nExplicación:\n{p.explicacion}", f"\nEstado: {'✓ SE CUMPLE' if p.se_cumple else '✗ NO SE CUMPLE'}"]
+
+            elif prop_id == "op_reng":
+                lineas += ["Propiedad 5: Efectos de Operaciones Elementales de Fila en det(A)"]
+                for p in verificar_propiedades_operaciones_fila_det(A_f):
+                    lineas += [f"\n• {p.nombre} [{p.formula}]:", f"  {p.lado_izquierdo_str}  →  {p.lado_derecho_str}", f"  Estado: {'✓ VERIFICADO' if p.se_cumple else '✗ DISCREPANCIA'}"]
+
+            elif prop_id == "triang":
+                p = verificar_propiedad_matriz_triangular(A_f)
+                lineas += [f"Propiedad 6: {p.nombre} [{p.formula}]", f"{p.lado_izquierdo_str}", f"Cálculo: {p.lado_derecho_str}", f"\nEstado: {'✓ SE CUMPLE' if p.se_cumple else '✗ NO SE CUMPLE'}"]
+
+            lineas += ["", "═" * 70]
+            self._log_det("\n".join(lineas), limpiar=True)
+
+        except Exception as ex:
+            import traceback
+            self._log_det(f"❌ Error inesperado:\n{ex}\n\n{traceback.format_exc()}", limpiar=True)
 
     def _log_prop(self, texto: str, limpiar: bool = False):
         """Escribe texto en el panel de propiedades; limpiar=True borra lo anterior."""
@@ -1233,9 +1278,8 @@ class MatrixOpsView(ctk.CTkFrame):
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(tab, width=420, corner_radius=10)
+        left = ctk.CTkFrame(tab, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -1292,6 +1336,32 @@ class MatrixOpsView(ctk.CTkFrame):
             fg_color=("#2563eb", "#1d4ed8"),
             font=ctk.CTkFont(size=12, weight="bold"), height=36
         ).grid(row=1, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
+
+        lbl_t5_inv = ctk.CTkLabel(
+            op_frame, text="Propiedades de Inversas (Tarea 5):",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=("gray20", "gray90")
+        )
+        lbl_t5_inv.grid(row=2, column=0, columnspan=2, padx=2, pady=(8, 2), sticky="w")
+
+        color_t5 = {"fg_color": ("#ea580c", "#c2410c"), "hover_color": ("#c2410c", "#9a3412")}
+
+        self.btn_prop_inv_inv = ctk.CTkButton(
+            op_frame, text="1. (A⁻¹)⁻¹ = A", command=lambda: self._calc_propiedad_tarea5_inv("inv_inv"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_inv_inv.grid(row=3, column=0, padx=2, pady=2, sticky="ew")
+
+        self.btn_prop_inv_prod = ctk.CTkButton(
+            op_frame, text="2. (AB)⁻¹ = B⁻¹A⁻¹", command=lambda: self._calc_propiedad_tarea5_inv("inv_prod"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_inv_prod.grid(row=3, column=1, padx=2, pady=2, sticky="ew")
+
+        self.btn_prop_inv_tras = ctk.CTkButton(
+            op_frame, text="3. (Aᵀ)⁻¹ = (A⁻¹)ᵀ", command=lambda: self._calc_propiedad_tarea5_inv("inv_tras"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_inv_tras.grid(row=4, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
 
         ctk.CTkLabel(
             left,
@@ -1407,7 +1477,7 @@ class MatrixOpsView(ctk.CTkFrame):
             "",
             "═" * 60,
         ]
-        from modulos.modulo_matrices import crear_matriz, analizar_transposicion_matriz
+        from src.core.exact_math import crear_matriz, analizar_transposicion_matriz
         A_f = crear_matriz(A); AT_f = crear_matriz(AT)
         lineas.append("\n" + "\n".join(analizar_transposicion_matriz(A_f, AT_f)))
         self._log_inv("\n".join(lineas), limpiar=True)
@@ -1449,7 +1519,7 @@ class MatrixOpsView(ctk.CTkFrame):
             lineas += ["", f"  A⁻¹  ({n} × {n}):", fmt_mat(res.matriz_inversa)]
 
             # crear_matriz redondea a fracciones (denominador ≤ 10⁶): A·A⁻¹ se compara con I sin ruido de coma flotante
-            from modulos.modulo_matrices import crear_matriz, multiplicar_matrices, matriz_identidad, son_matrices_iguales, matriz_a_cadena
+            from src.core.exact_math import crear_matriz, multiplicar_matrices, matriz_identidad, son_matrices_iguales, matriz_a_cadena
             A_f = crear_matriz(A)
             A_inv_f = crear_matriz(res.matriz_inversa)
             prod = multiplicar_matrices(A_f, A_inv_f)
@@ -1484,7 +1554,7 @@ class MatrixOpsView(ctk.CTkFrame):
             self._log_inv("❌ La inversa solo está definida para matrices cuadradas (n×n).", limpiar=True)
             return
 
-        from modulos.modulo_matrices import crear_matriz, inversa_adjunta, matriz_a_cadena
+        from src.core.exact_math import crear_matriz, inversa_adjunta, matriz_a_cadena
         A_f = crear_matriz(A)
         res = inversa_adjunta(A_f)
 
@@ -1516,9 +1586,8 @@ class MatrixOpsView(ctk.CTkFrame):
         tab.grid_columnconfigure(1, weight=1)
         tab.grid_rowconfigure(0, weight=1)
 
-        left = ctk.CTkFrame(tab, width=420, corner_radius=10)
+        left = ctk.CTkFrame(tab, corner_radius=10)
         left.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        left.grid_propagate(False)
         left.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -1575,6 +1644,32 @@ class MatrixOpsView(ctk.CTkFrame):
             fg_color=("#7c3aed", "#6d28d9"),
             font=ctk.CTkFont(size=12, weight="bold"), height=36
         ).grid(row=1, column=0, columnspan=2, padx=2, pady=(4, 2), sticky="ew")
+
+        lbl_t5_det = ctk.CTkLabel(
+            btn_det_frame, text="Propiedades de Determinantes (Tarea 5):",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=("gray20", "gray90")
+        )
+        lbl_t5_det.grid(row=2, column=0, columnspan=2, padx=2, pady=(8, 2), sticky="w")
+
+        color_t5 = {"fg_color": ("#ea580c", "#c2410c"), "hover_color": ("#c2410c", "#9a3412")}
+
+        self.btn_prop_det_inv = ctk.CTkButton(
+            btn_det_frame, text="4. det(A⁻¹) = 1/det(A)", command=lambda: self._calc_propiedad_tarea5_det("det_inv"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_det_inv.grid(row=3, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
+
+        self.btn_prop_op_reng = ctk.CTkButton(
+            btn_det_frame, text="5. Op. Fila en det(A)", command=lambda: self._calc_propiedad_tarea5_det("op_reng"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_op_reng.grid(row=4, column=0, padx=2, pady=2, sticky="ew")
+
+        self.btn_prop_triang = ctk.CTkButton(
+            btn_det_frame, text="6. det(Triangular)", command=lambda: self._calc_propiedad_tarea5_det("triang"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_triang.grid(row=4, column=1, padx=2, pady=2, sticky="ew")
 
         right = ctk.CTkFrame(tab, corner_radius=10)
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
@@ -1701,7 +1796,7 @@ class MatrixOpsView(ctk.CTkFrame):
             self._log_det(f"❌ {e}", limpiar=True)
             return
 
-        from modulos.modulo_matrices import crear_matriz, determinante_cofactores
+        from src.core.exact_math import crear_matriz, determinante_cofactores
         A_f = crear_matriz(A)
         # Fracciones exactas: el criterio det(A) ≠ 0 ⇔ A invertible no debe fallar por redondeo
         det_val, pasos = determinante_cofactores(A_f)
@@ -1733,7 +1828,7 @@ class MatrixOpsView(ctk.CTkFrame):
             self._log_det("❌ La Regla de Sarrus es aplicable exclusivamente a matrices de 3×3.", limpiar=True)
             return
 
-        from modulos.modulo_matrices import crear_matriz, determinante_sarrus
+        from src.core.exact_math import crear_matriz, determinante_sarrus
         A_f = crear_matriz(A)
         # Fracciones exactas: el criterio det(A) ≠ 0 ⇔ A invertible no debe fallar por redondeo
         det_val, pasos = determinante_sarrus(A_f)

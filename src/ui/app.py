@@ -1,952 +1,516 @@
-"""
-Ventana principal de PyMatrix y módulo de Gauss/Gauss-Jordan con columnas pivote.
-Implementa eliminación gaussiana, formas escalonadas (REF/RREF) y clasificación de sistemas.
-Elaborado por: Grupo x
-"""
-import random
-from typing import Optional, List
 import customtkinter as ctk
+import tkinter as tk
+from typing import Dict, List
 
-from src.core.gauss import resolver_gauss, resolver_gauss_jordan, verificar_solucion
-from src.core.domain import (
-    SolucionUnica, SolucionInfinita, SinSolucion, SolucionGeneral, 
-    formatear_fraccion, formatear_numero, formatear_decimal, a_subindice,
-    convertir_texto_a_modo
-)
 from src.ui.matrix_canvas import MatrixCanvas, PlaybackControls, create_matrix_steps_from_gauss
+from src.core.gauss import resolver_gauss, resolver_gauss_jordan, copiar_matriz, Matriz, SolucionUnica, SolucionInfinita, SinSolucion, SolucionGeneral, PasoGauss
+from src.core.domain import formatear_numero, formatear_fraccion, a_subindice
 from src.ui.vectors_view import VectorsView
 from src.ui.matrix_ops_view import MatrixOpsView
 
-
 class App(ctk.CTk):
-    """Ventana principal de PyMatrix: navega entre Gauss/Jordan, Vectores en ℝⁿ y Operaciones Matriciales."""
+    """
+    Ventana principal de PyMatrix con Arquitectura Moderna (Sidebar + Dashboard).
+    Navega entre Inicio, Gauss/Jordan, Vectores en ℝⁿ y Operaciones Matriciales.
+    """
     
     def __init__(self):
-        """Configura la ventana, el estado inicial y construye la interfaz."""
         super().__init__()
 
+        # Configuración de ventana
         self.title("PyMatrix - Calculadora de Álgebra Lineal")
-        self.geometry("1380x900")
-        self.minsize(1200, 740)
-        
-        ctk.set_appearance_mode("Dark")
+        self.geometry("1100x700")
+        self.minsize(900, 600)
+        ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
         
-        self.matriz_inicial: Optional[List[List[float]]] = None
-        self.pasos_gauss = None
-        self.resultado = None
-        self.solucion_general: Optional[SolucionGeneral] = None
-        self.matriz_entries: List[List[ctk.CTkEntry]] = []
-        self.metodo_var = ctk.StringVar(value="Gauss-Jordan")
-        self.modo_numero = "fraccion"
-        self.ultimas_cols_pivote_str = "Ninguna"
-        self._modulo_activo = "gauss"
-        
+        # Grid principal: 2 columnas (Sidebar y Contenido)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # Variables de estado
+        self._modo_numero = "fraccion"
+        self._modulo_activo = "inicio"
+        self._nav_btns: Dict[str, ctk.CTkButton] = {}
+
         self._setup_ui()
-    
+        self._show_module("inicio")
+
     def _setup_ui(self):
-        """Arma barra superior, navegación, contenido y conclusión; arranca en el módulo Gauss con una matriz 3x3."""
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        """Construye el Sidebar, el Topbar del contenido y los paneles de los módulos."""
         
-        self._create_top_bar()
-        self._create_module_nav()
-        self._create_content_area()
-        self._create_bottom_conclusion()
+        # ================= SIDEBAR =================
+        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=("#1f2937", "#0f172a"))
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar.grid_rowconfigure(6, weight=1) # Empuja configuraciones abajo
 
-        self.generar_matriz()
-        self._show_module("gauss")
+        # Logo
+        logo_label = ctk.CTkLabel(self.sidebar, text="PyMatrix 🧮", font=ctk.CTkFont(size=20, weight="bold"), text_color="#38bdf8")
+        logo_label.grid(row=0, column=0, padx=20, pady=(20, 30))
 
-    def _create_top_bar(self):
-        """Crea la barra superior con título y selectores de formato numérico y tema."""
-        top_frame = ctk.CTkFrame(self, height=64, corner_radius=0, fg_color=("#1e293b", "#0f172a"))
-        top_frame.grid(row=0, column=0, sticky="ew")
-        top_frame.grid_columnconfigure(1, weight=1)
-        top_frame.grid_propagate(False)
+        # Botones de navegación
+        self._nav_btns["inicio"] = self._create_sidebar_btn("🏠 Inicio", "inicio", 1)
+        self._nav_btns["gauss"] = self._create_sidebar_btn("📐 Gauss / Jordan", "gauss", 2)
+        self._nav_btns["vectores"] = self._create_sidebar_btn("🚀 Vectores en ℝⁿ", "vectores", 3)
+        self._nav_btns["matrices"] = self._create_sidebar_btn("🧮 Matrices", "matrices", 4)
+
+        # Configuraciones (Abajo)
+        config_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        config_frame.grid(row=7, column=0, padx=20, pady=(0, 20), sticky="ew")
         
-        title_frame = ctk.CTkFrame(top_frame, fg_color="transparent")
-        title_frame.grid(row=0, column=0, sticky="w", padx=20, pady=10)
-        
-        lbl_title = ctk.CTkLabel(
-            title_frame, 
-            text="PyMatrix 🔢", 
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=("#38bdf8", "#38bdf8")
-        )
-        lbl_title.pack(side="left", padx=(0, 10))
-        
-        lbl_badge = ctk.CTkLabel(
-            title_frame,
-            text="v3.0 • Gauss · Vectores · Matrices",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#0284c7", "#0369a1"),
-            corner_radius=6,
-            text_color="white",
-            padx=8,
-            pady=2
-        )
-        lbl_badge.pack(side="left")
-        
-        lbl_desc = ctk.CTkLabel(
-            top_frame,
-            text="Calculadora de Álgebra Lineal • Gauss-Jordan, Vectores en ℝⁿ y Operaciones Matriciales",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray60", "gray70")
-        )
-        lbl_desc.grid(row=0, column=1, sticky="w", padx=20)
-        
-        top_controls = ctk.CTkFrame(top_frame, fg_color="transparent")
-        top_controls.grid(row=0, column=2, padx=20)
-        
-        self.btn_formato = ctk.CTkSegmentedButton(
-            top_controls,
+        ctk.CTkLabel(config_frame, text="Formato:", font=ctk.CTkFont(size=12)).pack(anchor="w")
+        self.fmt_seg = ctk.CTkSegmentedButton(
+            config_frame, 
             values=["Fracción", "Decimal"],
             command=self._change_number_format,
-            width=150,
-            height=28,
-            font=ctk.CTkFont(size=12, weight="bold")
+            selected_color="#0284c7",
+            selected_hover_color="#0369a1"
         )
-        self.btn_formato.set("Fracción")
-        self.btn_formato.pack(side="left", padx=(0, 10))
-        
-        theme_btn = ctk.CTkSegmentedButton(
-            top_controls,
+        self.fmt_seg.pack(fill="x", pady=(5, 15))
+        self.fmt_seg.set("Fracción")
+
+        ctk.CTkLabel(config_frame, text="Tema:", font=ctk.CTkFont(size=12)).pack(anchor="w")
+        self.theme_seg = ctk.CTkSegmentedButton(
+            config_frame,
             values=["Dark", "Light"],
             command=self._change_theme,
-            width=110,
-            height=28
+            selected_color="#475569",
+            selected_hover_color="#334155"
         )
-        theme_btn.set("Dark")
-        theme_btn.pack(side="left")
+        self.theme_seg.pack(fill="x", pady=(5, 0))
+        self.theme_seg.set("Dark")
 
-    def _change_number_format(self, mode_str: str):
-        """Alterna fracción/decimal y refresca celdas, vistas y registro; se dispara al usar el selector."""
-        self.modo_numero = "fraccion" if "frac" in mode_str.lower() else "decimal"
-        if hasattr(self, "matrix_canvas"):
-            self.matrix_canvas.set_number_mode(self.modo_numero)
+        # ================= CONTENIDO PRINCIPAL =================
+        self.main_container = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.main_container.grid(row=0, column=1, sticky="nsew")
+        self.main_container.grid_columnconfigure(0, weight=1)
+        self.main_container.grid_rowconfigure(0, weight=1)
+
+        # Crear paneles de módulos
+        self._create_dashboard()
+        self._create_gauss_panel()
         
-        if hasattr(self, "matriz_entries"):
-            # Se reconvierte el texto ya escrito para que el valor no cambie, solo su formato (a/b <-> decimal)
-            for fila in self.matriz_entries:
-                for entry in fila:
-                    try:
-                        if entry is not None and entry.winfo_exists():
-                            val_actual = entry.get()
-                            nuevo_val = convertir_texto_a_modo(val_actual, self.modo_numero)
-                            if nuevo_val != val_actual:
-                                entry.delete(0, "end")
-                                entry.insert(0, nuevo_val)
-                    except Exception:
-                        pass
-
-        if hasattr(self, "vectors_view"):
-            self.vectors_view.refresh_format()
-        if hasattr(self, "matrix_ops_view"):
-            self.matrix_ops_view.refresh_format()
+        self.vectores_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.vectores_panel.grid_rowconfigure(0, weight=1)
+        self.vectores_panel.grid_columnconfigure(0, weight=1)
+        self.vectores_view = VectorsView(self.vectores_panel, lambda: self._modo_numero)
+        self.vectores_view.grid(row=0, column=0, sticky="nsew")
         
-        if self.resultado is not None and self.matriz_inicial is not None:
-            self._update_conclusion_cards(self.ultimas_cols_pivote_str)
-            self._refresh_text_log()
-    
-    def _change_theme(self, mode: str):
-        """Aplica el tema claro/oscuro y repinta el canvas de matrices."""
-        ctk.set_appearance_mode(mode)
-        if hasattr(self, "matrix_canvas"):
-            self.matrix_canvas._refresh_theme()
+        self.matrices_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.matrices_panel.grid_rowconfigure(0, weight=1)
+        self.matrices_panel.grid_columnconfigure(0, weight=1)
+        self.matrices_view = MatrixOpsView(self.matrices_panel, lambda: self._modo_numero)
+        self.matrices_view.grid(row=0, column=0, sticky="nsew")
 
-    def _create_module_nav(self):
-        """Crea la barra de navegación horizontal para seleccionar el módulo activo."""
-        self.nav_frame = ctk.CTkFrame(self, height=50, corner_radius=0,
-                                      fg_color=("#0f172a", "#050d1a"))
-        self.nav_frame.grid(row=1, column=0, sticky="ew")
-        self.nav_frame.grid_propagate(False)
-        self.nav_frame.grid_columnconfigure(10, weight=1)
+    def _create_sidebar_btn(self, text: str, modulo: str, row: int) -> ctk.CTkButton:
+        btn = ctk.CTkButton(
+            self.sidebar, 
+            text=text,
+            anchor="w",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="transparent",
+            text_color=("gray20", "gray80"),
+            hover_color=("#38bdf8", "#0369a1"),
+            command=lambda m=modulo: self._show_module(m)
+        )
+        btn.grid(row=row, column=0, sticky="ew", padx=10, pady=5)
+        return btn
 
-        ctk.CTkLabel(
-            self.nav_frame, text="MÓDULO:", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("gray60", "gray50")
-        ).grid(row=0, column=0, padx=(16, 8), pady=12)
+    def _create_dashboard(self):
+        self.inicio_panel = ctk.CTkScrollableFrame(self.main_container, fg_color="transparent")
+        
+        header = ctk.CTkLabel(self.inicio_panel, text="¡Bienvenido a PyMatrix!", font=ctk.CTkFont(size=28, weight="bold"))
+        header.pack(pady=(40, 10))
+        sub = ctk.CTkLabel(self.inicio_panel, text="Selecciona una herramienta matemática para comenzar", text_color="gray")
+        sub.pack(pady=(0, 30))
 
-        self._nav_btns = {}
-        modulos = [
-            ("gauss",    "🔢 Sistemas Gauss/Jordan"),
-            ("vectores", "↗ Vectores en ℝⁿ"),
-            ("matrices", "✖ Operaciones Matriciales"),
-        ]
-        for idx, (key, label) in enumerate(modulos):
-            btn = ctk.CTkButton(
-                self.nav_frame, text=label,
-                width=195, height=32,
-                font=ctk.CTkFont(size=12, weight="bold"),
-                command=lambda k=key: self._show_module(k),
-                corner_radius=8,
-                fg_color=("#1e293b", "#1e293b"),
-                hover_color=("#334155", "#334155"),
-                text_color=("gray70", "gray60")
-            )
-            btn.grid(row=0, column=idx + 1, padx=4, pady=9)
-            self._nav_btns[key] = btn
+        cards_frame = ctk.CTkFrame(self.inicio_panel, fg_color="transparent")
+        cards_frame.pack(expand=True)
+        cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="card_col")
+        cards_frame.grid_rowconfigure((0, 1), weight=1, uniform="card_row")
+
+        self._create_card(cards_frame, 0, 0, "📐 Sistemas Gauss/Jordan", "Resuelve sistemas lineales Ax=b mostrando el proceso de eliminación paso a paso.", "gauss", "#1d4ed8")
+        self._create_card(cards_frame, 0, 1, "🧮 Álgebra de Matrices", "Operaciones básicas (suma, resta, producto), transposición, determinantes e inversas.", "matrices", "#7c3aed")
+        self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488")
+        self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprobación de teoremas e identidades algebraicas de las Sesiones 10 y 11.", "matrices", "#b45309")
+
+    def _create_card(self, parent, row, col, title, desc, target_module, color):
+        card = ctk.CTkFrame(parent, corner_radius=12, fg_color=("#ffffff", "#1e293b"), width=340, height=175)
+        card.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
+        card.pack_propagate(False)
+        card.grid_propagate(False)
+        
+        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=15, weight="bold"), text_color=color).pack(pady=(18, 8), padx=16, anchor="w")
+        lbl_desc = ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=12), text_color=("gray40", "gray70"), wraplength=300, justify="left")
+        lbl_desc.pack(padx=16, anchor="w")
+        
+        btn = ctk.CTkButton(card, text="Abrir", fg_color=color, hover_color=color, width=95, height=32, font=ctk.CTkFont(size=12, weight="bold"), command=lambda m=target_module: self._show_module(m))
+        btn.pack(side="bottom", pady=16, padx=16, anchor="e")
 
     def _show_module(self, modulo: str):
-        """Muestra el panel del módulo seleccionado y oculta los demás."""
         self._modulo_activo = modulo
-
-        nav_colors = {
-            "gauss":    ("#1d4ed8", "#1e40af"),
-            "vectores": ("#0d9488", "#0f766e"),
-            "matrices": ("#7c3aed", "#6d28d9"),
-        }
-        inactive_fg = ("#1e293b", "#1e293b")
-        inactive_txt = ("gray70", "gray60")
-
+        
+        # Actualizar Sidebar
         for key, btn in self._nav_btns.items():
             if key == modulo:
-                btn.configure(fg_color=nav_colors[key], text_color=("white", "white"))
+                btn.configure(fg_color=("#38bdf8", "#0284c7"), text_color="white")
             else:
-                btn.configure(fg_color=inactive_fg, text_color=inactive_txt)
+                btn.configure(fg_color="transparent", text_color=("gray20", "gray80"))
 
-        panels = {
-            "gauss":    self.gauss_panel,
-            "vectores": self.vectors_view,
-            "matrices": self.matrix_ops_view,
-        }
-        for key, panel in panels.items():
-            if key == modulo:
-                panel.grid(row=2, column=0, sticky="nsew")
-            else:
-                panel.grid_remove()
+        # Ocultar todos
+        self.inicio_panel.grid_forget()
+        self.gauss_panel.grid_forget()
+        self.vectores_panel.grid_forget()
+        self.matrices_panel.grid_forget()
 
-        # La barra de conclusión solo aplica al módulo Gauss
-        if modulo == "gauss":
-            self.results_frame.grid(row=3, column=0, sticky="ew")
-        else:
-            self.results_frame.grid_remove()
+        # Mostrar activo
+        if modulo == "inicio":
+            self.inicio_panel.grid(row=0, column=0, sticky="nsew")
+        elif modulo == "gauss":
+            self.gauss_panel.grid(row=0, column=0, sticky="nsew")
+        elif modulo == "vectores":
+            self.vectores_panel.grid(row=0, column=0, sticky="nsew")
+            self.vectores_view.refresh_format()
+        elif modulo == "matrices":
+            self.matrices_panel.grid(row=0, column=0, sticky="nsew")
+            self.matrices_view.refresh_format()
 
-    def _create_content_area(self):
-        """Crea el contenedor principal que aloja los 3 módulos intercambiables."""
-        self.grid_rowconfigure(2, weight=1)
-        self.grid_rowconfigure(3, weight=0)
+    def _change_number_format(self, mode_str: str):
+        self._modo_numero = "decimal" if mode_str == "Decimal" else "fraccion"
+        if hasattr(self, 'vectores_view'):
+            self.vectores_view.refresh_format()
+        if hasattr(self, 'matrices_view'):
+            self.matrices_view.refresh_format()
 
-        self.gauss_panel = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+    def _change_theme(self, mode: str):
+        ctk.set_appearance_mode(mode)
+
+    # =========================================================================
+    # MÓDULO GAUSS (Se mantiene la lógica funcional, adaptada al nuevo layout)
+    # =========================================================================
+    def _create_gauss_panel(self):
+        self.gauss_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.gauss_panel.grid_columnconfigure(0, weight=0, minsize=380)
         self.gauss_panel.grid_columnconfigure(1, weight=1)
         self.gauss_panel.grid_rowconfigure(0, weight=1)
-        self._create_main_split_inside(self.gauss_panel)
-
-        self.vectors_view = VectorsView(
-            self, get_modo_numero_cb=lambda: self.modo_numero,
-            corner_radius=0, fg_color="transparent"
-        )
-
-        self.matrix_ops_view = MatrixOpsView(
-            self, get_modo_numero_cb=lambda: self.modo_numero,
-            corner_radius=0, fg_color="transparent"
-        )
-
-    def _create_main_split(self):
-        """Alias de compatibilidad: ahora el split va dentro de gauss_panel."""
-        pass  # Llamado en _setup_ui antes de que exista gauss_panel; ya no hace nada.
-
-    def _create_main_split_inside(self, parent):
-        """Construye los paneles izquierdo/derecho del módulo Gauss dentro de parent."""
-
-        self.left_panel = ctk.CTkFrame(parent, width=410, corner_radius=0, fg_color=("#f1f5f9", "#111827"))
+        
+        self.left_panel = ctk.CTkScrollableFrame(self.gauss_panel, width=380, corner_radius=0, fg_color=("#f1f5f9", "#111827"))
         self.left_panel.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-        self.left_panel.grid_propagate(False)
         self.left_panel.grid_rowconfigure(2, weight=1)
         self.left_panel.grid_columnconfigure(0, weight=1)
         
+        # 1. Tamaño
         sec1_frame = ctk.CTkFrame(self.left_panel, fg_color=("#ffffff", "#1f2937"), corner_radius=10)
         sec1_frame.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
         sec1_frame.grid_columnconfigure(3, weight=1)
+        ctk.CTkLabel(sec1_frame, text="1. Tamaño del Sistema", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(10, 6))
         
-        lbl_sec1 = ctk.CTkLabel(
-            sec1_frame, 
-            text="1. Tamaño del Sistema (m × n)", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#0284c7", "#38bdf8")
-        )
-        lbl_sec1.grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(10, 6))
-        
-        ctk.CTkLabel(sec1_frame, text="Ecs (m):", font=ctk.CTkFont(size=12)).grid(row=1, column=0, padx=(12, 4), pady=(0, 10))
-        self.entry_m = ctk.CTkEntry(sec1_frame, width=48, height=30, justify="center")
-        self.entry_m.grid(row=1, column=1, padx=4, pady=(0, 10))
+        ctk.CTkLabel(sec1_frame, text="Ecs (m):").grid(row=1, column=0, padx=(12, 2))
+        self.entry_m = ctk.CTkEntry(sec1_frame, width=45, justify="center")
+        self.entry_m.grid(row=1, column=1, padx=2)
         self.entry_m.insert(0, "3")
         
-        ctk.CTkLabel(sec1_frame, text="Vars (n):", font=ctk.CTkFont(size=12)).grid(row=1, column=2, padx=(10, 4), pady=(0, 10))
-        self.entry_n = ctk.CTkEntry(sec1_frame, width=48, height=30, justify="center")
-        self.entry_n.grid(row=1, column=3, padx=4, pady=(0, 10))
+        ctk.CTkLabel(sec1_frame, text="Vars (n):").grid(row=1, column=2, padx=2)
+        self.entry_n = ctk.CTkEntry(sec1_frame, width=45, justify="center")
+        self.entry_n.grid(row=1, column=3, padx=(2, 12), sticky="w")
         self.entry_n.insert(0, "3")
         
-        self.btn_generar = ctk.CTkButton(
-            sec1_frame, text="Generar", width=75, height=30, command=self.generar_matriz,
-            font=ctk.CTkFont(size=11, weight="bold")
-        )
-        self.btn_generar.grid(row=1, column=4, padx=4, pady=(0, 10))
+        btn_frame = ctk.CTkFrame(sec1_frame, fg_color="transparent")
+        btn_frame.grid(row=2, column=0, columnspan=4, pady=(10, 12), sticky="ew")
+        btn_frame.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkButton(btn_frame, text="Generar", width=80, command=self.generar_matriz).grid(row=0, column=0, padx=(12, 4))
+        ctk.CTkButton(btn_frame, text="🎲 Ejemplo", width=80, fg_color="#475569", hover_color="#334155", command=self.cargar_ejemplo).grid(row=0, column=1, padx=(4, 12))
         
-        self.btn_ejemplo = ctk.CTkButton(
-            sec1_frame, text="🎲 Ejemplo", width=80, height=30, command=self.cargar_ejemplo,
-            fg_color=("#475569", "#374151"), hover_color=("#334155", "#4b5563"), font=ctk.CTkFont(size=11)
-        )
-        self.btn_ejemplo.grid(row=1, column=5, padx=(4, 12), pady=(0, 10))
-        
+        # 2. Método
         sec2_frame = ctk.CTkFrame(self.left_panel, fg_color=("#ffffff", "#1f2937"), corner_radius=10)
         sec2_frame.grid(row=1, column=0, sticky="ew", padx=14, pady=6)
         sec2_frame.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(sec2_frame, text="2. Método de Resolución", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 6))
         
-        lbl_sec2 = ctk.CTkLabel(
-            sec2_frame, 
-            text="2. Método de Resolución", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#0284c7", "#38bdf8")
-        )
-        lbl_sec2.grid(row=0, column=0, sticky="w", padx=12, pady=(10, 4))
+        self.metodo_var = tk.StringVar(value="gauss-jordan")
+        self.seg_method = ctk.CTkSegmentedButton(sec2_frame, values=["Gauss", "Gauss-Jordan"], variable=self.metodo_var, command=self._on_method_changed)
+        self.seg_method.grid(row=1, column=0, sticky="ew", padx=12)
         
-        self.method_segmented = ctk.CTkSegmentedButton(
-            sec2_frame,
-            values=["Gauss", "Gauss-Jordan"],
-            variable=self.metodo_var,
-            command=self._on_method_changed,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            height=32
-        )
-        self.method_segmented.grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 6))
-        
-        self.lbl_metodo_info = ctk.CTkLabel(
-            sec2_frame,
-            text="Gauss-Jordan: Reduce a Forma Escalonada Reducida (FERF) con pivotes = 1.",
-            font=ctk.CTkFont(size=11),
-            text_color=("gray50", "gray60"),
-            wraplength=370,
-            justify="left"
-        )
-        self.lbl_metodo_info.grid(row=2, column=0, sticky="w", padx=12, pady=(0, 10))
-        
+        self.lbl_metodo_desc = ctk.CTkLabel(sec2_frame, text="Gauss-Jordan: Reduce a Forma Escalonada Reducida (RREF)", font=ctk.CTkFont(size=10), text_color="gray")
+        self.lbl_metodo_desc.grid(row=2, column=0, sticky="w", padx=12, pady=(4, 10))
+
+        # 3. Coeficientes
         sec3_frame = ctk.CTkFrame(self.left_panel, fg_color=("#ffffff", "#1f2937"), corner_radius=10)
         sec3_frame.grid(row=2, column=0, sticky="nsew", padx=14, pady=6)
-        sec3_frame.grid_rowconfigure(1, weight=1)
         sec3_frame.grid_columnconfigure(0, weight=1)
+        sec3_frame.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(sec3_frame, text="3. Coeficientes y Términos [A | b]", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
         
-        lbl_sec3 = ctk.CTkLabel(
-            sec3_frame, 
-            text="3. Coeficientes y Términos [A | b]", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#0284c7", "#38bdf8")
-        )
-        lbl_sec3.grid(row=0, column=0, sticky="w", padx=12, pady=(10, 4))
+        self.input_scroll = ctk.CTkScrollableFrame(sec3_frame, fg_color="transparent", orientation="horizontal")
+        self.input_scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=8)
         
-        self.input_scroll = ctk.CTkScrollableFrame(sec3_frame, fg_color="transparent")
-        self.input_scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
-        self.input_scroll.grid_columnconfigure(0, weight=1)
-        
+        # Botón Resolver
         sec4_frame = ctk.CTkFrame(self.left_panel, fg_color="transparent")
         sec4_frame.grid(row=3, column=0, sticky="ew", padx=14, pady=(6, 14))
         sec4_frame.grid_columnconfigure(0, weight=1)
-        
-        self.btn_resolver = ctk.CTkButton(
-            sec4_frame, 
-            text="🚀 Resolver Sistema", 
-            command=self.resolver,
-            fg_color=("#059669", "#10b981"), 
-            hover_color=("#047857", "#059669"), 
-            font=ctk.CTkFont(size=14, weight="bold"), 
-            height=40,
-            corner_radius=8
-        )
+        self.btn_resolver = ctk.CTkButton(sec4_frame, text="🚀 Resolver Sistema", font=ctk.CTkFont(size=14, weight="bold"), fg_color=("#10b981", "#059669"), hover_color=("#059669", "#047857"), height=40, command=self.resolver)
         self.btn_resolver.grid(row=0, column=0, sticky="ew")
-        
-        self.right_panel = ctk.CTkFrame(parent, corner_radius=0, fg_color=("#e2e8f0", "#0b1120"))
-        self.right_panel.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
-        self.right_panel.grid_rowconfigure(0, weight=1)
+
+        # Right Panel
+        self.right_panel = ctk.CTkFrame(self.gauss_panel, corner_radius=0, fg_color="transparent")
+        self.right_panel.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        self.right_panel.grid_rowconfigure(0, weight=3)
+        self.right_panel.grid_rowconfigure(1, weight=1)
         self.right_panel.grid_columnconfigure(0, weight=1)
         
         self.tabview = ctk.CTkTabview(self.right_panel)
-        self.tabview.grid(row=0, column=0, sticky="nsew", padx=12, pady=10)
+        self.tabview.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        self.tab_visual = self.tabview.add("📊 Visualización Paso a Paso")
+        self.tab_text = self.tabview.add("📝 Detalle de Operaciones (Texto)")
         
-        self.tab_visual = self.tabview.add("  📊 Visualización Paso a Paso  ")
         self.tab_visual.grid_columnconfigure(0, weight=1)
         self.tab_visual.grid_rowconfigure(0, weight=1)
-        
-        self.tab_text = self.tabview.add("  📝 Detalle de Operaciones (Texto)  ")
         self.tab_text.grid_columnconfigure(0, weight=1)
         self.tab_text.grid_rowconfigure(0, weight=1)
 
-        self.tab_teoremas_gauss = self.tabview.add("📘 Teoremas Clave ")
-        self.tab_teoremas_gauss.grid_columnconfigure(0, weight=1)
-        self.tab_teoremas_gauss.grid_rowconfigure(0, weight=1)
-        
-        self.matrix_canvas = MatrixCanvas(self.tab_visual)
-        self.matrix_canvas.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        
+        self.canvas_frame = ctk.CTkFrame(self.tab_visual, corner_radius=10, fg_color=("#0f172a", "#0f172a"))
+        self.canvas_frame.grid(row=0, column=0, sticky="nsew")
+        self.matrix_canvas = MatrixCanvas(self.canvas_frame)
+        self.matrix_canvas.pack(fill="both", expand=True, padx=4, pady=4)
         self.playback_controls = PlaybackControls(self.tab_visual, self.matrix_canvas)
-        self.playback_controls.grid(row=1, column=0, sticky="ew", padx=4, pady=(2, 6))
-        
-        self.txt_resultados = ctk.CTkTextbox(
-            self.tab_text, 
-            font=ctk.CTkFont(family="Consolas", size=12),
-            wrap="word",
-            corner_radius=8
-        )
+        self.playback_controls.grid(row=1, column=0, sticky="ew", pady=(0, 10))
 
-        self.txt_resultados.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
-        self.txt_resultados.configure(state="disabled")
+        self.text_log = ctk.CTkTextbox(self.tab_text, font=ctk.CTkFont(family="Consolas", size=13), fg_color=("#f8fafc", "#1e293b"), text_color=("#0f172a", "#f8fafc"), corner_radius=10)
+        self.text_log.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.text_log.configure(state="disabled")
 
-        panel_teoremas = ctk.CTkFrame(self.tab_teoremas_gauss, corner_radius=10)
-        panel_teoremas.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        ctk.CTkLabel(
-            panel_teoremas, text="0. Teoremas Clave del Módulo",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color=("#0284c7", "#38bdf8")
-        ).pack(anchor="w", padx=20, pady=(18, 10))
-        texto_teoremas_gauss = (
-            "OPERACIONES ELEMENTALES POR FILAS\n"
-            "Intercambiar dos filas, multiplicar una fila por un escalar distinto de cero o sumar a una fila "
-            "un múltiplo de otra produce un sistema equivalente: conserva el mismo conjunto de soluciones.\n\n"
-            "CRITERIO DE COMPATIBILIDAD (Rouché–Capelli)\n"
-            "El sistema Ax = b tiene solución si y solo si rango(A) = rango([A | b]). Una fila de la forma "
-            "[0 … 0 | d], con d ≠ 0, indica que no tiene solución.\n\n"
-            "CLASIFICACIÓN POR RANGO\n"
-            "Si el sistema es compatible y el rango coincide con el número de incógnitas, la solución es única. "
-            "Si el rango es menor, existen variables libres y hay infinitas soluciones.\n\n"
-            "SISTEMA HOMOGÉNEO Ax = 0\n"
-            "Siempre tiene la solución trivial x = 0. Tiene soluciones no triviales cuando hay variables libres, "
-            "es decir, cuando el rango es menor que el número de incógnitas."
-        )
-        ctk.CTkLabel(
-            panel_teoremas, text=texto_teoremas_gauss, justify="left", anchor="nw", wraplength=850,
-            font=ctk.CTkFont(size=14)
-        ).pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        self._create_bottom_conclusion()
+        self.generar_matriz()
 
     def _create_bottom_conclusion(self):
-        """Bloque de conclusión y resumen final de la solución."""
-        self.results_frame = ctk.CTkFrame(self, height=195, corner_radius=0, fg_color=("#1e293b", "#0f172a"))
-        self.results_frame.grid(row=3, column=0, sticky="ew", padx=0, pady=0)
-        self.results_frame.grid_propagate(False)
+        self.results_frame = ctk.CTkFrame(self.right_panel, corner_radius=10, fg_color=("#ffffff", "#1e293b"))
+        self.results_frame.grid(row=1, column=0, sticky="nsew")
         self.results_frame.grid_columnconfigure((0, 1, 2), weight=1)
         self.results_frame.grid_rowconfigure(1, weight=1)
         
-        header_concl = ctk.CTkFrame(self.results_frame, fg_color="transparent", height=28)
-        header_concl.grid(row=0, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 2))
-        header_concl.grid_columnconfigure(0, weight=1)
-        
-        lbl_concl_title = ctk.CTkLabel(
-            header_concl, 
-            text="🎯 RESUMEN DE LA SOLUCIÓN Y CLASIFICACIÓN", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#38bdf8", "#38bdf8")
-        )
-        lbl_concl_title.grid(row=0, column=0, sticky="w")
-        
-        self.card_clasif = ctk.CTkFrame(self.results_frame, fg_color=("#ffffff", "#1e293b"), corner_radius=8)
-        self.card_clasif.grid(row=1, column=0, sticky="nsew", padx=(14, 6), pady=(0, 10))
-        self.card_clasif.grid_columnconfigure(0, weight=1)
-        
-        ctk.CTkLabel(
-            self.card_clasif, 
-            text="Tipo de Sistema", 
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("gray40", "gray60")
-        ).pack(anchor="w", padx=10, pady=(8, 2))
-        
-        self.lbl_badge_tipo = ctk.CTkLabel(
-            self.card_clasif,
-            text="Sin resolver",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color=("#475569", "#334155"),
-            corner_radius=6,
-            text_color="white",
-            padx=10,
-            pady=4
-        )
-        self.lbl_badge_tipo.pack(anchor="w", padx=10, pady=4)
-        
-        self.lbl_desc_clasif = ctk.CTkLabel(
-            self.card_clasif,
-            text="Ingrese los coeficientes y presione 'Resolver Sistema' para ver el diagnóstico.",
-            font=ctk.CTkFont(size=11),
-            text_color=("gray50", "gray70"),
-            wraplength=260,
-            justify="left"
-        )
-        self.lbl_desc_clasif.pack(anchor="w", padx=10, pady=(2, 8))
-        
-        self.card_vars = ctk.CTkFrame(self.results_frame, fg_color=("#ffffff", "#1e293b"), corner_radius=8)
-        self.card_vars.grid(row=1, column=1, sticky="nsew", padx=6, pady=(0, 10))
-        self.card_vars.grid_columnconfigure(0, weight=1)
-        
-        ctk.CTkLabel(
-            self.card_vars, 
-            text="Estructura de Variables", 
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("gray40", "gray60")
-        ).pack(anchor="w", padx=10, pady=(8, 2))
-        
-        self.lbl_vars_basicas = ctk.CTkLabel(
-            self.card_vars,
-            text="• Variables Básicas (Pivotes): —",
-            font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
-            text_color=("#0284c7", "#38bdf8"),
-            anchor="w",
-            justify="left",
-            wraplength=330
-        )
-        self.lbl_vars_basicas.pack(anchor="w", padx=10, pady=2)
-        
-        self.lbl_vars_libres = ctk.CTkLabel(
-            self.card_vars,
-            text="• Variables Libres (Parámetros): —",
-            font=ctk.CTkFont(family="Consolas", size=11),
-            text_color=("#d97706", "#fbbf24"),
-            anchor="w",
-            justify="left",
-            wraplength=330
-        )
-        self.lbl_vars_libres.pack(anchor="w", padx=10, pady=2)
-        
-        self.lbl_verif_status = ctk.CTkLabel(
-            self.card_vars,
-            text="• Verificación matemática: —",
-            font=ctk.CTkFont(size=11),
-            text_color=("gray50", "gray60"),
-            anchor="w"
-        )
-        self.lbl_verif_status.pack(anchor="w", padx=10, pady=(2, 6))
-        
-        self.card_resp = ctk.CTkFrame(self.results_frame, fg_color=("#ffffff", "#1e293b"), corner_radius=8)
-        self.card_resp.grid(row=1, column=2, sticky="nsew", padx=(6, 14), pady=(0, 10))
-        self.card_resp.grid_rowconfigure(1, weight=1)
-        self.card_resp.grid_columnconfigure(0, weight=1)
-        
-        ctk.CTkLabel(
-            self.card_resp, 
-            text="Conjunto Solución", 
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("gray40", "gray60")
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=(8, 2))
-        
-        self.txt_solucion_display = ctk.CTkTextbox(
-            self.card_resp,
-            font=ctk.CTkFont(family="Consolas", size=11),
-            fg_color="transparent",
-            wrap="word",
-            activate_scrollbars=True
-        )
-        self.txt_solucion_display.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 6))
-        self.txt_solucion_display.insert("end", "Esperando resolución...")
-        self.txt_solucion_display.configure(state="disabled")
-    
+        header_concl = ctk.CTkFrame(self.results_frame, fg_color="transparent", height=30)
+        header_concl.grid(row=0, column=0, columnspan=3, sticky="ew", padx=15, pady=(10, 0))
+        ctk.CTkLabel(header_concl, text="🎯 RESUMEN DE LA SOLUCIÓN Y CLASIFICACIÓN", font=ctk.CTkFont(size=12, weight="bold"), text_color=("#0284c7", "#38bdf8")).pack(side="left")
+
+        self.card_clasif = ctk.CTkFrame(self.results_frame, fg_color="transparent")
+        self.card_clasif.grid(row=1, column=0, sticky="nsew", padx=15, pady=10)
+        ctk.CTkLabel(self.card_clasif, text="Tipo de Sistema", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
+        self.lbl_tipo_badge = ctk.CTkLabel(self.card_clasif, text="Sin resolver", font=ctk.CTkFont(size=12, weight="bold"), fg_color="#475569", text_color="white", corner_radius=6, padx=10, pady=4)
+        self.lbl_tipo_badge.pack(anchor="w", pady=(5, 5))
+        self.lbl_clasif_desc = ctk.CTkLabel(self.card_clasif, text="Listo para resolver...", font=ctk.CTkFont(size=11), text_color="gray", wraplength=180, justify="left")
+        self.lbl_clasif_desc.pack(anchor="w")
+
+        self.card_vars = ctk.CTkFrame(self.results_frame, fg_color="transparent")
+        self.card_vars.grid(row=1, column=1, sticky="nsew", padx=15, pady=10)
+        ctk.CTkLabel(self.card_vars, text="Estructura de Variables", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
+        self.lbl_vars_basicas = ctk.CTkLabel(self.card_vars, text="• Variables Básicas (Pivotes): -", font=ctk.CTkFont(size=11), text_color=("#0284c7", "#38bdf8"), justify="left")
+        self.lbl_vars_basicas.pack(anchor="w", pady=(5, 2))
+        self.lbl_vars_libres = ctk.CTkLabel(self.card_vars, text="• Variables Libres (Parámetros): -", font=ctk.CTkFont(size=11), text_color=("#d97706", "#fbbf24"), justify="left")
+        self.lbl_vars_libres.pack(anchor="w")
+
+        self.card_resp = ctk.CTkFrame(self.results_frame, fg_color="transparent")
+        self.card_resp.grid(row=1, column=2, sticky="nsew", padx=15, pady=10)
+        ctk.CTkLabel(self.card_resp, text="Conjunto Solución", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
+        self.lbl_solucion_final = ctk.CTkLabel(self.card_resp, text="Esperando resolución...", font=ctk.CTkFont(size=12), text_color="gray", justify="left")
+        self.lbl_solucion_final.pack(anchor="w", pady=(5, 0))
+
     def _on_method_changed(self, value: str):
-        """Actualiza el texto descriptivo al cambiar entre Gauss y Gauss-Jordan."""
-        if value == "Gauss":
-            self.lbl_metodo_info.configure(
-                text="Gauss: Escalonamiento (REF) con ceros debajo del pivote + Sustitución hacia atrás."
-            )
+        if value.lower() == "gauss":
+            self.lbl_metodo_desc.configure(text="Gauss: Reduce a Forma Escalonada (REF) simple.")
         else:
-            self.lbl_metodo_info.configure(
-                text="Gauss-Jordan: Reduce a Forma Escalonada Reducida (FERF) con pivotes = 1 y ceros arriba/abajo."
-            )
-    
+            self.lbl_metodo_desc.configure(text="Gauss-Jordan: Reduce a Forma Escalonada Reducida (RREF).")
+
     def generar_matriz(self):
-        """Genera dinámicamente la cuadrícula de entradas según m y n."""
         try:
             m = int(self.entry_m.get())
             n = int(self.entry_n.get())
+            if m <= 0 or n <= 0 or m > 12 or n > 12: raise ValueError
         except ValueError:
-            self._log_text("Error: Por favor, ingrese números enteros válidos para m y n.\n")
+            self._log_text("❌ Error: Dimensiones deben ser entre 1 y 12.", limpiar=True)
             return
-            
-        if m <= 0 or n <= 0:
-            self._log_text("Error: Las dimensiones deben ser mayores que 0.\n")
-            return
-        
-        if m > 12 or n > 12:
-            self._log_text("Aviso: Dimensiones muy grandes pueden exceder el área visual. Máximo recomendado: 10x10.\n")
-            
+
         for widget in self.input_scroll.winfo_children():
             widget.destroy()
             
-        self.matriz_entries = []
-        self._create_input_grid(m, n)
-        
-        self._log_text(f"Matriz de {m} ecuaciones × {n} variables generada. Ingrese valores y presione Resolver.\n", limpiar=True)
-        self._reset_conclusion()
-    
-    def _create_input_grid(self, m: int, n: int):
-        """Construye las cabeceras (x₁…xₙ, = b) y la cuadrícula de m filas por n+1 columnas."""
+        self.entries_matriz = []
         header_frame = ctk.CTkFrame(self.input_scroll, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 6))
-        
         ctk.CTkLabel(header_frame, text="", width=32).grid(row=0, column=0, padx=2)
         
         for j in range(n + 1):
             if j < n:
-                lbl = ctk.CTkLabel(
-                    header_frame, text=f"x{a_subindice(j+1)}", 
-                    font=ctk.CTkFont(size=12, weight="bold"), 
-                    width=50, 
-                    text_color=("#0284c7", "#38bdf8")
-                )
+                ctk.CTkLabel(header_frame, text=f"x{a_subindice(j+1)}", font=ctk.CTkFont(weight="bold"), width=50, text_color=("#0284c7", "#38bdf8")).grid(row=0, column=j+1, padx=2)
             else:
-                lbl = ctk.CTkLabel(
-                    header_frame, text="= b", 
-                    font=ctk.CTkFont(size=12, weight="bold"), 
-                    width=50, 
-                    text_color=("#e11d48", "#f43f5e")
-                )
-            lbl.grid(row=0, column=j+1, padx=2)
+                ctk.CTkLabel(header_frame, text="= b", font=ctk.CTkFont(weight="bold"), width=50, text_color=("#e11d48", "#f43f5e")).grid(row=0, column=j+1, padx=2)
         
         for i in range(m):
             row_frame = ctk.CTkFrame(self.input_scroll, fg_color="transparent")
             row_frame.grid(row=i+1, column=0, sticky="ew", pady=2)
-            
+            ctk.CTkLabel(row_frame, text=f"E{a_subindice(i+1)}", width=32, text_color="gray").grid(row=0, column=0, padx=2)
             fila_entries = []
-            lbl_row = ctk.CTkLabel(
-                row_frame, text=f"F{a_subindice(i+1)}", width=32, 
-                font=ctk.CTkFont(size=12, weight="bold"), 
-                text_color=("gray40", "gray60")
-            )
-            lbl_row.grid(row=0, column=0, padx=2)
-            
             for j in range(n + 1):
-                entry = ctk.CTkEntry(
-                    row_frame, width=50, height=28, justify="center", 
-                    font=ctk.CTkFont(family="Consolas", size=11), corner_radius=4
-                )
-                entry.grid(row=0, column=j+1, padx=2)
-                entry.insert(0, "0")
-                
-                if j == n:
-                    entry.configure(
-                        fg_color=("#ffe4e6", "#3f1a24"), 
-                        text_color=("#be123c", "#fca5a5"),
-                        border_color=("#f43f5e", "#be123c")
-                    )
-                
-                fila_entries.append(entry)
-            
-            self.matriz_entries.append(fila_entries)
-    
+                e = ctk.CTkEntry(row_frame, width=50, justify="center")
+                e.grid(row=0, column=j+1, padx=2)
+                e.insert(0, "0")
+                fila_entries.append(e)
+            self.entries_matriz.append(fila_entries)
+        
+        self.matrix_canvas.load_steps([])
+        self._reset_conclusion()
+        self._log_text(f"✓ Sistema {m}x{n} generado. Ingrese los coeficientes.", limpiar=True)
+
     def cargar_ejemplo(self):
-        """Carga matrices de prueba predefinidas con distintos comportamientos."""
-        ejemplos = [
-            {
-                "m": 3, "n": 3,
-                "matriz": [
-                    [2, 1, -1, 8],
-                    [-3, -1, 2, -11],
-                    [-2, 1, 2, -3]
-                ],
-                "desc": "Sistema 3x3 — Solución Única (X1=2, X2=3, X3=-1)"
-            },
-            {
-                "m": 3, "n": 4,
-                "matriz": [
-                    [1, 2, -1, 1, 3],
-                    [2, 4, -2, 2, 6],
-                    [1, 2, 0, -1, 1]
-                ],
-                "desc": "Sistema 3x4 — Infinitas Soluciones (2 variables libres)"
-            },
-            {
-                "m": 3, "n": 3,
-                "matriz": [
-                    [1, 1, 1, 2],
-                    [0, 1, -1, 1],
-                    [1, 2, 0, 5]
-                ],
-                "desc": "Sistema 3x3 — Sin Solución / Inconsistente (0 = 2)"
-            },
-            {
-                "m": 4, "n": 4,
-                "matriz": [
-                    [1, 1, 0, 1, 2],
-                    [2, 1, -1, 1, 1],
-                    [-1, 2, 3, -1, 4],
-                    [3, -1, -1, 2, 5]
-                ],
-                "desc": "Sistema 4x4 — Solución Única (4 variables)"
-            }
-        ]
-        
-        ej = random.choice(ejemplos)
-        
-        self.entry_m.delete(0, "end")
-        self.entry_m.insert(0, str(ej["m"]))
-        self.entry_n.delete(0, "end")
-        self.entry_n.insert(0, str(ej["n"]))
-        
+        self.entry_m.delete(0, 'end'); self.entry_m.insert(0, "3")
+        self.entry_n.delete(0, 'end'); self.entry_n.insert(0, "3")
         self.generar_matriz()
         
-        for i, fila in enumerate(ej["matriz"]):
+        ejemplo = [
+            [2,  1, -1,   8],
+            [-3, -1, 2, -11],
+            [-2,  1, 2,  -3]
+        ]
+        
+        for i, fila in enumerate(ejemplo):
             for j, val in enumerate(fila):
-                if i < len(self.matriz_entries) and j < len(self.matriz_entries[i]):
-                    self.matriz_entries[i][j].delete(0, "end")
-                    self.matriz_entries[i][j].insert(0, str(val))
-        
-        self._log_text(f"🎲 Ejemplo cargado: {ej['desc']}\n")
-    
-    def leer_matriz_interfaz(self) -> List[List[float]]:
-        """Lee las celdas y devuelve la matriz aumentada [A | b] como floats; lanza ValueError si hay texto no numérico."""
-        matriz = []
-        for i, fila in enumerate(self.matriz_entries):
-            fila_valores = []
-            for j, entry in enumerate(fila):
-                val_str = entry.get().strip()
-                try:
-                    # Acepta 'a/b' además de decimales; una división entre 0 cae en el except y se reporta como valor inválido
-                    val = float(val_str) if "/" not in val_str else float(val_str.split("/")[0]) / float(val_str.split("/")[1])
-                    fila_valores.append(val)
-                except Exception:
-                    raise ValueError(f"Valor no numérico '{val_str}' en Fila {i+1}, Columna {j+1}")
-            matriz.append(fila_valores)
-        return matriz
-    
-    def _format_matriz(self, matriz) -> str:
-        """Devuelve la matriz aumentada como texto alineado según el modo numérico activo."""
-        salida = ""
-        for fila in matriz:
-            coefs = fila[:-1]
-            ti = fila[-1]
-            coefs_str = "  ".join([f"{formatear_numero(c, self.modo_numero):>8}" for c in coefs])
-            salida += f"  [ {coefs_str} | {formatear_numero(ti, self.modo_numero):>8} ]\n"
-        return salida
-    
-    def _log_text(self, texto: str, limpiar: bool = False):
-        """Agrega texto al registro de detalle; con limpiar=True lo borra antes."""
-        self.txt_resultados.configure(state="normal")
-        if limpiar:
-            self.txt_resultados.delete("1.0", "end")
-        self.txt_resultados.insert("end", texto + "\n")
-        self.txt_resultados.configure(state="disabled")
-        self.txt_resultados.yview("end")
-    
-    def _reset_conclusion(self):
-        """Deja las tarjetas de conclusión en su estado inicial 'Sin resolver'."""
-        self.lbl_badge_tipo.configure(text="Sin resolver", fg_color=("#475569", "#334155"))
-        self.lbl_desc_clasif.configure(text="Listo para resolver con el método seleccionado.")
-        self.lbl_vars_basicas.configure(text="• Variables Básicas (Pivotes): —")
-        self.lbl_vars_libres.configure(text="• Variables Libres (Parámetros): —")
-        self.lbl_verif_status.configure(text="• Verificación matemática: —", text_color=("gray50", "gray60"))
-        
-        self.txt_solucion_display.configure(state="normal")
-        self.txt_solucion_display.delete("1.0", "end")
-        self.txt_solucion_display.insert("end", "Esperando resolución...")
-        self.txt_solucion_display.configure(state="disabled")
-    
-    def resolver(self):
-        """Ejecuta el método seleccionado (Gauss o Gauss-Jordan) y actualiza canvas y resumen."""
-        # Se valida primero la entrada: con una celda no numérica no se puede construir la matriz aumentada
-        try:
-            matriz_inicial = self.leer_matriz_interfaz()
-        except ValueError as e:
-            self._log_text(f"❌ Error de entrada: {e}")
-            return
-            
-        self.matriz_inicial = matriz_inicial
-        metodo = self.metodo_var.get()
-        num_vars = len(matriz_inicial[0]) - 1
-        var_names = [f"x{a_subindice(i+1)}" for i in range(num_vars)]
-        
-        self._log_text(f"==================================================", limpiar=True)
-        self._log_text(f"  EJECUTANDO: {metodo.upper()}")
-        self._log_text(f"==================================================\n")
-        
-        if metodo == "Gauss":
-            self.pasos_gauss, self.resultado, self.solucion_general = resolver_gauss(matriz_inicial)
-        else:
-            self.pasos_gauss, self.resultado, self.solucion_general = resolver_gauss_jordan(matriz_inicial)
-        
-        steps_visual = create_matrix_steps_from_gauss(self.pasos_gauss, matriz_inicial)
-        self.matrix_canvas.load_steps(steps_visual)
-        
-        for paso in self.pasos_gauss:
-            self._log_text(f">> {paso.descripcion}:")
-            self._log_text(self._format_matriz(paso.matriz_estado))
-        
-        if self.solucion_general:
-            self._log_text("--- 1. FORMA ESCALONADA POR FILAS (REF) [ESCALERA DE GAUSS] ---")
-            self._log_text(self._format_matriz(self.solucion_general.matriz_ref))
-            if metodo == "Gauss-Jordan":
-                self._log_text("--- 2. FORMA ESCALONADA REDUCIDA (RREF) [GAUSS-JORDAN FINAL] ---")
-                self._log_text(self._format_matriz(self.solucion_general.matriz_rref))
-        else:
-            matriz_final = self.pasos_gauss[-1].matriz_estado if self.pasos_gauss else matriz_inicial
-            nombre_forma = "FORMA ESCALONADA REDUCIDA (RREF)" if metodo == "Gauss-Jordan" else "FORMA ESCALONADA (REF)"
-            self._log_text(f"--- MATRIZ FINAL EN {nombre_forma} ---")
-            self._log_text(self._format_matriz(matriz_final))
-        
-        # Columna pivote = variable básica; toda columna sin pivote es variable libre (se muestra en base 1)
-        if isinstance(self.resultado, SinSolucion):
-            cols_pivote_str = "No aplica (sistema inconsistente)"
-            vars_basicas_str = "Ninguna"
-            vars_libres_str = "Ninguna"
-        elif isinstance(self.resultado, SolucionInfinita):
-            vars_libres_idx = self.resultado.variables_libres
-            cols_pivote_idx = [j for j in range(num_vars) if j not in vars_libres_idx]
-            cols_pivote_1based = [str(j + 1) for j in cols_pivote_idx]
-            cols_pivote_str = self._formatear_lista_legible(cols_pivote_1based) if cols_pivote_1based else "Ninguna"
-            vars_basicas_str = ", ".join([var_names[j] for j in cols_pivote_idx]) if cols_pivote_idx else "Ninguna"
-            vars_libres_str = ", ".join([var_names[j] for j in vars_libres_idx]) if vars_libres_idx else "Ninguna"
-        else:  # Solución única
-            cols_pivote_1based = [str(j + 1) for j in range(num_vars)]
-            cols_pivote_str = self._formatear_lista_legible(cols_pivote_1based)
-            vars_basicas_str = ", ".join(var_names) + " (Todas)"
-            vars_libres_str = "Ninguna (0 variables libres)"
-        
-        self._log_text("--- ANÁLISIS DE PIVOTES Y VARIABLES ---")
-        self._log_text(f"• Las columnas pivote son: {cols_pivote_str}")
-        self._log_text(f"• Variables Básicas: {vars_basicas_str}")
-        self._log_text(f"• Variables Libres:  {vars_libres_str}")
-        self._log_text(f"• Clasificación:     {self.resultado.tipo}\n")
-        
-        self.ultimas_cols_pivote_str = cols_pivote_str
-        self._update_conclusion_cards(cols_pivote_str)
-        
-        self.tabview.set("  📊 Visualización Paso a Paso  ")
-    
-    def _refresh_text_log(self):
-        """Regenera el registro textual completo con el formato numérico seleccionado (Fracción/Decimal)."""
-        if not self.pasos_gauss or self.matriz_inicial is None:
-            return
-        
-        metodo = self.metodo_var.get()
-        num_vars = len(self.matriz_inicial[0]) - 1
-        var_names = [f"x{a_subindice(i+1)}" for i in range(num_vars)]
-        
-        self._log_text(f"==================================================", limpiar=True)
-        self._log_text(f"  EJECUTANDO: {metodo.upper()} [Modo: {self.modo_numero.capitalize()}]")
-        self._log_text(f"==================================================\n")
-        
-        for paso in self.pasos_gauss:
-            self._log_text(f">> {paso.descripcion}:")
-            self._log_text(self._format_matriz(paso.matriz_estado))
-        
-        if self.solucion_general:
-            self._log_text("--- 1. FORMA ESCALONADA POR FILAS (REF) [ESCALERA DE GAUSS] ---")
-            self._log_text(self._format_matriz(self.solucion_general.matriz_ref))
-            if metodo == "Gauss-Jordan":
-                self._log_text("--- 2. FORMA ESCALONADA REDUCIDA (RREF) [GAUSS-JORDAN FINAL] ---")
-                self._log_text(self._format_matriz(self.solucion_general.matriz_rref))
-        else:
-            matriz_final = self.pasos_gauss[-1].matriz_estado if self.pasos_gauss else self.matriz_inicial
-            nombre_forma = "FORMA ESCALONADA REDUCIDA (RREF)" if metodo == "Gauss-Jordan" else "FORMA ESCALONADA (REF)"
-            self._log_text(f"--- MATRIZ FINAL EN {nombre_forma} ---")
-            self._log_text(self._format_matriz(matriz_final))
-        
-        self._log_text("--- ANÁLISIS DE PIVOTES Y VARIABLES ---")
-        self._log_text(f"• Las columnas pivote son: {self.ultimas_cols_pivote_str}")
-        if self.resultado:
-            self._log_text(f"• Clasificación:     {self.resultado.tipo}\n")
-    
-    def _formatear_lista_legible(self, elementos: list[str]) -> str:
-        """Formatea ['1', '2', '4'] en '1, 2 y 4'."""
-        if not elementos:
-            return "Ninguna"
-        if len(elementos) == 1:
-            return elementos[0]
-        return ", ".join(elementos[:-1]) + " y " + elementos[-1]
-    
-    def _update_conclusion_cards(self, cols_pivote_str: str):
-        """Actualiza las 3 tarjetas inferiores con la información estructurada de la solución."""
-        num_vars = len(self.matriz_inicial[0]) - 1
-        var_names = [f"x{a_subindice(i+1)}" for i in range(num_vars)]
-        
-        self.txt_solucion_display.configure(state="normal")
-        self.txt_solucion_display.delete("1.0", "end")
-        
-        if isinstance(self.resultado, SinSolucion):
-            self.lbl_badge_tipo.configure(
-                text="Inconsistente (Sin Solución)", 
-                fg_color=("#dc2626", "#ef4444")
-            )
-            self.lbl_desc_clasif.configure(
-                text="El sistema contiene una fila absurda [0 ... 0 | k] con k ≠ 0. Las ecuaciones son incompatibles entre sí."
-            )
-            self.lbl_vars_basicas.configure(text="• Columnas Pivote: Ninguna válida")
-            self.lbl_vars_libres.configure(text="• Variables Básicas/Libres: No aplica (S = ∅)")
-            self.lbl_verif_status.configure(
-                text="• Verificación: Sistema sin solución posible (S = ∅)",
-                text_color=("#ef4444", "#f87171")
-            )
-            
-            self.txt_solucion_display.insert("end", "Conjunto Solución Vacío:\n  S = ∅\n\nNo existen valores para las variables que satisfagan todas las ecuaciones simultáneamente.")
-            
-        elif isinstance(self.resultado, SolucionInfinita):
-            vars_libres_idx = self.resultado.variables_libres
-            vars_libres_str = [var_names[j] for j in vars_libres_idx]
-            vars_basicas_str = [var_names[j] for j in range(num_vars) if j not in vars_libres_idx]
-            
-            self.lbl_badge_tipo.configure(
-                text="Consistente Indeterminado", 
-                fg_color=("#d97706", "#f59e0b")
-            )
-            self.lbl_desc_clasif.configure(
-                text=f"Infinitas soluciones con {len(vars_libres_idx)} variable(s) libre(s) como parámetro(s)."
-            )
-            
-            self.lbl_vars_basicas.configure(
-                text=f"• Columnas Pivote: {cols_pivote_str}\n• Básicas: {', '.join(vars_basicas_str) if vars_basicas_str else 'Ninguna'}"
-            )
-            self.lbl_vars_libres.configure(
-                text=f"• Variables Libres: {', '.join(vars_libres_str) if vars_libres_str else 'Ninguna'}"
-            )
-            self.lbl_verif_status.configure(
-                text="• Verificación: Parametrización consistente comprobada ✓",
-                text_color=("#10b981", "#34d399")
-            )
-            
-            lineas_sol = ["Solución General Parametrizada:"]
-            if self.solucion_general:
-                for eq in self.solucion_general.a_strings(num_vars, modo=self.modo_numero):
-                    lineas_sol.append(f"  {eq}")
-            else:
-                for v in vars_libres_str:
-                    lineas_sol.append(f"  {v} ∈ ℝ (libre)")
-            
-            self.txt_solucion_display.insert("end", "\n".join(lineas_sol))
-            
-        elif isinstance(self.resultado, SolucionUnica):
-            self.lbl_badge_tipo.configure(
-                text="Consistente Determinado", 
-                fg_color=("#16a34a", "#22c55e")
-            )
-            self.lbl_desc_clasif.configure(
-                text="Existe exactamente una solución única para cada variable."
-            )
-            
-            self.lbl_vars_basicas.configure(
-                text=f"• Columnas Pivote: {cols_pivote_str}\n• Básicas: {', '.join(var_names)} (Todas)"
-            )
-            self.lbl_vars_libres.configure(
-                text="• Variables Libres: Ninguna (0 variables libres)"
-            )
-            
-            # Se comprueba A·x = b sobre la matriz original, no sobre la ya escalonada
-            cumple = verificar_solucion(self.matriz_inicial, self.resultado.variables)
-            if cumple:
-                self.lbl_verif_status.configure(
-                    text="• Verificación: Solución exacta (A·x = b) ✓",
-                    text_color=("#10b981", "#34d399")
-                )
-            else:
-                self.lbl_verif_status.configure(
-                    text="• Verificación: Diferencia flotante detectada ⚠",
-                    text_color=("#f59e0b", "#fbbf24")
-                )
-            
-            lineas_sol = ["Solución Única:"]
-            for i, v in enumerate(self.resultado.variables):
-                lineas_sol.append(f"  {var_names[i]} = {formatear_numero(v, self.modo_numero)}")
-            
-            self.txt_solucion_display.insert("end", "\n".join(lineas_sol))
-        
-        self.txt_solucion_display.configure(state="disabled")
+                self.entries_matriz[i][j].delete(0, 'end')
+                self.entries_matriz[i][j].insert(0, str(val))
+        self._log_text("✓ Ejemplo 3x3 cargado. Presione 'Resolver Sistema'.", limpiar=True)
 
+    def leer_matriz_interfaz(self) -> List[List[float]]:
+        matriz_amp = []
+        for fila_entries in self.entries_matriz:
+            fila_vals = []
+            for entry in fila_entries:
+                val_str = entry.get().strip()
+                if "/" in val_str:
+                    num, den = val_str.split("/")
+                    fila_vals.append(float(num) / float(den))
+                else:
+                    fila_vals.append(float(val_str))
+            matriz_amp.append(fila_vals)
+        return matriz_amp
+
+    def _log_text(self, texto: str, limpiar: bool = False):
+        self.text_log.configure(state="normal")
+        if limpiar:
+            self.text_log.delete("1.0", "end")
+        self.text_log.insert("end", texto + "\n")
+        self.text_log.configure(state="disabled")
+        self.text_log.see("end")
+
+    def _reset_conclusion(self):
+        self.lbl_tipo_badge.configure(text="Sin resolver", fg_color="#475569")
+        self.lbl_clasif_desc.configure(text="Listo para resolver...")
+        self.lbl_vars_basicas.configure(text="• Variables Básicas (Pivotes): -")
+        self.lbl_vars_libres.configure(text="• Variables Libres (Parámetros): -")
+        self.lbl_solucion_final.configure(text="Esperando resolución...")
+
+    def resolver(self):
+        try:
+            A_amp = self.leer_matriz_interfaz()
+        except ValueError:
+            self._log_text("❌ Error: Por favor, ingrese solo números válidos (ej. 2, -1.5, 3/4).", limpiar=True)
+            return
+
+        usar_jordan = self.metodo_var.get().lower() != "gauss"
+        resolver_fn = resolver_gauss_jordan if usar_jordan else resolver_gauss
+
+        self.matrix_canvas.load_steps([])
+        self._log_text("🚀 INICIANDO ELIMINACIÓN GAUSSIANA...\n", limpiar=True)
+        self.tabview.set("📊 Visualización Paso a Paso")
+
+        try:
+            pasos, clasificacion, sol_gen = resolver_fn(A_amp)
+
+            # Visualización animada
+            try:
+                steps_visual = create_matrix_steps_from_gauss(pasos, A_amp)
+                self.matrix_canvas.load_steps(steps_visual)
+                self.matrix_canvas.set_number_mode(self._modo_numero)
+            except Exception as e_vis:
+                self._log_text(f"⚠ Advertencia visualización: {e_vis}", limpiar=False)
+
+            # Log de texto
+            self._refresh_text_log(pasos)
+
+            # Clasificar resultado
+            if isinstance(clasificacion, SolucionUnica):
+                self.lbl_tipo_badge.configure(text="Solución Única", fg_color=("#10b981", "#059669"))
+                self.lbl_clasif_desc.configure(text="Sistema Consistente Determinado.")
+                n_vars = len(A_amp[0]) - 1
+                self.lbl_vars_basicas.configure(text=f"• Variables básicas: x₁…x{a_subindice(n_vars)}")
+                self.lbl_vars_libres.configure(text="• Variables libres: Ninguna")
+                sol_str = "\n".join([
+                    f"x{a_subindice(i+1)} = {formatear_numero(val, self._modo_numero)}"
+                    for i, val in enumerate(clasificacion.variables)
+                ])
+                self.lbl_solucion_final.configure(text=sol_str)
+
+            elif isinstance(clasificacion, SolucionInfinita):
+                self.lbl_tipo_badge.configure(text="∞ Infinitas Soluciones", fg_color=("#d97706", "#d97706"))
+                self.lbl_clasif_desc.configure(text="Sistema Consistente Indeterminado.")
+                libres = clasificacion.variables_libres
+                n_vars = len(A_amp[0]) - 1
+                basicas = [i+1 for i in range(n_vars) if i not in libres]
+                self.lbl_vars_basicas.configure(text=f"• Básicas: {', '.join(f'x{a_subindice(b)}' for b in basicas)}")
+                self.lbl_vars_libres.configure(text=f"• Libres: {', '.join(f'x{a_subindice(l+1)}' for l in libres)}")
+                if sol_gen:
+                    names = {i: f"t{a_subindice(k+1)}" for k, i in enumerate(sol_gen.variables_libres)}
+                    lines = []
+                    for idx, expr in sol_gen.variables_basicas.items():
+                        parts = [formatear_numero(expr.constante, self._modo_numero)]
+                        for t in expr.terminos:
+                            coef = formatear_numero(t.coef, self._modo_numero)
+                            parts.append(f"{coef}·{names.get(t.var_libre_idx, f't{t.var_libre_idx}')}")
+                        lines.append(f"x{a_subindice(idx+1)} = {' + '.join(parts)}")
+                    for free_idx in sol_gen.variables_libres:
+                        lines.append(f"x{a_subindice(free_idx+1)} = {names[free_idx]} (libre)")
+                    self.lbl_solucion_final.configure(text="\n".join(lines))
+                else:
+                    self.lbl_solucion_final.configure(text="Hay variables libres (ver texto).")
+
+            elif isinstance(clasificacion, SinSolucion):
+                self.lbl_tipo_badge.configure(text="Sin Solución", fg_color=("#ef4444", "#dc2626"))
+                self.lbl_clasif_desc.configure(text=f"Sistema Inconsistente: {getattr(clasificacion, 'mensaje', '')}")
+                self.lbl_vars_basicas.configure(text="• Variables Básicas: -")
+                self.lbl_vars_libres.configure(text="• Variables Libres: -")
+                self.lbl_solucion_final.configure(text="No existe solución.")
+
+        except Exception as e:
+            self._log_text(f"❌ Error al resolver: {e}", limpiar=False)
+            import traceback
+            self._log_text(traceback.format_exc(), limpiar=False)
+
+    def _refresh_text_log(self, historial: List[PasoGauss]):
+        self.text_log.configure(state="normal")
+        self.text_log.delete("1.0", "end")
+        
+        for paso in historial:
+            self.text_log.insert("end", f"▶ {paso.descripcion}\n")
+            if paso.matriz_estado:
+                for fila in paso.matriz_estado:
+                    fmt_fila = [formatear_numero(v, self._modo_numero) for v in fila]
+                    self.text_log.insert("end", f"   [{', '.join(fmt_fila)}]\n")
+                self.text_log.insert("end", "\n")
+        
+        self.text_log.configure(state="disabled")
+
+    def _formatear_lista_legible(self, elementos: list[str]) -> str:
+        if not elementos: return "Ninguna"
+        if len(elementos) == 1: return elementos[0]
+        return ", ".join(elementos[:-1]) + " y " + elementos[-1]
+
+    def _update_conclusion_cards(self, cols_pivote: List[int]):
+        n_vars = len(self.entries_matriz[0]) - 1
+        vars_basicas = [f"x{a_subindice(c+1)}" for c in cols_pivote]
+        vars_libres = [f"x{a_subindice(c+1)}" for c in range(n_vars) if c not in cols_pivote]
+        
+        self.lbl_vars_basicas.configure(text=f"• Variables Básicas (Pivotes):\n  {self._formatear_lista_legible(vars_basicas)}")
+        self.lbl_vars_libres.configure(text=f"• Variables Libres (Parámetros):\n  {self._formatear_lista_legible(vars_libres)}")
 
 def main():
-    """Crea la ventana principal y arranca el bucle de eventos."""
     app = App()
     app.mainloop()
-
 
 if __name__ == "__main__":
     main()
