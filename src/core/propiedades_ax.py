@@ -1,3 +1,8 @@
+"""Verificación computacional de propiedades del producto matriz-vector Ax.
+Tema de clase: propiedades algebraicas de transformaciones matriciales (Sesión 8).
+Comprueba aditividad A(u+v) = Au + Av, homogeneidad A(cu) = c(Au) y linealidad general.
+Elaborado por: Grupo x"""
+
 from src.core.ecuaciones_ax import multiplicar_matriz_vector
 from src.core.operaciones_basicas import multiplicar_matriz_escalar, sumar_matrices, combinacion_matrices
 from dataclasses import dataclass, field

@@ -1,7 +1,7 @@
-"""
-Fachada del Core (Facade Pattern).
-Reexporta todas las funciones desde los submódulos especializados para no romper la GUI.
-"""
+"""Fachada modular de operaciones matriciales (Patrón Facade).
+Reexporta operaciones básicas, ecuaciones Ax=b, determinantes e inversas.
+Tema de clase: integración del Módulo III de Álgebra Matricial.
+Elaborado por: Grupo x"""
 
 from src.core.ecuaciones_ax import ResultadoProductoMatrizVector, multiplicar_matriz_vector, ResultadoEcuacionMatricial, resolver_ecuacion_matricial
 from src.core.propiedades_ax import VerificacionPropiedadAditivaAx, VerificacionPropiedadEscalarAx, VerificacionLinealidadGeneralAx, verificar_propiedad_aditiva_ax, verificar_propiedad_escalar_ax, verificar_linealidad_general_ax

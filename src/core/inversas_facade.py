@@ -1,3 +1,8 @@
+"""Cálculo de matriz inversa por reducción de Gauss-Jordan y método de la matriz adjunta.
+Tema de clase: la matriz inversa, teorema de la matriz invertible y singularidad (Sesión 10).
+Las funciones validan cuadratura y determinante no nulo antes de calcular la inversa.
+Elaborado por: Grupo x"""
+
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Union, Any
 from fractions import Fraction

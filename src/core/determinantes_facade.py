@@ -1,3 +1,8 @@
+"""Cálculo de determinantes mediante triangulación, expansión por cofactores y regla de Sarrus.
+Tema de clase: determinantes de matrices cuadradas y sus métodos de cálculo (Sesión 11).
+Las funciones devuelven el valor escalar, pasos detallados y diagnóstico de invertibilidad.
+Elaborado por: Grupo x"""
+
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Union, Any
 from fractions import Fraction

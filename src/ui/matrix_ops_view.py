@@ -1,8 +1,7 @@
-"""
-Vista de operaciones matriciales de PyMatrix: suma, resta, escalar, producto, traspuesta,
-inversa, determinantes, ecuación Ax = b y propiedades de Ax, con procedimiento paso a paso.
-Elaborado por: Grupo x
-"""
+"""Vista de operaciones matriciales: suma, resta, producto, traspuesta, inversa y determinantes.
+Presenta paneles interactivos con procedimientos detallados paso a paso para cada operación.
+Tema de clase: operaciones con matrices, determinantes y matriz inversa (Sesiones 9 a 11).
+Elaborado por: Grupo x"""
 
 import random
 from typing import List, Optional

@@ -1,3 +1,8 @@
+"""Ecuaciones matriciales de la forma Ax = b y producto matriz-vector.
+Tema de clase: ecuaciones matriciales y combinación lineal de columnas (Sesión 8).
+Las funciones de cálculo no usan input() ni print(); devuelven estructuras de datos y pasos.
+Elaborado por: Grupo x"""
+
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Union, Any
 from fractions import Fraction

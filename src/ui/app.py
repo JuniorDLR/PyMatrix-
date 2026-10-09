@@ -1,3 +1,8 @@
+"""Ventana principal y controlador de navegación de la Calculadora de Álgebra Lineal.
+Gestiona el sidebar, el dashboard interactivo y la alternancia de temas y formatos.
+Tema de clase: interfaz gráfica integrada para el aprendizaje de álgebra lineal.
+Elaborado por: Grupo x"""
+
 import customtkinter as ctk
 import tkinter as tk
 from typing import Dict, List

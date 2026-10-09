@@ -1,8 +1,7 @@
-"""
-Operaciones con vectores en ℝⁿ, combinación lineal e independencia lineal (Gauss-Jordan).
-Implementado solo con Python estándar (sin NumPy ni SciPy).
-Elaborado por: Grupo x
-"""
+"""Operaciones con vectores en ℝⁿ, combinación lineal e independencia lineal (Gauss-Jordan).
+Implementado con funciones puras en Python estándar sin librerías externas.
+Tema de clase: vectores en ℝⁿ, combinación e independencia lineal (Sesiones 5 a 7).
+Elaborado por: Grupo x"""
 
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional

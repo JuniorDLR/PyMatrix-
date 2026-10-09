@@ -1,8 +1,7 @@
-"""
-Vista de vectores en ℝⁿ: operaciones básicas (suma, resta, escalar, producto punto),
-combinación lineal e independencia lineal, ambas resueltas por reducción a RREF.
-Elaborado por: Grupo x
-"""
+"""Vista de vectores en ℝⁿ: operaciones básicas, combinaciones lineales e independencia lineal.
+Resuelve pertenencia a subespacios e independencia mediante reducción de matrices a RREF.
+Tema de clase: álgebra vectorial en ℝⁿ y sistemas generadores (Sesiones 5 a 7).
+Elaborado por: Grupo x"""
 
 import random
 import math

@@ -118,7 +118,15 @@ def run_all_tests():
     assert p6.se_cumple, "Fallo en propiedad 6"
     print(f"✓ Propiedad matriz triangular verificada: {p6.formula}")
 
-    print("\n🎉 TODAS LAS PRUEBAS DE exact_math.py PASARON EXITOSAMENTE.")
+    # 10. Validación de modulos/modulo_matrices.py
+    import modulos.modulo_matrices as mm
+    assert mm.determinante([[1, 2], [3, 4]]) == -2, "Fallo en det modulos"
+    assert mm.producto_matricial([[1, 2]], [[3], [4]]) == [[11]], "Fallo en producto modulos"
+    props_mm = mm.verificar_propiedades([[1, 2], [3, 4]])
+    assert all(props_mm.values()), "Fallo en propiedades de modulos/modulo_matrices"
+    print("✓ Módulo independiente modulos/modulo_matrices.py validado con éxito.")
+
+    print("\n🎉 TODAS LAS PRUEBAS DE exact_math.py Y modulo_matrices.py PASARON EXITOSAMENTE.")
 
 
 if __name__ == "__main__":

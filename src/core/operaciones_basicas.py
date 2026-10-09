@@ -1,3 +1,8 @@
+"""Operaciones aritméticas entre matrices: suma, resta, producto escalar y multiplicación.
+Tema de clase: álgebra matricial y compatibilidad de dimensiones (Sesión 9).
+Las funciones de cálculo no usan input() ni print(); devuelven resultados numéricos y pasos.
+Elaborado por: Grupo x"""
+
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Union, Any
 from fractions import Fraction

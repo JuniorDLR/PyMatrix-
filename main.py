@@ -1,7 +1,7 @@
-"""
-Punto de entrada principal para PyMatrix.
-Lanza la interfaz gráfica de usuario.
-"""
+"""Punto de entrada principal para la Calculadora de Álgebra Lineal (PyMatrix).
+Inicializa y lanza la interfaz gráfica de usuario del sistema.
+Tema de clase: integración de módulos de álgebra lineal (sistemas, vectores y matrices).
+Elaborado por: Grupo x"""
 import sys
 import os
 

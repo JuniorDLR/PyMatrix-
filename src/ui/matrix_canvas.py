@@ -1,8 +1,7 @@
-"""
-Lienzo gráfico y controles de reproducción para ver paso a paso la eliminación gaussiana.
-Resalta pivotes, ceros creados y la "escalera" de la forma escalonada (REF/RREF) de Gauss/Gauss-Jordan.
-Elaborado por: Grupo x
-"""
+"""Lienzo gráfico y controles de reproducción para ver paso a paso la eliminación gaussiana.
+Resalta pivotes, ceros creados y la escalera de la forma escalonada (REF/RREF).
+Tema de clase: visualización de algoritmos de eliminación Gaussiana y Gauss-Jordan.
+Elaborado por: Grupo x"""
 import customtkinter as ctk
 import tkinter as tk
 from typing import List, Optional, Tuple, Callable
