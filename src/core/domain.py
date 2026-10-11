@@ -20,16 +20,26 @@ def a_subindice(num: int) -> str:
 
 
 def formatear_fraccion(valor: float, max_denom: int = 2000) -> str:
-    """Convierte un float a fracción irreducible en texto (0.5 -> '1/2', 3.0 -> '3').
+    """Convierte un float o Fraction a fracción irreducible en texto (0.5 -> '1/2', 3.0 -> '3').
 
     max_denom limita el denominador para evitar fracciones raras como 16667/10000.
     """
+    if isinstance(valor, Fraction):
+        if valor.denominator == 1:
+            return str(valor.numerator)
+        return f"{valor.numerator}/{valor.denominator}"
+    
+    try:
+        val_f = float(valor)
+    except (ValueError, TypeError):
+        return str(valor)
+
     # Tolerancia en vez de == 0: los float acumulan error de redondeo
-    if abs(valor) < 1e-10:
+    if abs(val_f) < 1e-10:
         return "0"
     
     # Redondear a 9 decimales para limpiar residuos infinitesimales de coma flotante
-    val_redondeado = round(valor, 9)
+    val_redondeado = round(val_f, 9)
     f = Fraction(val_redondeado).limit_denominator(max_denom)
     
     if f.denominator == 1:
@@ -38,14 +48,19 @@ def formatear_fraccion(valor: float, max_denom: int = 2000) -> str:
 
 
 def formatear_decimal(valor: float, max_decimales: int = 4) -> str:
-    """Convierte un float a decimal legible, redondeado a max_decimales y sin ceros sobrantes.
+    """Convierte un float o Fraction a decimal legible, redondeado a max_decimales y sin ceros sobrantes.
 
     Devuelve texto como '0.5', '1.3333' o '-2' (los enteros salen sin punto).
     """
-    if abs(valor) < 1e-10:
+    try:
+        val_f = float(valor)
+    except (ValueError, TypeError):
+        return str(valor)
+
+    if abs(val_f) < 1e-10:
         return "0"
     
-    val_redondeado = round(valor, max_decimales)
+    val_redondeado = round(val_f, max_decimales)
     if abs(val_redondeado - round(val_redondeado)) < 1e-10:
         return str(int(round(val_redondeado)))
     
