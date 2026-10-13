@@ -1845,8 +1845,9 @@ class MatrixOpsView(ctk.CTkFrame):
             from fractions import Fraction
             from src.core.exact_math import (
                 crear_matriz, inversa_gauss_jordan,
-                matriz_a_cadena, formatear_numero
+                matriz_a_cadena
             )
+            from src.core.domain import formatear_numero
             from src.core.determinantes_facade import calcular_determinante
 
             A_f = crear_matriz(A)
@@ -1896,7 +1897,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 
                 # Paso 4: Comparar
                 lineas += ["", "  PASO 4: Verificar igualdad"]
-                inv_detA = Fraction(1, detA)
+                inv_detA = Fraction(1) / Fraction(detA).limit_denominator(10**9)
                 lineas.append(f"  1 / det(A) = 1 / {formatear_numero(float(detA), modo)} = {formatear_numero(float(inv_detA), modo)}")
                 
                 son_iguales = (detA_inv == inv_detA)
@@ -1924,19 +1925,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 lineas.append("  (Triangulando la matriz original paso a paso)")
                 res_detA = calcular_determinante(A_f)
                 lineas += res_detA.pasos
-                
-                if res_detA.matriz_triangular:
-                    lineas += [
-                        "",
-                        "  Matriz Triangular Resultante (U):",
-                        fmt_mat_exact(res_detA.matriz_triangular),
-                        "",
-                        "  El determinante es el producto de su diagonal (ajustado por los intercambios de fila):"
-                    ]
-                    diag = [res_detA.matriz_triangular[i][i] for i in range(nA)]
-                    diag_str = " * ".join(formatear_numero(float(d), modo) for d in diag)
-                    lineas.append(f"  Diagonal: {diag_str}")
-                    
+
                 lineas += [
                     "",
                     f"  ✓ SE CUMPLE: det(A) = {formatear_numero(float(res_detA.determinante), modo)}",
