@@ -1778,6 +1778,51 @@ class MatrixOpsView(ctk.CTkFrame):
                     f"  {'✓ SE CUMPLE: (Aᵀ)⁻¹ es idéntica a (A⁻¹)ᵀ.' if son_iguales else '✗ NO SE CUMPLE (discrepancia numérica).'}",
                     "═" * 70,
                 ]
+            elif prop_id == "a_inv_I":
+                # Propiedad 2: A⁻¹ · A = I
+                lineas += ["", "  PROPIEDAD 2: Inversa y la Matriz Identidad   →   A⁻¹ · A = I", "─" * 70]
+
+                # Paso 1: Calcular A⁻¹ con procedimiento de reducción completo
+                lineas += ["", "  PASO 1: Calcular A⁻¹ por Gauss-Jordan sobre matriz aumentada [A | I]:"]
+                res_inv = inversa_gauss_jordan(A_f)
+                if not res_inv.es_invertible:
+                    lineas.append("  ❌ A no es invertible (det = 0). La propiedad A⁻¹ · A = I no aplica.")
+                    self._log_inv("\n".join(lineas), limpiar=False)
+                    return
+                # Agregar operaciones elementales de fila y estados intermedios con alineación limpia
+                pasos_reduccion = res_inv.pasos[1:-3] if len(res_inv.pasos) >= 4 else res_inv.pasos
+                for p in pasos_reduccion:
+                    for sub in p.strip().split("\n"):
+                        if sub.strip():
+                            lineas.append(f"  {sub.strip()}")
+                A_inv = res_inv.matriz_inversa
+                lineas += ["", f"  Matriz Inversa A⁻¹ obtenida:\n{fmt_mat_exact(A_inv)}"]
+
+                # Paso 2: Calcular el producto A⁻¹ · A entrada por entrada
+                lineas += ["", "  PASO 2: Calcular el producto  A⁻¹ · A entrada por entrada"]
+                lineas.append("  Regla: la entrada C[i,j] es (Fila i de A⁻¹) · (Columna j de A):")
+                n_local = len(A_f)
+                for i in range(n_local):
+                    for j in range(n_local):
+                        terminos = " + ".join(
+                            f"({formatear_numero(float(A_inv[i][k]), modo)})·({formatear_numero(float(A_f[k][j]), modo)})"
+                            for k in range(n_local)
+                        )
+                        valor = sum(A_inv[i][k] * A_f[k][j] for k in range(n_local))
+                        lineas.append(f"  C[{i+1},{j+1}] = {terminos} = {formatear_numero(float(valor), modo)}")
+
+                # Paso 3: Matriz resultante y verificación
+                prod = multiplicar_matrices(A_inv, A_f)
+                lineas += ["", "  PASO 3: Matriz Resultante C = A⁻¹ · A:"]
+                lineas.append(fmt_mat_exact(prod))
+
+                I_f = matriz_identidad(n_local)
+                es_id = son_matrices_iguales(prod, I_f)
+                lineas += [
+                    "",
+                    f"  {'✓ SE CUMPLE: A⁻¹ · A = I (Matriz Identidad).' if es_id else '✗ NO SE CUMPLE (error numérico inesperado).'}",
+                    "═" * 70,
+                ]
             self._log_inv("\n".join(lineas), limpiar=False)
 
         except Exception as ex:
@@ -2000,11 +2045,17 @@ class MatrixOpsView(ctk.CTkFrame):
         )
         self.btn_prop_inv_inv.grid(row=3, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
 
+        self.btn_prop_ainv_I = ctk.CTkButton(
+            op_frame, text="2. A⁻¹ · A = I", command=lambda: self._calc_propiedad_tarea5_inv("a_inv_I"),
+            font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
+        )
+        self.btn_prop_ainv_I.grid(row=4, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
+
         self.btn_prop_inv_tras = ctk.CTkButton(
             op_frame, text="3. (Aᵀ)⁻¹ = (A⁻¹)ᵀ", command=lambda: self._calc_propiedad_tarea5_inv("inv_tras"),
             font=ctk.CTkFont(size=11, weight="bold"), height=32, **color_t5
         )
-        self.btn_prop_inv_tras.grid(row=4, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
+        self.btn_prop_inv_tras.grid(row=5, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
 
         ctk.CTkLabel(
             left,
