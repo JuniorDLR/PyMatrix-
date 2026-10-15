@@ -1,62 +1,40 @@
-# PyMatrix 🔢
+# PyMatrix
 
-**PyMatrix** es una calculadora de álgebra lineal diseñada inicialmente para resolver sistemas de ecuaciones mediante el método de eliminación por filas (Gauss). Este proyecto está construido con un enfoque estricto en el uso de **Python estándar** para la lógica matemática, sin depender de bibliotecas externas como NumPy o SciPy, lo que lo hace perfecto con propósitos académicos y de aprendizaje de la lógica profunda detrás de las matrices.
+Calculadora gráfica de álgebra lineal en Python y CustomTkinter. El cálculo matemático usa funciones propias y, cuando se requiere exactitud, `fractions.Fraction`; no usa NumPy ni SciPy.
 
-> **Nota:** El proyecto está siendo desarrollado en fases. Este repositorio contiene actualmente la **Fase 1** (Eliminación de Gauss).
+## Iniciar
 
-## 🚀 Características (Fase 1)
+Se necesita Python 3.11 o posterior.
 
-*   **Interfaz Gráfica Moderna:** Construida con `customtkinter` para una experiencia fluida, elegante y en modo oscuro.
-*   **Entrada Dinámica:** Permite crear matrices de cualquier dimensión $m \times n$.
-*   **Eliminación de Gauss Paso a Paso:** 
-    *   Muestra la matriz aumentada inicial.
-    *   Captura e imprime cada operación de pivoteo y reducción a ceros debajo del pivote.
-*   **Clasificador Inteligente de Sistemas:**
-    *   **Solución Única:** (Consistente Determinado). Encuentra e imprime las variables.
-    *   **Infinitas Soluciones:** (Consistente Indeterminado). Identifica e indica las variables libres.
-    *   **Sin Solución:** (Inconsistente). Detecta absurdos matemáticos ($0 = k$).
-*   **Verificación Automática:** Módulo integrado que evalúa el resultado inyectándolo en las ecuaciones originales para comprobar posibles errores de punto flotante.
+```powershell
+python -m pip install -r requirements.txt
+python main.py
+```
 
-## 🛠️ Tecnologías Usadas
+`main.py` abre la interfaz gráfica; no hay menú de terminal.
 
-*   **Python 3** (Lógica base: Listas anidadas, recursividad simulada, Dataclasses).
-*   **CustomTkinter** (Framework de UI).
+## Herramientas
 
-## ⚙️ Instalación y Uso
+- Gauss y Gauss-Jordan con historial de operaciones y clasificación de sistemas.
+- Vectores y operaciones matriciales, incluyendo transpuesta, determinante e inversa.
+- Factorización `A = L·U` para matrices rectangulares sin intercambio de filas. La vista muestra cada multiplicador y comprueba `L·U = A`.
+- Resolución de `A·x = b` por LU para matrices cuadradas con pivotes no nulos: muestra `[L | b] → [I | y]`, `[U | y] → [I | x]` y verifica `A·x = b`.
+- Verificador de propiedades de operaciones, transposición, inversa y determinante que calcula ambos miembros y comunica si coinciden.
+- Banco compartido de matrices para reutilizar `L`, `U` u otras matrices guardadas.
 
-1.  Clona este repositorio:
-    ```bash
-    git clone https://github.com/JuniorDLR/PyMatrix-.git
-    cd PyMatrix-
-    ```
-2.  Instala Python 3.10 o posterior desde https://www.python.org/downloads/.
-    Durante la instalación, activa la casilla **Add python.exe to PATH**.
-3.  Abre una terminal nueva en la carpeta del proyecto y comprueba la instalación:
-    ```powershell
-    py --version
-    ```
-    Si `py` no está disponible, usa `python --version`.
-4.  Instala la dependencia de interfaz gráfica (`customtkinter`, no “custom thinker”):
-    ```bash
-    py -m pip install -r requirements.txt
-    ```
-    Alternativamente:
-    ```bash
-    python -m pip install customtkinter
-    ```
-5.  Ejecuta el programa:
-    ```bash
-    python main.py
-    ```
-    En Windows también puedes usar: `py main.py`.
-    *(o también: `py "Programa 1_Grupox.py"`)*
+En las vistas LU y Teoremas se pueden pegar matrices libres: filas separadas por Enter o `;`; columnas separadas por espacios, tabuladores o comas. Se aceptan enteros, decimales y fracciones como `3/4`. La vista LU obtiene las dimensiones de `A` automáticamente. Un pivote que exige intercambio de filas se comunica como necesidad de `P·A = L·U`; la calculadora no presenta una factorización LU inválida.
 
-## 📂 Arquitectura del Código
+Los paneles de entrada y resultado tienen desplazamiento independiente para pantallas pequeñas. El selector global permite mostrar resultados como fracciones o decimales sin perder los valores exactos calculados.
 
-*   `main.py` / `Programa 1_Grupox.py`: Puntos de entrada principales de la aplicación.
-*   `src/core/domain.py`: Definición de tipos inmutables (`dataclasses`) y tipos de retorno usando _Union Types_.
-*   `src/core/gauss.py`: Algoritmo matemático estricto.
-*   `src/ui/app.py`: Ventana principal y renderizado dinámico de la interfaz.
+## Estructura
 
----
-*Desarrollado como Proyecto Integrador de Álgebra Lineal.*
+- `src/core/`: funciones matemáticas puras, incluyendo `lu.py` y `teoremas_matrices.py`.
+- `src/ui/`: interfaz CustomTkinter, navegación, vistas y lector de matrices pegadas.
+- `modulos/modulo_lu.py` y `teoremas/verificador_matrices.py`: accesos compatibles con la estructura de entrega de la Tarea 6; reutilizan el mismo núcleo matemático.
+- `tests/`: pruebas de operaciones, propiedades, LU, entradas y rutas de error.
+
+Para verificar el proyecto:
+
+```powershell
+python -m pytest tests/ -q
+```

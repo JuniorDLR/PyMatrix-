@@ -12,6 +12,8 @@ from src.core.gauss import resolver_gauss, resolver_gauss_jordan, copiar_matriz,
 from src.core.domain import formatear_numero, formatear_fraccion, a_subindice
 from src.ui.vectors_view import VectorsView
 from src.ui.matrix_ops_view import MatrixOpsView
+from src.ui.lu_view import LUView
+from src.ui.teoremas_view import TeoremasView
 
 class App(ctk.CTk):
     """
@@ -24,8 +26,13 @@ class App(ctk.CTk):
 
         # Configuración de ventana
         self.title("PyMatrix - Calculadora de Álgebra Lineal")
-        self.geometry("1100x700")
-        self.minsize(900, 600)
+        escala = self._get_window_scaling()
+        ancho_pantalla = max(self.winfo_vrootwidth(), int(self.winfo_screenwidth() * escala))
+        alto_pantalla = max(self.winfo_vrootheight(), int(self.winfo_screenheight() * escala))
+        ancho_ventana = min(1100, max(1, int((ancho_pantalla - 80) / escala)))
+        alto_ventana = min(700, max(1, int((alto_pantalla - 120) / escala)))
+        self.geometry(f"{ancho_ventana}x{alto_ventana}")
+        self.minsize(min(850, ancho_ventana), min(500, alto_ventana))
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
         
@@ -47,21 +54,27 @@ class App(ctk.CTk):
         # ================= SIDEBAR =================
         self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=("#1f2937", "#0f172a"))
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(6, weight=1) # Empuja configuraciones abajo
+        self.sidebar.grid_columnconfigure(0, weight=1)
+        self.sidebar.grid_rowconfigure(1, weight=1)
 
         # Logo
         logo_label = ctk.CTkLabel(self.sidebar, text="PyMatrix 🧮", font=ctk.CTkFont(size=20, weight="bold"), text_color="#38bdf8")
         logo_label.grid(row=0, column=0, padx=20, pady=(20, 30))
 
         # Botones de navegación
-        self._nav_btns["inicio"] = self._create_sidebar_btn("🏠 Inicio", "inicio", 1)
-        self._nav_btns["gauss"] = self._create_sidebar_btn("📐 Gauss / Jordan", "gauss", 2)
-        self._nav_btns["vectores"] = self._create_sidebar_btn("🚀 Vectores en ℝⁿ", "vectores", 3)
-        self._nav_btns["matrices"] = self._create_sidebar_btn("🧮 Matrices", "matrices", 4)
+        self.nav_scroll = ctk.CTkScrollableFrame(self.sidebar, width=175, fg_color="transparent")
+        self.nav_scroll.grid(row=1, column=0, sticky="nsew", padx=5)
+        self.nav_scroll.grid_columnconfigure(0, weight=1)
+        self._nav_btns["inicio"] = self._create_sidebar_btn("🏠 Inicio", "inicio", 0)
+        self._nav_btns["gauss"] = self._create_sidebar_btn("📐 Gauss / Jordan", "gauss", 1)
+        self._nav_btns["vectores"] = self._create_sidebar_btn("🚀 Vectores en ℝⁿ", "vectores", 2)
+        self._nav_btns["matrices"] = self._create_sidebar_btn("🧮 Matrices", "matrices", 3)
+        self._nav_btns["lu"] = self._create_sidebar_btn("🔷 Factorización LU", "lu", 4)
+        self._nav_btns["teoremas"] = self._create_sidebar_btn("🔬 Teoremas", "teoremas", 5)
 
         # Configuraciones (Abajo)
         config_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        config_frame.grid(row=7, column=0, padx=20, pady=(0, 20), sticky="ew")
+        config_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
         
         ctk.CTkLabel(config_frame, text="Formato:", font=ctk.CTkFont(size=12)).pack(anchor="w")
         self.fmt_seg = ctk.CTkSegmentedButton(
@@ -107,9 +120,23 @@ class App(ctk.CTk):
         self.matrices_view = MatrixOpsView(self.matrices_panel, lambda: self._modo_numero)
         self.matrices_view.grid(row=0, column=0, sticky="nsew")
 
+        self.lu_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.lu_panel.grid_rowconfigure(0, weight=1)
+        self.lu_panel.grid_columnconfigure(0, weight=1)
+        self.lu_view = LUView(self.lu_panel, lambda: self._modo_numero, self.matrices_view.banco_matrices)
+        self.lu_view.grid(row=0, column=0, sticky="nsew")
+
+        self.teoremas_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.teoremas_panel.grid_rowconfigure(0, weight=1)
+        self.teoremas_panel.grid_columnconfigure(0, weight=1)
+        self.teoremas_view = TeoremasView(
+            self.teoremas_panel, lambda: self._modo_numero, self.matrices_view.banco_matrices
+        )
+        self.teoremas_view.grid(row=0, column=0, sticky="nsew")
+
     def _create_sidebar_btn(self, text: str, modulo: str, row: int) -> ctk.CTkButton:
         btn = ctk.CTkButton(
-            self.sidebar, 
+            self.nav_scroll,
             text=text,
             anchor="w",
             font=ctk.CTkFont(size=14, weight="bold"),
@@ -130,18 +157,47 @@ class App(ctk.CTk):
         sub.pack(pady=(0, 30))
 
         cards_frame = ctk.CTkFrame(self.inicio_panel, fg_color="transparent")
-        cards_frame.pack(expand=True)
+        cards_frame.pack(expand=True, pady=(0, 40))
         cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="card_col")
-        cards_frame.grid_rowconfigure((0, 1), weight=1, uniform="card_row")
+        cards_frame.grid_rowconfigure((0, 1, 2), weight=1, uniform="card_row")
 
-        self._create_card(cards_frame, 0, 0, "📐 Sistemas Gauss/Jordan", "Resuelve sistemas lineales Ax=b mostrando el proceso de eliminación paso a paso.", "gauss", "#1d4ed8")
-        self._create_card(cards_frame, 0, 1, "🧮 Álgebra de Matrices", "Operaciones básicas (suma, resta, producto), transposición, determinantes e inversas.", "matrices", "#7c3aed")
-        self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488")
-        self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprobación de teoremas e identidades algebraicas de las Sesiones 10 y 11.", "matrices", "#b45309")
+        self.dashboard_cards = [
+            self._create_card(cards_frame, 0, 0, "📐 Sistemas Gauss/Jordan", "Resuelve sistemas lineales Ax=b mostrando el proceso de eliminación paso a paso.", "gauss", "#1d4ed8"),
+            self._create_card(cards_frame, 0, 1, "🧮 Álgebra de Matrices", "Operaciones básicas (suma, resta, producto), transposición, determinantes e inversas.", "matrices", "#7c3aed"),
+            self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488"),
+            self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprueba ambos miembros de las igualdades de operaciones, inversas y determinantes.", "teoremas", "#b45309"),
+            self._create_card(cards_frame, 2, 0, "🔷 Factorización LU", "Obtén L y U, verifica L·U=A y resuelve Ax=b con doble sustitución.", "lu", "#0891b2"),
+        ]
+        self._dashboard_columnas = 2
+        self.inicio_panel.bind("<Configure>", self._reorganizar_dashboard, add="+")
+        for widget in (header, sub, cards_frame):
+            self._enlazar_scroll_dashboard(widget)
+
+    def _enlazar_scroll_dashboard(self, widget):
+        """Enlaza solo hojas Tk para evitar eventos duplicados en controles CTk."""
+
+        hijos = widget.winfo_children()
+        if hijos:
+            for hijo in hijos:
+                self._enlazar_scroll_dashboard(hijo)
+            return
+        for secuencia in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            widget.bind(secuencia, self._scroll_dashboard, add="+")
+
+    def _scroll_dashboard(self, event):
+        """Dirige la rueda al canvas interno del inicio, incluso sobre tarjetas."""
+
+        if event.num in (4, 5):
+            pasos = -3 if event.num == 4 else 3
+        else:
+            delta = getattr(event, "delta", 0)
+            pasos = (-1 if delta > 0 else 1) * max(1, abs(delta) // 120) * 3
+        self.inicio_panel._parent_canvas.yview_scroll(pasos, "units")
+        return "break"
 
     def _create_card(self, parent, row, col, title, desc, target_module, color):
         card = ctk.CTkFrame(parent, corner_radius=12, fg_color=("#ffffff", "#1e293b"), width=340, height=175)
-        card.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
+        card.grid(row=row, column=col, padx=15, pady=15)
         card.pack_propagate(False)
         card.grid_propagate(False)
         
@@ -151,6 +207,17 @@ class App(ctk.CTk):
         
         btn = ctk.CTkButton(card, text="Abrir", fg_color=color, hover_color=color, width=95, height=32, font=ctk.CTkFont(size=12, weight="bold"), command=lambda m=target_module: self._show_module(m))
         btn.pack(side="bottom", pady=16, padx=16, anchor="e")
+        return card
+
+    def _reorganizar_dashboard(self, event):
+        """Pasa las tarjetas a una columna si dos excederían el ancho visible."""
+
+        columnas = 2 if event.width >= int(740 * self._get_window_scaling()) else 1
+        if columnas == self._dashboard_columnas:
+            return
+        self._dashboard_columnas = columnas
+        for indice, tarjeta in enumerate(self.dashboard_cards):
+            tarjeta.grid(row=indice // columnas, column=indice % columnas, sticky="")
 
     def _show_module(self, modulo: str):
         self._modulo_activo = modulo
@@ -167,6 +234,8 @@ class App(ctk.CTk):
         self.gauss_panel.grid_forget()
         self.vectores_panel.grid_forget()
         self.matrices_panel.grid_forget()
+        self.lu_panel.grid_forget()
+        self.teoremas_panel.grid_forget()
 
         # Mostrar activo
         if modulo == "inicio":
@@ -179,6 +248,14 @@ class App(ctk.CTk):
         elif modulo == "matrices":
             self.matrices_panel.grid(row=0, column=0, sticky="nsew")
             self.matrices_view.refresh_format()
+        elif modulo == "lu":
+            self.lu_panel.grid(row=0, column=0, sticky="nsew")
+            self.lu_view.actualizar_banco()
+            self.lu_view.refresh_format()
+        elif modulo == "teoremas":
+            self.teoremas_panel.grid(row=0, column=0, sticky="nsew")
+            self.teoremas_view.actualizar_banco()
+            self.teoremas_view.refresh_format()
 
     def _change_number_format(self, mode_str: str):
         self._modo_numero = "decimal" if mode_str == "Decimal" else "fraccion"
@@ -186,6 +263,10 @@ class App(ctk.CTk):
             self.vectores_view.refresh_format()
         if hasattr(self, 'matrices_view'):
             self.matrices_view.refresh_format()
+        if hasattr(self, 'lu_view'):
+            self.lu_view.refresh_format()
+        if hasattr(self, 'teoremas_view'):
+            self.teoremas_view.refresh_format()
 
     def _change_theme(self, mode: str):
         ctk.set_appearance_mode(mode)

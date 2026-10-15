@@ -718,7 +718,7 @@ class MatrixOpsView(ctk.CTkFrame):
         ctk.CTkLabel(header, text="", width=30).pack(side="left")
         for j in range(n):
             ctk.CTkLabel(
-                header, text=f"Col {j+1}", width=52,
+                header, text=f"Col {a_subindice(j+1)}", width=52,
                 font=ctk.CTkFont(size=10, weight="bold"), text_color=("gray50", "gray60")
             ).pack(side="left", padx=2)
 
@@ -2370,12 +2370,12 @@ class MatrixOpsView(ctk.CTkFrame):
 
         m = len(matriz[0])
         for j in range(m):
-            ctk.CTkLabel(grid_frame, text=f"Col {j+1}", width=60,
+            ctk.CTkLabel(grid_frame, text=f"Col {a_subindice(j+1)}", width=60,
                          font=ctk.CTkFont(size=10, weight="bold"),
                          text_color=("gray50", "gray60")).grid(row=0, column=j+1, padx=2)
 
         for i, fila in enumerate(matriz):
-            ctk.CTkLabel(grid_frame, text=f"F{i+1}", width=28,
+            ctk.CTkLabel(grid_frame, text=f"F{a_subindice(i+1)}", width=28,
                          font=ctk.CTkFont(size=10)).grid(row=i+1, column=0)
             for j, val in enumerate(fila):
                 ctk.CTkLabel(
