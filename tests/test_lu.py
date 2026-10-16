@@ -72,9 +72,51 @@ def test_fracciones_exactas_en_factores_y_solucion():
     assert solucion.es_correcta
 
 
-def test_pivote_nulo_que_requiere_intercambio_se_rechaza():
-    with pytest.raises(ValueError, match="requiere pivoteo parcial"):
-        factorizar_lu([[0, 1], [1, 1]])
+def test_pivote_nulo_inicial_intercambia_filas_y_resuelve_sistema():
+    matriz_a = [[0, 2, 1], [1, 1, 0], [2, 3, 1]]
+    factores = factorizar_lu(matriz_a)
+    solucion = resolver_sistema_lu(factores, [7, 3, 11])
+
+    assert factores.matriz_p == [[0, 1, 0], [1, 0, 0], [0, 0, 1]]
+    assert factores.matriz_l == [[1, 0, 0], [0, 1, 0], [2, Fraction(1, 2), 1]]
+    assert factores.matriz_u == [[1, 1, 0], [0, 2, 1], [0, 0, Fraction(1, 2)]]
+    assert factores.producto_pa == factores.producto_lu
+    assert factores.es_correcta
+    assert any("F1 ↔ F2" in paso.descripcion for paso in factores.pasos)
+    assert solucion.vector_pb == [3, 7, 11]
+    assert solucion.vector_y == [3, 7, Fraction(3, 2)]
+    assert solucion.vector_x == [1, 2, 3]
+    assert solucion.producto_ax == solucion.vector_b
+    assert solucion.es_correcta
+
+
+def test_pivote_nulo_despues_de_eliminar_reordena_multiplicadores_previos():
+    factores = factorizar_lu([[1, 1, 0], [2, 2, 1], [0, 3, 1]])
+    solucion = resolver_sistema_lu(factores, [3, 9, 6])
+
+    assert factores.matriz_p == [[1, 0, 0], [0, 0, 1], [0, 1, 0]]
+    assert factores.matriz_l == [[1, 0, 0], [0, 1, 0], [2, 0, 1]]
+    assert factores.producto_pa == factores.producto_lu
+    assert solucion.vector_pb == [3, 6, 9]
+    assert solucion.vector_x == [2, 1, 3]
+    assert solucion.es_correcta
+
+
+def test_dos_intercambios_y_columna_sin_pivote():
+    factores = factorizar_lu([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+    solucion = resolver_sistema_lu(factores, [3, 5, 2])
+
+    assert sum("↔" in paso.descripcion for paso in factores.pasos) == 2
+    assert factores.matriz_u == [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    assert factores.producto_pa == factores.producto_lu
+    assert solucion.vector_pb == [2, 3, 5]
+    assert solucion.vector_x == [2, 3, 5]
+    assert solucion.es_correcta
+
+    rectangular = factorizar_lu([[0, 0, 1], [0, 1, 2]])
+    assert rectangular.producto_pa == rectangular.producto_lu
+    assert rectangular.matriz_p == [[0, 1], [1, 0]]
+    assert any("sin pivote" in paso.descripcion for paso in rectangular.pasos)
 
 
 def test_matriz_singular_con_lu_no_promete_solucion_unica():

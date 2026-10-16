@@ -6,7 +6,7 @@ from typing import Any
 import customtkinter as ctk
 
 from src.core.domain import formatear_numero, a_subindice
-from src.core.exact_math import MatrizF, parsear_fraccion
+from src.core.exact_math import MatrizF, matriz_identidad, parsear_fraccion
 from modulos.modulo_lu import ResultadoLU, ResultadoSistemaLU, factorizar_lu, resolver_sistema_lu
 
 
@@ -104,7 +104,7 @@ class LUView(ctk.CTkFrame):
             fill="x", padx=12, pady=3
         )
         ctk.CTkLabel(
-            entrada, text="LU sin intercambios. Si se requiere pivotar, se informa y se detiene el cálculo.",
+            entrada, text="Si un pivote es cero, se intercambian filas y se verifica P·A = L·U.",
             wraplength=310, justify="left", text_color=("gray35", "gray75"),
         ).pack(anchor="w", padx=14, pady=(8, 8))
         guardar = ctk.CTkFrame(entrada, fg_color="transparent")
@@ -272,7 +272,7 @@ class LUView(ctk.CTkFrame):
         if self._resultado_lu.es_correcta:
             self._cambiar_guardado("normal")
         else:
-            self._aviso = "Falló la comprobación exacta L·U = A; los factores no se guardarán."
+            self._aviso = "Falló la comprobación exacta L·U = P·A; los factores no se guardarán."
         self._mostrar_resultado()
 
     def _resolver(self) -> None:
@@ -379,24 +379,40 @@ class LUView(ctk.CTkFrame):
         if factores is None:
             return
         m, n = len(factores.matriz_a), len(factores.matriz_a[0])
+        hay_permutacion = factores.matriz_p != matriz_identidad(m)
         lineas = [f"FACTORIZACIÓN LU · A de {m}×{n}", "=" * 42,
                   "A =", self._formatear_matriz(factores.matriz_a), "",
-                  "PASO 1 · Reducción de filas", "Sin permutaciones"]
+                  "PASO 1 · Reducción de filas",
+                  "Con intercambio de filas: P·A = L·U" if hay_permutacion else "Sin permutaciones: A = L·U"]
         for numero, paso in enumerate(factores.pasos, start=1):
-            lineas.extend(["", f"{numero}. {paso.descripcion}",
-                           "L =", self._formatear_matriz(paso.matriz_l),
+            lineas.extend(["", f"{numero}. {paso.descripcion}"])
+            if hay_permutacion:
+                lineas.extend(["P =", self._formatear_matriz(paso.matriz_p)])
+            lineas.extend(["L =", self._formatear_matriz(paso.matriz_l),
                            "U =", self._formatear_matriz(paso.matriz_u)])
-        lineas.extend(["", "PASO 2 · Comprobación L·U = A",
-                       "L·U =", self._formatear_matriz(factores.producto_lu),
-                       "✓ Se cumple: L·U = A." if factores.es_correcta else "✗ No se cumple: L·U ≠ A."])
+        lineas.append("")
+        if hay_permutacion:
+            lineas.extend(["PASO 2 · Comprobación P·A = L·U",
+                           "P·A =", self._formatear_matriz(factores.producto_pa)])
+        else:
+            lineas.append("PASO 2 · Comprobación A = L·U")
+        lineas.extend(["L·U =", self._formatear_matriz(factores.producto_lu),
+                       f"{'✓ Se cumple' if factores.es_correcta else '✗ No se cumple'}: "
+                       f"{'P·A' if hay_permutacion else 'A'} "
+                       f"{'=' if factores.es_correcta else '≠'} L·U."])
 
         sistema = self._resultado_sistema
         if sistema is not None:
-            lineas.extend(["", "=" * 42, "PASO 3 · Sustitución hacia adelante: L·y = b",
+            lineas.extend(["", "=" * 42,
+                           "PASO 3 · Sustitución hacia adelante: L·y = P·b" if hay_permutacion
+                           else "PASO 3 · Sustitución hacia adelante: L·y = b",
                            "L =", self._formatear_matriz(factores.matriz_l),
                            "b =", self._formatear_vector(sistema.vector_b)])
+            if hay_permutacion:
+                lineas.extend(["P·b (mismo intercambio de filas) =",
+                               self._formatear_vector(sistema.vector_pb)])
             lineas.extend(self._lineas_sustitucion(
-                factores.matriz_l, sistema.vector_b, sistema.vector_y, "y", hacia_atras=False
+                factores.matriz_l, sistema.vector_pb, sistema.vector_y, "y", hacia_atras=False
             ))
             lineas.extend(["", "Vector intermedio y =", self._formatear_vector(sistema.vector_y),
                            "", "PASO 4 · Sustitución hacia atrás: U·x = y",

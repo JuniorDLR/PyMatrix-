@@ -20,20 +20,23 @@ from src.core.exact_math import (
 
 @dataclass(frozen=True)
 class PasoFactorizacionLU:
-    """Guarda una operación elemental y los estados correspondientes de L y U."""
+    """Guarda una operación elemental y los estados de P, L y U."""
 
     descripcion: str
+    matriz_p: MatrizF
     matriz_l: MatrizF
     matriz_u: MatrizF
 
 
 @dataclass(frozen=True)
 class ResultadoLU:
-    """Contiene los factores exactos, su producto y la reducción documentada."""
+    """Contiene la permutación, los factores exactos y su comprobación."""
 
     matriz_a: MatrizF
+    matriz_p: MatrizF
     matriz_l: MatrizF
     matriz_u: MatrizF
+    producto_pa: MatrizF
     producto_lu: MatrizF
     es_correcta: bool
     pasos: list[PasoFactorizacionLU]
@@ -53,6 +56,7 @@ class ResultadoSistemaLU:
 
     factores: ResultadoLU
     vector_b: list[Fraction]
+    vector_pb: list[Fraction]
     vector_y: list[Fraction]
     vector_x: list[Fraction]
     producto_ax: list[Fraction]
@@ -62,34 +66,56 @@ class ResultadoSistemaLU:
 
 
 def factorizar_lu(datos: list[list[Any]]) -> ResultadoLU:
-    """Obtiene A=L·U sin intercambios para A de m×n y registra cada reemplazo."""
+    """Obtiene P·A=L·U para A de m×n y registra intercambios y reemplazos."""
 
-    # Convierte cada entrada a fracción exacta y prepara L=I, U=A.
+    # Convierte las entradas a fracciones exactas y prepara P=L=I, U=A.
     matriz_a = crear_matriz(datos)
     m, n = len(matriz_a), len(matriz_a[0])
+    matriz_p = matriz_identidad(m)
     matriz_l = matriz_identidad(m)
     matriz_u = [fila[:] for fila in matriz_a]
-    pasos = [PasoFactorizacionLU("Matriz inicial A; L = Iₘ y U = A.",
-                                  [fila[:] for fila in matriz_l], [fila[:] for fila in matriz_u])]
+    pasos: list[PasoFactorizacionLU] = []
+
+    def registrar_paso(descripcion: str) -> None:
+        pasos.append(PasoFactorizacionLU(
+            descripcion,
+            [fila[:] for fila in matriz_p],
+            [fila[:] for fila in matriz_l],
+            [fila[:] for fila in matriz_u],
+        ))
+
+    registrar_paso("Matriz inicial A; P = Iₘ, L = Iₘ y U = A.")
     fila_pivote = 0
 
-    # Recorre las columnas buscando pivotes y elimina los valores debajo de cada uno.
+    # Busca un pivote no nulo; los intercambios se registran también en P y en L ya calculada.
     for columna in range(n):
         if fila_pivote == m:
             break
         pivote = matriz_u[fila_pivote][columna]
         if pivote == 0:
-            if any(matriz_u[fila][columna] != 0 for fila in range(fila_pivote + 1, m)):
-                raise ValueError(
-                    "La matriz no admite Factorización LU sin permutación "
-                    "(requiere pivoteo parcial P·A = L·U). "
-                    f"Pivote nulo en fila {fila_pivote + 1}, columna {columna + 1}."
+            fila_intercambio = next(
+                (fila for fila in range(fila_pivote + 1, m) if matriz_u[fila][columna] != 0),
+                None,
+            )
+            if fila_intercambio is None:
+                registrar_paso(f"Columna {columna + 1} sin pivote: se continúa con la siguiente columna.")
+                continue
+            matriz_u[fila_pivote], matriz_u[fila_intercambio] = (
+                matriz_u[fila_intercambio], matriz_u[fila_pivote]
+            )
+            matriz_p[fila_pivote], matriz_p[fila_intercambio] = (
+                matriz_p[fila_intercambio], matriz_p[fila_pivote]
+            )
+            for j in range(fila_pivote):
+                matriz_l[fila_pivote][j], matriz_l[fila_intercambio][j] = (
+                    matriz_l[fila_intercambio][j], matriz_l[fila_pivote][j]
                 )
-            pasos.append(PasoFactorizacionLU(
-                f"Columna {columna + 1} sin pivote: se continúa con la siguiente columna.",
-                [r[:] for r in matriz_l], [r[:] for r in matriz_u],
-            ))
-            continue
+            registrar_paso(
+                f"Pivote nulo en columna {columna + 1}: "
+                f"F{fila_pivote + 1} ↔ F{fila_intercambio + 1}; "
+                "se intercambian las mismas filas en P y los multiplicadores previos de L."
+            )
+            pivote = matriz_u[fila_pivote][columna]
 
         # Guarda cada multiplicador en L y aplica el reemplazo de fila en U.
         for fila in range(fila_pivote + 1, m):
@@ -100,24 +126,23 @@ def factorizar_lu(datos: list[list[Any]]) -> ResultadoLU:
             matriz_l[fila][fila_pivote] = multiplicador
             for j in range(columna, n):
                 matriz_u[fila][j] -= multiplicador * matriz_u[fila_pivote][j]
-            pasos.append(PasoFactorizacionLU(
+            registrar_paso(
                 f"F{fila + 1} ← F{fila + 1} − ({multiplicador})·F{fila_pivote + 1}; "
-                f"L[{fila + 1},{fila_pivote + 1}] = {multiplicador}.",
-                [r[:] for r in matriz_l],
-                [r[:] for r in matriz_u],
-            ))
+                f"L[{fila + 1},{fila_pivote + 1}] = {multiplicador}."
+            )
         fila_pivote += 1
 
-    # Comprueba exactamente que los factores reconstruyan la matriz original.
+    # Comprueba exactamente que los factores reconstruyan A con sus filas permutadas.
+    producto_pa = multiplicar_matrices(matriz_p, matriz_a)
     producto_lu = multiplicar_matrices(matriz_l, matriz_u)
     return ResultadoLU(
-        matriz_a, matriz_l, matriz_u, producto_lu,
-        son_matrices_iguales(producto_lu, matriz_a), pasos,
+        matriz_a, matriz_p, matriz_l, matriz_u, producto_pa, producto_lu,
+        son_matrices_iguales(producto_lu, producto_pa), pasos,
     )
 
 
 def resolver_sistema_lu(factores: ResultadoLU, datos_b: list[Any]) -> ResultadoSistemaLU:
-    """Resuelve A·x=b con factores LU cuadrados, mediante [L|b] y [U|y]."""
+    """Resuelve A·x=b mediante L·y=P·b y U·x=y con factores cuadrados."""
 
     # Verifica que LU sea aplicable y que A tenga solución única por este método.
     matriz_a, matriz_l, matriz_u = factores.matriz_a, factores.matriz_l, factores.matriz_u
@@ -125,24 +150,27 @@ def resolver_sistema_lu(factores: ResultadoLU, datos_b: list[Any]) -> ResultadoS
     if len(matriz_a[0]) != n:
         raise ValueError("La resolución por sustitución LU requiere una matriz A cuadrada.")
     if not factores.es_correcta:
-        raise ValueError("No se puede resolver: la verificación L·U = A falló.")
+        raise ValueError("No se puede resolver: la verificación L·U = P·A falló.")
     if len(datos_b) != n:
         raise ValueError(f"El vector b debe contener {n} componentes; recibió {len(datos_b)}.")
     vector_b = [parsear_fraccion(valor) for valor in datos_b]
     if any(matriz_u[i][i] == 0 for i in range(n)):
         raise ValueError("U tiene un pivote diagonal nulo: A no tiene solución única por LU.")
+    vector_pb = [fila[0] for fila in multiplicar_matrices(
+        factores.matriz_p, [[valor] for valor in vector_b]
+    )]
 
-    # Resuelve L·y=b desde la primera fila hacia abajo y registra cada estado.
-    aumentada_l = [matriz_l[i][:] + [vector_b[i]] for i in range(n)]
-    pasos_adelante = [PasoSistemaLU("Inicio de [L | b].", [r[:] for r in aumentada_l])]
+    # Resuelve L·y=P·b desde la primera fila hacia abajo y registra cada estado.
+    aumentada_l = [matriz_l[i][:] + [vector_pb[i]] for i in range(n)]
+    pasos_adelante = [PasoSistemaLU("Inicio de [L | P·b].", [r[:] for r in aumentada_l])]
     vector_y: list[Fraction] = []
     for i in range(n):
         suma = sum((matriz_l[i][j] * vector_y[j] for j in range(i)), Fraction(0))
-        valor_y = (vector_b[i] - suma) / matriz_l[i][i]
+        valor_y = (vector_pb[i] - suma) / matriz_l[i][i]
         vector_y.append(valor_y)
         pasos_adelante.append(PasoSistemaLU(
-            f"y{i + 1} = (b{i + 1} − Σ L[{i + 1},j]·yj) / L[{i + 1},{i + 1}] "
-            f"= ({vector_b[i]} − {suma}) / {matriz_l[i][i]} = {valor_y}.",
+            f"y{i + 1} = ((P·b){i + 1} − Σ L[{i + 1},j]·yj) / L[{i + 1},{i + 1}] "
+            f"= ({vector_pb[i]} − {suma}) / {matriz_l[i][i]} = {valor_y}.",
             [r[:] for r in aumentada_l],
         ))
         for fila in range(i + 1, n):
@@ -189,6 +217,6 @@ def resolver_sistema_lu(factores: ResultadoLU, datos_b: list[Any]) -> ResultadoS
     producto_ax_matriz = multiplicar_matrices(matriz_a, [[valor] for valor in vector_x])
     producto_ax = [fila[0] for fila in producto_ax_matriz]
     return ResultadoSistemaLU(
-        factores, vector_b, vector_y, vector_x, producto_ax,
+        factores, vector_b, vector_pb, vector_y, vector_x, producto_ax,
         producto_ax == vector_b, pasos_adelante, pasos_atras,
     )
