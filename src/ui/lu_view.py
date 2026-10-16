@@ -328,20 +328,49 @@ class LUView(ctk.CTkFrame):
         return "\n".join("[ " + "  ".join(valor.rjust(anchos[j]) for j, valor in enumerate(fila)) + " ]"
                          for fila in textos)
 
-    def _formatear_aumentada(self, matriz: MatrizF) -> str:
-        """Coloca una barra antes del término independiente en cada fila."""
-
-        modo = self.get_modo_numero()
-        return "\n".join(
-            "[ " + "  ".join(formatear_numero(valor, modo) for valor in fila[:-1])
-            + " | " + formatear_numero(fila[-1], modo) + " ]"
-            for fila in matriz
-        )
-
     def _formatear_vector(self, vector: list[Fraction]) -> str:
         """Formatea un vector columna según el modo numérico global."""
 
         return self._formatear_matriz([[valor] for valor in vector])
+
+    def _lineas_sustitucion(
+        self,
+        matriz: MatrizF,
+        derecha: list[Fraction],
+        resultados: list[Fraction],
+        variable: str,
+        hacia_atras: bool,
+    ) -> list[str]:
+        """Explica cada incógnita usando solo los valores ya calculados."""
+
+        modo = self.get_modo_numero()
+        n = len(resultados)
+        lineas: list[str] = []
+        filas = range(n - 1, -1, -1) if hacia_atras else range(n)
+        for i in filas:
+            columnas = range(i, n) if hacia_atras else range(i + 1)
+            conocidas = range(i + 1, n) if hacia_atras else range(i)
+            ecuacion = " + ".join(
+                f"({formatear_numero(matriz[i][j], modo)})·{variable}{a_subindice(j + 1)}"
+                for j in columnas if matriz[i][j] != 0
+            )
+            sustituidos = [
+                f"({formatear_numero(matriz[i][j], modo)})·({formatear_numero(resultados[j], modo)})"
+                for j in conocidas if matriz[i][j] != 0
+            ]
+            suma = sum((matriz[i][j] * resultados[j] for j in conocidas), Fraction(0))
+            lado_derecho = formatear_numero(derecha[i], modo)
+            suma_texto = formatear_numero(suma, modo)
+            diagonal = formatear_numero(matriz[i][i], modo)
+            valor = formatear_numero(resultados[i], modo)
+            lineas.extend([
+                "",
+                f"  Fila {i + 1}: {ecuacion} = {lado_derecho}",
+                f"  Valores ya obtenidos: {' + '.join(sustituidos)} = {suma_texto}"
+                if sustituidos else "  Aún no hay incógnitas resueltas; la suma conocida es 0.",
+                f"  {variable}{a_subindice(i + 1)} = ({lado_derecho} - {suma_texto}) / ({diagonal}) = {valor}",
+            ])
+        return lineas
 
     def _mostrar_resultado(self) -> None:
         """Reconstruye la salida completa desde los resultados exactos almacenados."""
@@ -363,18 +392,43 @@ class LUView(ctk.CTkFrame):
 
         sistema = self._resultado_sistema
         if sistema is not None:
-            lineas.extend(["", "=" * 42, "PASO 3 · Sustitución hacia adelante", "[L | b] → [I | y]",
+            lineas.extend(["", "=" * 42, "PASO 3 · Sustitución hacia adelante: L·y = b",
+                           "L =", self._formatear_matriz(factores.matriz_l),
                            "b =", self._formatear_vector(sistema.vector_b)])
-            for paso in sistema.pasos_adelante:
-                lineas.extend(["", paso.descripcion, self._formatear_aumentada(paso.matriz_aumentada)])
-            lineas.extend(["", "y =", self._formatear_vector(sistema.vector_y),
-                           "", "PASO 4 · Sustitución hacia atrás", "[U | y] → [I | x]"])
-            for paso in sistema.pasos_atras:
-                lineas.extend(["", paso.descripcion, self._formatear_aumentada(paso.matriz_aumentada)])
-            lineas.extend(["", "x =", self._formatear_vector(sistema.vector_x),
-                           "", "PASO 5 · Comprobación A·x = b", "A·x =",
-                           self._formatear_vector(sistema.producto_ax),
-                           "✓ Comprobación exitosa: A·x = b." if sistema.es_correcta
+            lineas.extend(self._lineas_sustitucion(
+                factores.matriz_l, sistema.vector_b, sistema.vector_y, "y", hacia_atras=False
+            ))
+            lineas.extend(["", "Vector intermedio y =", self._formatear_vector(sistema.vector_y),
+                           "", "PASO 4 · Sustitución hacia atrás: U·x = y",
+                           "U =", self._formatear_matriz(factores.matriz_u),
+                           "y =", self._formatear_vector(sistema.vector_y)])
+            lineas.extend(self._lineas_sustitucion(
+                factores.matriz_u, sistema.vector_y, sistema.vector_x, "x", hacia_atras=True
+            ))
+            lineas.extend(["", "Solución x =", self._formatear_vector(sistema.vector_x),
+                           "", "PASO 5 · Comprobación A·x = b"])
+            modo = self.get_modo_numero()
+            for i, fila in enumerate(factores.matriz_a):
+                productos = [
+                    f"({formatear_numero(coeficiente, modo)})·({formatear_numero(sistema.vector_x[j], modo)})"
+                    for j, coeficiente in enumerate(fila)
+                ]
+                valores = [
+                    f"({formatear_numero(coeficiente * sistema.vector_x[j], modo)})"
+                    for j, coeficiente in enumerate(fila)
+                ]
+                obtenido = formatear_numero(sistema.producto_ax[i], modo)
+                esperado = formatear_numero(sistema.vector_b[i], modo)
+                coincide = sistema.producto_ax[i] == sistema.vector_b[i]
+                lineas.extend([
+                    "",
+                    f"  Fila {i + 1}: {' + '.join(productos)}",
+                    f"          = {' + '.join(valores)} = {obtenido}",
+                    f"          b{a_subindice(i + 1)} = {esperado}  {'✓ coincide' if coincide else '✗ no coincide'}",
+                ])
+            lineas.extend(["", "A·x =", self._formatear_vector(sistema.producto_ax),
+                           "b =", self._formatear_vector(sistema.vector_b),
+                           "✓ Comprobación exacta: A·x = b." if sistema.es_correcta
                            else "✗ No se cumple: A·x ≠ b."])
         if self._aviso:
             lineas.extend(["", f"⚠ {self._aviso}"])
