@@ -80,7 +80,15 @@ class MatrixOpsView(ctk.CTkFrame):
         self._resultado_slot_A = None
         self._resultado_slot_B = None
         self._resultado_slot_AB = None
-        self.banco_matrices = {}
+        self.banco_matrices = {
+            "Examen_5x5": [
+                [1, 2, 1, 1, 2],
+                [1, 0, 1, 1, 0],
+                [2, 1, 0, 0, 1],
+                [2, 0, 0, 1, 1],
+                [1, 1, 1, 0, 1]
+            ]
+        }
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -503,7 +511,15 @@ class MatrixOpsView(ctk.CTkFrame):
             nombre = nombre.strip()
             if nombre:
                 if not hasattr(self, "banco_matrices"):
-                    self.banco_matrices = {}
+                    self.banco_matrices = {
+            "Examen_5x5": [
+                [1, 2, 1, 1, 2],
+                [1, 0, 1, 1, 0],
+                [2, 1, 0, 0, 1],
+                [2, 0, 0, 1, 1],
+                [1, 1, 1, 0, 1]
+            ]
+        }
                 self.banco_matrices[nombre] = copy.deepcopy(matriz)
                 self._log_ops(f"\n✅ Matriz guardada en el banco como '{nombre}'.", limpiar=False)
 
@@ -713,26 +729,28 @@ class MatrixOpsView(ctk.CTkFrame):
                            entries_dest: List[List[ctk.CTkEntry]],
                            color_col_last: bool = True):
         """Crea una cuadrícula m×n de CTkEntry dentro de parent y guarda las celdas en entries_dest."""
+        cell_w = 52 if n <= 3 else (44 if n == 4 else (38 if n == 5 else 32))
+        lbl_w = 24 if n >= 5 else 30
         header = ctk.CTkFrame(parent, fg_color="transparent")
         header.pack(fill="x", pady=1)
-        ctk.CTkLabel(header, text="", width=30).pack(side="left")
+        ctk.CTkLabel(header, text="", width=lbl_w).pack(side="left")
         for j in range(n):
             ctk.CTkLabel(
-                header, text=f"Col {a_subindice(j+1)}", width=52,
+                header, text=f"Col {a_subindice(j+1)}", width=cell_w,
                 font=ctk.CTkFont(size=10, weight="bold"), text_color=("gray50", "gray60")
             ).pack(side="left", padx=2)
 
         for i in range(m):
             row_f = ctk.CTkFrame(parent, fg_color="transparent")
             row_f.pack(fill="x", pady=1)
-            ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=30,
+            ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=lbl_w,
                          font=ctk.CTkFont(size=10)).pack(side="left")
             fila_entries = []
             for j in range(n):
                 cfg = {}
                 if color_col_last and j == n - 1:
                     cfg = {"fg_color": ("#ffe4e6", "#3f1a24"), "text_color": ("#be123c", "#fca5a5")}
-                e = ctk.CTkEntry(row_f, width=52, height=26, justify="center", **cfg)
+                e = ctk.CTkEntry(row_f, width=cell_w, height=26, justify="center", **cfg)
                 e.pack(side="left", padx=2)
                 e.insert(0, "0")
                 fila_entries.append(e)
@@ -2111,15 +2129,33 @@ class MatrixOpsView(ctk.CTkFrame):
         self._crear_grid_matriz(self.scroll_inv, n, m, self.entries_inv, color_col_last=False)
 
     def _cargar_ejemplo_inv(self):
-        """Carga un ejemplo 3×3 en la cuadrícula de traspuesta/inversa."""
-        self.entry_inv_n.delete(0, "end"); self.entry_inv_n.insert(0, "3")
-        self.entry_inv_m.delete(0, "end"); self.entry_inv_m.insert(0, "3")
-        self._generar_grid_inv()
-        vals = [[1, 2, 0], [-1, 3, 2], [2, 0, -1]]
-        for i, fila in enumerate(vals):
-            for j, v in enumerate(fila):
-                self.entries_inv[i][j].delete(0, "end")
-                self.entries_inv[i][j].insert(0, str(v))
+        """Carga un ejemplo en la cuadrícula de traspuesta/inversa (3x3 o 5x5 examen)."""
+        try:
+            n = int(self.entry_inv_n.get())
+        except ValueError:
+            n = 3
+        if n == 5:
+            vals = [
+                [1, 2, 1, 1, 2],
+                [1, 0, 1, 1, 0],
+                [2, 1, 0, 0, 1],
+                [2, 0, 0, 1, 1],
+                [1, 1, 1, 0, 1]
+            ]
+            self._generar_grid_inv()
+            for i, fila in enumerate(vals):
+                for j, v in enumerate(fila):
+                    self.entries_inv[i][j].delete(0, "end")
+                    self.entries_inv[i][j].insert(0, str(v))
+        else:
+            self.entry_inv_n.delete(0, "end"); self.entry_inv_n.insert(0, "3")
+            self.entry_inv_m.delete(0, "end"); self.entry_inv_m.insert(0, "3")
+            self._generar_grid_inv()
+            vals = [[1, 2, 0], [-1, 3, 2], [2, 0, -1]]
+            for i, fila in enumerate(vals):
+                for j, v in enumerate(fila):
+                    self.entries_inv[i][j].delete(0, "end")
+                    self.entries_inv[i][j].insert(0, str(v))
 
     def _leer_matriz_inv(self):
         """Lee A desde la cuadrícula de inversa y la devuelve como Matriz de floats; lanza ValueError si hay error."""
@@ -2357,7 +2393,15 @@ class MatrixOpsView(ctk.CTkFrame):
                 nombre = nombre.strip()
                 if nombre:
                     if not hasattr(self, "banco_matrices"):
-                        self.banco_matrices = {}
+                        self.banco_matrices = {
+            "Examen_5x5": [
+                [1, 2, 1, 1, 2],
+                [1, 0, 1, 1, 0],
+                [2, 1, 0, 0, 1],
+                [2, 0, 0, 1, 1],
+                [1, 1, 1, 0, 1]
+            ]
+        }
                     self.banco_matrices[nombre] = copy.deepcopy(matriz)
                     self._log_inv(f"\n✅ Matriz guardada en el banco como '{nombre}'.", limpiar=False)
 
@@ -2519,14 +2563,32 @@ class MatrixOpsView(ctk.CTkFrame):
         self._crear_grid_matriz(self.scroll_det, n, n, self.entries_det, color_col_last=False)
 
     def _cargar_ejemplo_det(self):
-        """Carga un ejemplo 3×3 con det = -14."""
-        self.entry_det_n.delete(0, "end"); self.entry_det_n.insert(0, "3")
-        self._generar_grid_det()
-        vals = [[1, 2, 3], [4, 5, 6], [7, 2, 9]]
-        for i, fila in enumerate(vals):
-            for j, v in enumerate(fila):
-                self.entries_det[i][j].delete(0, "end")
-                self.entries_det[i][j].insert(0, str(v))
+        """Carga un ejemplo en determinantes (3x3 o 5x5 examen)."""
+        try:
+            n = int(self.entry_det_n.get())
+        except ValueError:
+            n = 3
+        if n == 5:
+            vals = [
+                [1, 2, 1, 1, 2],
+                [1, 0, 1, 1, 0],
+                [2, 1, 0, 0, 1],
+                [2, 0, 0, 1, 1],
+                [1, 1, 1, 0, 1]
+            ]
+            self._generar_grid_det()
+            for i, fila in enumerate(vals):
+                for j, v in enumerate(fila):
+                    self.entries_det[i][j].delete(0, "end")
+                    self.entries_det[i][j].insert(0, str(v))
+        else:
+            self.entry_det_n.delete(0, "end"); self.entry_det_n.insert(0, "3")
+            self._generar_grid_det()
+            vals = [[1, 2, 3], [4, 5, 6], [7, 2, 9]]
+            for i, fila in enumerate(vals):
+                for j, v in enumerate(fila):
+                    self.entries_det[i][j].delete(0, "end")
+                    self.entries_det[i][j].insert(0, str(v))
 
     def _cargar_ejemplo_det_2x2(self):
         """Carga A = [[3,-2],[4,1]], cuyo det = 11."""
