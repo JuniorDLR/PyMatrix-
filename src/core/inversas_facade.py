@@ -47,11 +47,14 @@ def invertir_matriz(A: Matriz, modo: str = "fraccion") -> ResultadoInversionMatr
     pasos.append(f"1. Matriz cuadrada A de {n}×{n}. Se construye la matriz aumentada [A | I_{n}]:")
 
     def fmt_aum(mat: Matriz) -> str:
-        """Formatea [A | I] como texto alineado, con una barra entre ambos bloques."""
+        """Formatea [A | I] como texto alineado dinámico, evitando desbordamientos."""
+        textos = [[formatear_numero(x, modo) for x in row] for row in mat]
+        ancho_max = max(len(t) for row in textos for t in row)
+        w_col = max(ancho_max, 3)
         s = ""
-        for row in mat:
-            izq = "  ".join(f"{formatear_numero(x, modo):>8}" for x in row[:n])
-            der = "  ".join(f"{formatear_numero(x, modo):>8}" for x in row[n:])
+        for row in textos:
+            izq = " ".join(f"{x:>{w_col}}" for x in row[:n])
+            der = " ".join(f"{x:>{w_col}}" for x in row[n:])
             s += f"  [ {izq} | {der} ]\n"
         return s
 

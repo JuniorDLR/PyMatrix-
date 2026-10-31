@@ -2108,7 +2108,7 @@ class MatrixOpsView(ctk.CTkFrame):
                       fg_color=("#dc2626", "#b91c1c"),
                       command=self._limpiar_historial_inv).pack(side="right")
 
-        self.txt_res_inv = ctk.CTkTextbox(tab_inv_log, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
+        self.txt_res_inv = ctk.CTkTextbox(tab_inv_log, font=ctk.CTkFont(family="Consolas", size=12), wrap="none")
         self.txt_res_inv.grid(row=1, column=0, sticky="nsew", padx=8, pady=(4, 8))
         self.txt_res_inv.configure(state="disabled")
 

@@ -418,11 +418,14 @@ def inversa_gauss_jordan(A: MatrizF) -> ResultadoInversion:
         aumentada.append(fila)
 
     def formato_aumentada(M: MatrizF) -> str:
-        """Devuelve la matriz aumentada [A | I] como texto, con una barra entre ambos bloques."""
+        """Devuelve la matriz aumentada [A | I] como texto dinámico compacto."""
+        textos = [[str(x) for x in f] for f in M]
+        ancho_max = max(len(t) for row in textos for t in row)
+        w_col = max(ancho_max, 3)
         lineas = []
-        for f in M:
-            izq = " ".join(f"{str(x):>8}" for x in f[:n])
-            der = " ".join(f"{str(x):>8}" for x in f[n:])
+        for f in textos:
+            izq = " ".join(f"{x:>{w_col}}" for x in f[:n])
+            der = " ".join(f"{x:>{w_col}}" for x in f[n:])
             lineas.append(f"  [ {izq} | {der} ]")
         return "\n".join(lineas)
 
