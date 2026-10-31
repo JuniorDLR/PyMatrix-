@@ -270,7 +270,15 @@ class VectorsView(ctk.CTkFrame):
                 chk.select()
                 self.chks_basicas.append(chk)
         
-        header = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
+        h_scroll = ctk.CTkScrollableFrame(
+            self.scroll_basicas, orientation="horizontal", fg_color="transparent",
+            height=36 + 34 * (n + 1)
+        )
+        h_scroll.pack(fill="x", padx=2, pady=2)
+        grid_container = ctk.CTkFrame(h_scroll, fg_color="transparent")
+        grid_container.pack(anchor="w")
+
+        header = ctk.CTkFrame(grid_container, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="Vector", width=80, font=ctk.CTkFont(size=11, weight="bold")).pack(side="left")
         for j in range(k):
@@ -279,7 +287,7 @@ class VectorsView(ctk.CTkFrame):
                 font=ctk.CTkFont(size=11, weight="bold"), text_color=("#38bdf8", "#38bdf8")
             ).pack(side="left", padx=2)
             
-        row_esc = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
+        row_esc = ctk.CTkFrame(grid_container, fg_color="transparent")
         row_esc.pack(fill="x", pady=(2, 6))
         ctk.CTkLabel(
             row_esc, text="Escalar cⱼ:", width=80,
@@ -297,7 +305,7 @@ class VectorsView(ctk.CTkFrame):
             self.entries_escalares_basicas.append(esc_e)
             
         for i in range(n):
-            fila = ctk.CTkFrame(self.scroll_basicas, fg_color="transparent")
+            fila = ctk.CTkFrame(grid_container, fg_color="transparent")
             fila.pack(fill="x", pady=2)
             ctk.CTkLabel(fila, text=f"Comp {i+1}:", width=80).pack(side="left")
             
@@ -594,7 +602,15 @@ class VectorsView(ctk.CTkFrame):
         
         self.grid_entries_comb = []
         
-        header = ctk.CTkFrame(self.scroll_comb, fg_color="transparent")
+        h_scroll = ctk.CTkScrollableFrame(
+            self.scroll_comb, orientation="horizontal", fg_color="transparent",
+            height=36 + 34 * n
+        )
+        h_scroll.pack(fill="x", padx=2, pady=2)
+        grid_container = ctk.CTkFrame(h_scroll, fg_color="transparent")
+        grid_container.pack(anchor="w")
+
+        header = ctk.CTkFrame(grid_container, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="Fila", width=36).pack(side="left")
         
@@ -610,7 +626,7 @@ class VectorsView(ctk.CTkFrame):
         ).pack(side="left", padx=(6, 2))
         
         for i in range(n):
-            row_frame = ctk.CTkFrame(self.scroll_comb, fg_color="transparent")
+            row_frame = ctk.CTkFrame(grid_container, fg_color="transparent")
             row_frame.pack(fill="x", pady=2)
             ctk.CTkLabel(row_frame, text=f"F{a_subindice(i+1)}", width=36).pack(side="left")
             
@@ -884,7 +900,15 @@ class VectorsView(ctk.CTkFrame):
         
         self.grid_entries_indep = []
         
-        header = ctk.CTkFrame(self.scroll_indep, fg_color="transparent")
+        h_scroll = ctk.CTkScrollableFrame(
+            self.scroll_indep, orientation="horizontal", fg_color="transparent",
+            height=36 + 34 * n
+        )
+        h_scroll.pack(fill="x", padx=2, pady=2)
+        grid_container = ctk.CTkFrame(h_scroll, fg_color="transparent")
+        grid_container.pack(anchor="w")
+
+        header = ctk.CTkFrame(grid_container, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="Fila", width=36).pack(side="left")
         
@@ -895,7 +919,7 @@ class VectorsView(ctk.CTkFrame):
             ).pack(side="left", padx=2)
             
         for i in range(n):
-            row_frame = ctk.CTkFrame(self.scroll_indep, fg_color="transparent")
+            row_frame = ctk.CTkFrame(grid_container, fg_color="transparent")
             row_frame.pack(fill="x", pady=2)
             ctk.CTkLabel(row_frame, text=f"F{a_subindice(i+1)}", width=36).pack(side="left")
             

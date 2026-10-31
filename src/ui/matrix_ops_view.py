@@ -728,10 +728,18 @@ class MatrixOpsView(ctk.CTkFrame):
     def _crear_grid_matriz(self, parent, m: int, n: int,
                            entries_dest: List[List[ctk.CTkEntry]],
                            color_col_last: bool = True):
-        """Crea una cuadrícula m×n de CTkEntry dentro de parent y guarda las celdas en entries_dest."""
-        cell_w = 52 if n <= 3 else (44 if n == 4 else (38 if n == 5 else 32))
-        lbl_w = 24 if n >= 5 else 30
-        header = ctk.CTkFrame(parent, fg_color="transparent")
+        """Crea una cuadrícula m×n de CTkEntry con scroll horizontal dentro de parent."""
+        cell_w = 52 if n <= 3 else (46 if n <= 5 else 44)
+        lbl_w = 26
+        h_scroll = ctk.CTkScrollableFrame(
+            parent, orientation="horizontal", fg_color="transparent",
+            height=36 + 32 * m
+        )
+        h_scroll.pack(fill="x", padx=2, pady=2)
+        grid_container = ctk.CTkFrame(h_scroll, fg_color="transparent")
+        grid_container.pack(anchor="w")
+
+        header = ctk.CTkFrame(grid_container, fg_color="transparent")
         header.pack(fill="x", pady=1)
         ctk.CTkLabel(header, text="", width=lbl_w).pack(side="left")
         for j in range(n):
@@ -741,7 +749,7 @@ class MatrixOpsView(ctk.CTkFrame):
             ).pack(side="left", padx=2)
 
         for i in range(m):
-            row_f = ctk.CTkFrame(parent, fg_color="transparent")
+            row_f = ctk.CTkFrame(grid_container, fg_color="transparent")
             row_f.pack(fill="x", pady=1)
             ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=lbl_w,
                          font=ctk.CTkFont(size=10)).pack(side="left")
@@ -1055,7 +1063,15 @@ class MatrixOpsView(ctk.CTkFrame):
             w.destroy()
         self.entries_axb = []
 
-        header = ctk.CTkFrame(self.scroll_axb, fg_color="transparent")
+        h_scroll = ctk.CTkScrollableFrame(
+            self.scroll_axb, orientation="horizontal", fg_color="transparent",
+            height=36 + 32 * m
+        )
+        h_scroll.pack(fill="x", padx=2, pady=2)
+        grid_container = ctk.CTkFrame(h_scroll, fg_color="transparent")
+        grid_container.pack(anchor="w")
+
+        header = ctk.CTkFrame(grid_container, fg_color="transparent")
         header.pack(fill="x", pady=2)
         ctk.CTkLabel(header, text="", width=30).pack(side="left")
         for j in range(n):
@@ -1069,7 +1085,7 @@ class MatrixOpsView(ctk.CTkFrame):
         ).pack(side="left", padx=(6, 2))
 
         for i in range(m):
-            row_f = ctk.CTkFrame(self.scroll_axb, fg_color="transparent")
+            row_f = ctk.CTkFrame(grid_container, fg_color="transparent")
             row_f.pack(fill="x", pady=2)
             ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=30).pack(side="left")
             fila_entries = []
@@ -1415,7 +1431,15 @@ class MatrixOpsView(ctk.CTkFrame):
             text_color=("#38bdf8", "#38bdf8")
         ).pack(anchor="w", pady=(4, 2))
 
-        hdr_A = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        h_scroll_A = ctk.CTkScrollableFrame(
+            self.scroll_prop, orientation="horizontal", fg_color="transparent",
+            height=36 + 32 * m
+        )
+        h_scroll_A.pack(fill="x", padx=2, pady=2)
+        grid_A = ctk.CTkFrame(h_scroll_A, fg_color="transparent")
+        grid_A.pack(anchor="w")
+
+        hdr_A = ctk.CTkFrame(grid_A, fg_color="transparent")
         hdr_A.pack(fill="x")
         ctk.CTkLabel(hdr_A, text="", width=32).pack(side="left")
         for j in range(n):
@@ -1425,7 +1449,7 @@ class MatrixOpsView(ctk.CTkFrame):
             ).pack(side="left", padx=2)
 
         for i in range(m):
-            row_f = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+            row_f = ctk.CTkFrame(grid_A, fg_color="transparent")
             row_f.pack(fill="x", pady=1)
             ctk.CTkLabel(row_f, text=f"F{a_subindice(i+1)}", width=32, font=ctk.CTkFont(size=10, weight="bold")).pack(side="left")
             fila_entries = []
@@ -1444,7 +1468,15 @@ class MatrixOpsView(ctk.CTkFrame):
             text_color=("#38bdf8", "#38bdf8")
         ).pack(anchor="w", pady=(10, 2))
 
-        hdr_vecs = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        h_scroll_vecs = ctk.CTkScrollableFrame(
+            self.scroll_prop, orientation="horizontal", fg_color="transparent",
+            height=36 + 32 * (n + 1)
+        )
+        h_scroll_vecs.pack(fill="x", padx=2, pady=2)
+        grid_vecs = ctk.CTkFrame(h_scroll_vecs, fg_color="transparent")
+        grid_vecs.pack(anchor="w")
+
+        hdr_vecs = ctk.CTkFrame(grid_vecs, fg_color="transparent")
         hdr_vecs.pack(fill="x")
         ctk.CTkLabel(hdr_vecs, text="", width=68).pack(side="left")
         for nom in nombres:
@@ -1453,7 +1485,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 text_color=("#0284c7", "#38bdf8")
             ).pack(side="left", padx=2)
 
-        row_c = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+        row_c = ctk.CTkFrame(grid_vecs, fg_color="transparent")
         row_c.pack(fill="x", pady=(2, 4))
         ctk.CTkLabel(
             row_c, text="Escalar c:", width=68,
@@ -1470,7 +1502,7 @@ class MatrixOpsView(ctk.CTkFrame):
             self.entries_prop_c.append(ec)
 
         for i in range(n):
-            row_v = ctk.CTkFrame(self.scroll_prop, fg_color="transparent")
+            row_v = ctk.CTkFrame(grid_vecs, fg_color="transparent")
             row_v.pack(fill="x", pady=1)
             ctk.CTkLabel(row_v, text=f"Comp {i+1}:", width=68, font=ctk.CTkFont(size=10)).pack(side="left")
 
@@ -2408,9 +2440,12 @@ class MatrixOpsView(ctk.CTkFrame):
         ctk.CTkButton(header, text="💾 Guardar en Banco", width=120, height=26,
                       fg_color=("#059669", "#047857"), command=_guardar_en_banco).pack(side="right")
 
-        # Grilla grafica de la matriz
-        grid_frame = ctk.CTkFrame(card, fg_color="transparent")
-        grid_frame.grid(row=1, column=0, padx=10, pady=(0, 10))
+        # Grilla grafica de la matriz con scroll horizontal si es grande
+        h_scroll_card = ctk.CTkScrollableFrame(card, orientation="horizontal", fg_color="transparent",
+                                              height=42 + 34 * len(matriz))
+        h_scroll_card.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        grid_frame = ctk.CTkFrame(h_scroll_card, fg_color="transparent")
+        grid_frame.pack(anchor="w")
 
         m = len(matriz[0])
         for j in range(m):
