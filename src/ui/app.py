@@ -406,6 +406,46 @@ class App(ctk.CTk):
         else:
             self.lbl_metodo_desc.configure(text="Gauss-Jordan: Reduce a Forma Escalonada Reducida (RREF).")
 
+    def _enlazar_scroll_gauss(self, widget):
+        """Enlaza la rueda del ratón sobre la cuadrícula horizontal para desplazar left_panel verticalmente."""
+        def _on_wheel(event):
+            shift = getattr(self.input_scroll, "_shift_pressed", False) or (getattr(event, "state", 0) & 0x0001 != 0)
+            if shift:
+                if event.num in (4, 5):
+                    pasos = -1 if event.num == 4 else 1
+                else:
+                    delta = getattr(event, "delta", 0)
+                    pasos = -int(delta / 6) if delta else 0
+                if self.input_scroll._parent_canvas.xview() != (0.0, 1.0):
+                    self.input_scroll._parent_canvas.xview("scroll", pasos, "units")
+                return "break"
+            else:
+                if event.num in (4, 5):
+                    pasos = -3 if event.num == 4 else 3
+                else:
+                    delta = getattr(event, "delta", 0)
+                    pasos = (-1 if delta > 0 else 1) * max(1, abs(delta) // 120) * 3
+                if self.left_panel._parent_canvas.yview() != (0.0, 1.0):
+                    self.left_panel._parent_canvas.yview_scroll(pasos, "units")
+                return "break"
+
+        def _enlazar(w):
+            for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                try:
+                    w.bind(seq, _on_wheel, add="+")
+                except Exception:
+                    pass
+            if hasattr(w, "_entry"):
+                for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                    try:
+                        w._entry.bind(seq, _on_wheel, add="+")
+                    except Exception:
+                        pass
+            for child in w.winfo_children():
+                _enlazar(child)
+
+        _enlazar(widget)
+
     def generar_matriz(self):
         try:
             m = int(self.entry_m.get())
@@ -419,6 +459,7 @@ class App(ctk.CTk):
             widget.destroy()
             
         self.entries_matriz = []
+        self.input_scroll.configure(height=38 + 32 * m)
         header_frame = ctk.CTkFrame(self.input_scroll, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ctk.CTkLabel(header_frame, text="", width=32).grid(row=0, column=0, padx=2)
@@ -441,6 +482,11 @@ class App(ctk.CTk):
                 fila_entries.append(e)
             self.entries_matriz.append(fila_entries)
         
+        self._enlazar_scroll_gauss(self.input_scroll)
+        self.left_panel.update_idletasks()
+        if hasattr(self.left_panel, "_parent_canvas"):
+            self.left_panel._parent_canvas.configure(scrollregion=self.left_panel._parent_canvas.bbox("all"))
+
         self.matrix_canvas.load_steps([])
         self._reset_conclusion()
         self._log_text(f"✓ Sistema {m}x{n} generado. Ingrese los coeficientes.", limpiar=True)

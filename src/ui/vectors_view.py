@@ -234,6 +234,46 @@ class VectorsView(ctk.CTkFrame):
         self.entries_grid_basicas: List[List[ctk.CTkEntry]] = []
         self._generar_entradas_basicas()
 
+    def _enlazar_scroll_horizontal(self, v_scroll: ctk.CTkScrollableFrame, h_scroll: ctk.CTkScrollableFrame):
+        """Permite que el scroll vertical del panel padre funcione incluso con el ratón sobre la matriz horizontal."""
+        def _on_wheel(event):
+            shift = getattr(h_scroll, "_shift_pressed", False) or (getattr(event, "state", 0) & 0x0001 != 0)
+            if shift:
+                if event.num in (4, 5):
+                    pasos = -1 if event.num == 4 else 1
+                else:
+                    delta = getattr(event, "delta", 0)
+                    pasos = -int(delta / 6) if delta else 0
+                if hasattr(h_scroll, "_parent_canvas") and h_scroll._parent_canvas.xview() != (0.0, 1.0):
+                    h_scroll._parent_canvas.xview("scroll", pasos, "units")
+                return "break"
+            else:
+                if event.num in (4, 5):
+                    pasos = -3 if event.num == 4 else 3
+                else:
+                    delta = getattr(event, "delta", 0)
+                    pasos = (-1 if delta > 0 else 1) * max(1, abs(delta) // 120) * 3
+                if hasattr(v_scroll, "_parent_canvas") and v_scroll._parent_canvas.yview() != (0.0, 1.0):
+                    v_scroll._parent_canvas.yview_scroll(pasos, "units")
+                return "break"
+
+        def _enlazar(w):
+            for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                try:
+                    w.bind(seq, _on_wheel, add="+")
+                except Exception:
+                    pass
+            if hasattr(w, "_entry"):
+                for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                    try:
+                        w._entry.bind(seq, _on_wheel, add="+")
+                    except Exception:
+                        pass
+            for child in w.winfo_children():
+                _enlazar(child)
+
+        _enlazar(h_scroll)
+
     def _generar_entradas_basicas(self):
         """Regenera la cuadrícula n×k de componentes y escalares (n ≤ 10, k ≤ 8) al pulsar 'Generar'."""
         try:
@@ -316,6 +356,7 @@ class VectorsView(ctk.CTkFrame):
                 e.insert(0, "0")
                 fila_entries.append(e)
             self.entries_grid_basicas.append(fila_entries)
+        self._enlazar_scroll_horizontal(self.scroll_basicas, h_scroll)
 
     def _leer_vectores_y_escalares_basicas(self) -> Tuple[List[Vector], List[float]]:
         """Lee la cuadrícula y devuelve (vectores, escalares) como floats; admite fracciones 'a/b' y lanza ValueError si hay texto inválido."""
@@ -646,6 +687,7 @@ class VectorsView(ctk.CTkFrame):
             fila_entries.append(eb)
             
             self.grid_entries_comb.append(fila_entries)
+        self._enlazar_scroll_horizontal(self.scroll_comb, h_scroll)
 
     def _cargar_ejemplo_comb(self):
         """Carga al azar un ejemplo predefinido (con o sin solución) en la pestaña de combinación lineal."""
@@ -930,6 +972,7 @@ class VectorsView(ctk.CTkFrame):
                 e.insert(0, "0")
                 fila_entries.append(e)
             self.grid_entries_indep.append(fila_entries)
+        self._enlazar_scroll_horizontal(self.scroll_indep, h_scroll)
 
     def _cargar_ejemplo_indep(self):
         """Carga al azar un ejemplo predefinido (L.I. o L.D.) en la pestaña de independencia lineal."""

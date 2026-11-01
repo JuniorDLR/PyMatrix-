@@ -725,6 +725,46 @@ class MatrixOpsView(ctk.CTkFrame):
         ).pack(anchor="w", pady=(4, 2))
         self._crear_grid_matriz(self.scroll_ops, mB, nB, self.entries_B, color_col_last=False)
 
+    def _enlazar_scroll_horizontal(self, v_scroll: ctk.CTkScrollableFrame, h_scroll: ctk.CTkScrollableFrame):
+        """Permite que el scroll vertical del panel padre funcione incluso con el ratón sobre la matriz horizontal."""
+        def _on_wheel(event):
+            shift = getattr(h_scroll, "_shift_pressed", False) or (getattr(event, "state", 0) & 0x0001 != 0)
+            if shift:
+                if event.num in (4, 5):
+                    pasos = -1 if event.num == 4 else 1
+                else:
+                    delta = getattr(event, "delta", 0)
+                    pasos = -int(delta / 6) if delta else 0
+                if hasattr(h_scroll, "_parent_canvas") and h_scroll._parent_canvas.xview() != (0.0, 1.0):
+                    h_scroll._parent_canvas.xview("scroll", pasos, "units")
+                return "break"
+            else:
+                if event.num in (4, 5):
+                    pasos = -3 if event.num == 4 else 3
+                else:
+                    delta = getattr(event, "delta", 0)
+                    pasos = (-1 if delta > 0 else 1) * max(1, abs(delta) // 120) * 3
+                if hasattr(v_scroll, "_parent_canvas") and v_scroll._parent_canvas.yview() != (0.0, 1.0):
+                    v_scroll._parent_canvas.yview_scroll(pasos, "units")
+                return "break"
+
+        def _enlazar(w):
+            for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                try:
+                    w.bind(seq, _on_wheel, add="+")
+                except Exception:
+                    pass
+            if hasattr(w, "_entry"):
+                for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                    try:
+                        w._entry.bind(seq, _on_wheel, add="+")
+                    except Exception:
+                        pass
+            for child in w.winfo_children():
+                _enlazar(child)
+
+        _enlazar(h_scroll)
+
     def _crear_grid_matriz(self, parent, m: int, n: int,
                            entries_dest: List[List[ctk.CTkEntry]],
                            color_col_last: bool = True):
@@ -763,6 +803,7 @@ class MatrixOpsView(ctk.CTkFrame):
                 e.insert(0, "0")
                 fila_entries.append(e)
             entries_dest.append(fila_entries)
+        self._enlazar_scroll_horizontal(parent, h_scroll)
 
     def _leer_matriz_entries(self, entries: List[List[ctk.CTkEntry]]) -> Matriz:
         """Lee una cuadrícula de entradas y devuelve la Matriz; lanza ValueError si algún valor es inválido."""
@@ -1102,6 +1143,7 @@ class MatrixOpsView(ctk.CTkFrame):
             eb.insert(0, "0")
             fila_entries.append(eb)
             self.entries_axb.append(fila_entries)
+        self._enlazar_scroll_horizontal(self.scroll_axb, h_scroll)
 
     def _leer_axb(self):
         """Lee la cuadrícula y devuelve (A, b); lanza ValueError si algún valor es inválido."""
@@ -1511,6 +1553,8 @@ class MatrixOpsView(ctk.CTkFrame):
                 ev.pack(side="left", padx=2)
                 ev.insert(0, "0")
                 self.entries_prop_vecs[i].append(ev)
+        self._enlazar_scroll_horizontal(self.scroll_prop, h_scroll_A)
+        self._enlazar_scroll_horizontal(self.scroll_prop, h_scroll_vecs)
 
     def _leer_prop(self):
         """Lee A, los k vectores y los k escalares; devuelve (A, vectores, escalares) o lanza ValueError."""
