@@ -14,6 +14,11 @@ from src.ui.vectors_view import VectorsView
 from src.ui.matrix_ops_view import MatrixOpsView
 from src.ui.lu_view import LUView
 from src.ui.teoremas_view import TeoremasView
+from src.ui.biseccion_view import BiseccionView
+from src.ui.light_theme import (
+    LIGHT, SIDEBAR, apply_light_palette, card_style, configure_light_defaults,
+    dashboard_card_surface,
+)
 
 class App(ctk.CTk):
     """
@@ -35,6 +40,8 @@ class App(ctk.CTk):
         self.minsize(min(850, ancho_ventana), min(500, alto_ventana))
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
+        configure_light_defaults()
+        self.configure(fg_color=(LIGHT["background"], "#111827"))
         
         # Grid principal: 2 columnas (Sidebar y Contenido)
         self.grid_columnconfigure(1, weight=1)
@@ -47,18 +54,20 @@ class App(ctk.CTk):
 
         self._setup_ui()
         self._show_module("inicio")
+        self._light_refresh_pending = False
+        self.bind_all("<ButtonRelease-1>", self._sync_light_after_interaction, add="+")
 
     def _setup_ui(self):
         """Construye el Sidebar, el Topbar del contenido y los paneles de los módulos."""
         
         # ================= SIDEBAR =================
-        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=("#1f2937", "#0f172a"))
+        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=SIDEBAR["background"])
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.sidebar.grid_columnconfigure(0, weight=1)
         self.sidebar.grid_rowconfigure(1, weight=1)
 
         # Logo
-        logo_label = ctk.CTkLabel(self.sidebar, text="PyMatrix 🧮", font=ctk.CTkFont(size=20, weight="bold"), text_color="#38bdf8")
+        logo_label = ctk.CTkLabel(self.sidebar, text="PyMatrix  ▦", font=ctk.CTkFont(size=22, weight="bold"), text_color=("#7dd3fc", "#38bdf8"))
         logo_label.grid(row=0, column=0, padx=20, pady=(20, 30))
 
         # Botones de navegación
@@ -71,29 +80,30 @@ class App(ctk.CTk):
         self._nav_btns["matrices"] = self._create_sidebar_btn("🧮 Matrices", "matrices", 3)
         self._nav_btns["lu"] = self._create_sidebar_btn("🔷 Factorización LU", "lu", 4)
         self._nav_btns["teoremas"] = self._create_sidebar_btn("🔬 Teoremas", "teoremas", 5)
+        self._nav_btns["biseccion"] = self._create_sidebar_btn("🎯 Bisección", "biseccion", 6)
 
         # Configuraciones (Abajo)
         config_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         config_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
         
-        ctk.CTkLabel(config_frame, text="Formato:", font=ctk.CTkFont(size=12)).pack(anchor="w")
+        ctk.CTkLabel(config_frame, text="Formato:", font=ctk.CTkFont(size=12), text_color=SIDEBAR["muted"]).pack(anchor="w")
         self.fmt_seg = ctk.CTkSegmentedButton(
             config_frame, 
             values=["Fracción", "Decimal"],
             command=self._change_number_format,
-            selected_color="#0284c7",
-            selected_hover_color="#0369a1"
+            selected_color=SIDEBAR["active"],
+            selected_hover_color=SIDEBAR["hover"]
         )
         self.fmt_seg.pack(fill="x", pady=(5, 15))
         self.fmt_seg.set("Fracción")
 
-        ctk.CTkLabel(config_frame, text="Tema:", font=ctk.CTkFont(size=12)).pack(anchor="w")
+        ctk.CTkLabel(config_frame, text="Tema:", font=ctk.CTkFont(size=12), text_color=SIDEBAR["muted"]).pack(anchor="w")
         self.theme_seg = ctk.CTkSegmentedButton(
             config_frame,
             values=["Dark", "Light"],
             command=self._change_theme,
-            selected_color="#475569",
-            selected_hover_color="#334155"
+            selected_color=SIDEBAR["active"],
+            selected_hover_color=SIDEBAR["hover"]
         )
         self.theme_seg.pack(fill="x", pady=(5, 0))
         self.theme_seg.set("Dark")
@@ -134,6 +144,12 @@ class App(ctk.CTk):
         )
         self.teoremas_view.grid(row=0, column=0, sticky="nsew")
 
+        self.biseccion_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.biseccion_panel.grid_rowconfigure(0, weight=1)
+        self.biseccion_panel.grid_columnconfigure(0, weight=1)
+        self.biseccion_view = BiseccionView(self.biseccion_panel, lambda: self._modo_numero)
+        self.biseccion_view.grid(row=0, column=0, sticky="nsew")
+
     def _create_sidebar_btn(self, text: str, modulo: str, row: int) -> ctk.CTkButton:
         btn = ctk.CTkButton(
             self.nav_scroll,
@@ -141,8 +157,8 @@ class App(ctk.CTk):
             anchor="w",
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="transparent",
-            text_color=("gray20", "gray80"),
-            hover_color=("#38bdf8", "#0369a1"),
+            text_color=SIDEBAR["text"],
+            hover_color=SIDEBAR["hover"],
             command=lambda m=modulo: self._show_module(m)
         )
         btn.grid(row=row, column=0, sticky="ew", padx=10, pady=5)
@@ -152,12 +168,12 @@ class App(ctk.CTk):
         self.inicio_panel = ctk.CTkScrollableFrame(self.main_container, fg_color="transparent")
         
         header = ctk.CTkLabel(self.inicio_panel, text="¡Bienvenido a PyMatrix!", font=ctk.CTkFont(size=28, weight="bold"))
-        header.pack(pady=(40, 10))
+        header.pack(pady=(24, 8))
         sub = ctk.CTkLabel(self.inicio_panel, text="Selecciona una herramienta matemática para comenzar", text_color="gray")
-        sub.pack(pady=(0, 30))
+        sub.pack(pady=(0, 16))
 
         cards_frame = ctk.CTkFrame(self.inicio_panel, fg_color="transparent")
-        cards_frame.pack(expand=True, pady=(0, 40))
+        cards_frame.pack(pady=(0, 24))
         cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="card_col")
         cards_frame.grid_rowconfigure((0, 1, 2), weight=1, uniform="card_row")
 
@@ -167,6 +183,7 @@ class App(ctk.CTk):
             self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488"),
             self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprueba ambos miembros de las igualdades de operaciones, inversas y determinantes.", "teoremas", "#b45309"),
             self._create_card(cards_frame, 2, 0, "🔷 Factorización LU", "Obtén L y U, verifica L·U=A y resuelve Ax=b con doble sustitución.", "lu", "#0891b2"),
+            self._create_card(cards_frame, 2, 1, "🎯 Bisección", "Aproxima raíces con intervalos y muestra cada iteración del método.", "biseccion", "#0f766e"),
         ]
         self._dashboard_columnas = 2
         self.inicio_panel.bind("<Configure>", self._reorganizar_dashboard, add="+")
@@ -196,17 +213,25 @@ class App(ctk.CTk):
         return "break"
 
     def _create_card(self, parent, row, col, title, desc, target_module, color):
-        card = ctk.CTkFrame(parent, corner_radius=12, fg_color=("#ffffff", "#1e293b"), width=340, height=175)
-        card.grid(row=row, column=col, padx=15, pady=15)
+        card = ctk.CTkFrame(parent, corner_radius=12,
+                            fg_color=(dashboard_card_surface(color), "#1e293b"),
+                            border_width=1, border_color=(LIGHT["border"], "#334155"),
+                            width=340, height=160)
+        card.grid(row=row, column=col, padx=12, pady=12)
         card.pack_propagate(False)
         card.grid_propagate(False)
         
-        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=15, weight="bold"), text_color=color).pack(pady=(18, 8), padx=16, anchor="w")
+        title_light, title_dark, button_dark, hover_light, hover_dark = card_style(color)
+        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color=(title_light, title_dark)).pack(pady=(14, 6), padx=16, anchor="w")
         lbl_desc = ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=12), text_color=("gray40", "gray70"), wraplength=300, justify="left")
         lbl_desc.pack(padx=16, anchor="w")
         
-        btn = ctk.CTkButton(card, text="Abrir", fg_color=color, hover_color=color, width=95, height=32, font=ctk.CTkFont(size=12, weight="bold"), command=lambda m=target_module: self._show_module(m))
-        btn.pack(side="bottom", pady=16, padx=16, anchor="e")
+        btn = ctk.CTkButton(card, text="Abrir", fg_color=(title_light, button_dark),
+                            hover_color=(hover_light, hover_dark), width=95, height=34,
+                            font=ctk.CTkFont(size=12, weight="bold"),
+                            command=lambda m=target_module: self._show_module(m))
+        btn.pack(side="bottom", pady=12, padx=16, anchor="e")
         return card
 
     def _reorganizar_dashboard(self, event):
@@ -225,9 +250,9 @@ class App(ctk.CTk):
         # Actualizar Sidebar
         for key, btn in self._nav_btns.items():
             if key == modulo:
-                btn.configure(fg_color=("#38bdf8", "#0284c7"), text_color="white")
+                btn.configure(fg_color=SIDEBAR["active"], text_color=SIDEBAR["text"])
             else:
-                btn.configure(fg_color="transparent", text_color=("gray20", "gray80"))
+                btn.configure(fg_color="transparent", text_color=SIDEBAR["text"])
 
         # Ocultar todos
         self.inicio_panel.grid_forget()
@@ -236,6 +261,7 @@ class App(ctk.CTk):
         self.matrices_panel.grid_forget()
         self.lu_panel.grid_forget()
         self.teoremas_panel.grid_forget()
+        self.biseccion_panel.grid_forget()
 
         # Mostrar activo
         if modulo == "inicio":
@@ -256,6 +282,11 @@ class App(ctk.CTk):
             self.teoremas_panel.grid(row=0, column=0, sticky="nsew")
             self.teoremas_view.actualizar_banco()
             self.teoremas_view.refresh_format()
+        elif modulo == "biseccion":
+            self.biseccion_panel.grid(row=0, column=0, sticky="nsew")
+            self.biseccion_view.refresh_format()
+        if ctk.get_appearance_mode() == "Light":
+            apply_light_palette(self, True)
 
     def _change_number_format(self, mode_str: str):
         self._modo_numero = "decimal" if mode_str == "Decimal" else "fraccion"
@@ -267,9 +298,29 @@ class App(ctk.CTk):
             self.lu_view.refresh_format()
         if hasattr(self, 'teoremas_view'):
             self.teoremas_view.refresh_format()
+        if hasattr(self, 'biseccion_view'):
+            self.biseccion_view.refresh_format()
 
     def _change_theme(self, mode: str):
+        if mode == "Dark":
+            apply_light_palette(self, False)
         ctk.set_appearance_mode(mode)
+        if mode == "Light":
+            apply_light_palette(self, True)
+        self.matrix_canvas._refresh_theme()
+        self.biseccion_view.set_theme(mode)
+
+    def _sync_light_after_interaction(self, _event) -> None:
+        """Da el tema correcto a matrices y tarjetas creadas por una acción."""
+        if ctk.get_appearance_mode() != "Light" or self._light_refresh_pending:
+            return
+        self._light_refresh_pending = True
+        self.after_idle(self._refresh_light_widgets)
+
+    def _refresh_light_widgets(self) -> None:
+        self._light_refresh_pending = False
+        if ctk.get_appearance_mode() == "Light":
+            apply_light_palette(self, True)
 
     # =========================================================================
     # MÓDULO GAUSS (Se mantiene la lógica funcional, adaptada al nuevo layout)
@@ -289,7 +340,7 @@ class App(ctk.CTk):
         sec1_frame = ctk.CTkFrame(self.left_panel, fg_color=("#ffffff", "#1f2937"), corner_radius=10)
         sec1_frame.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
         sec1_frame.grid_columnconfigure(3, weight=1)
-        ctk.CTkLabel(sec1_frame, text="1. Tamaño del Sistema", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(10, 6))
+        ctk.CTkLabel(sec1_frame, text="1. Tamaño del Sistema", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=12, pady=(10, 6))
         
         ctk.CTkLabel(sec1_frame, text="Ecs (m):").grid(row=1, column=0, padx=(12, 2))
         self.entry_m = ctk.CTkEntry(sec1_frame, width=45, justify="center")
@@ -311,9 +362,9 @@ class App(ctk.CTk):
         sec2_frame = ctk.CTkFrame(self.left_panel, fg_color=("#ffffff", "#1f2937"), corner_radius=10)
         sec2_frame.grid(row=1, column=0, sticky="ew", padx=14, pady=6)
         sec2_frame.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(sec2_frame, text="2. Método de Resolución", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 6))
+        ctk.CTkLabel(sec2_frame, text="2. Método de Resolución", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 6))
         
-        self.metodo_var = tk.StringVar(value="gauss-jordan")
+        self.metodo_var = tk.StringVar(value="Gauss-Jordan")
         self.seg_method = ctk.CTkSegmentedButton(sec2_frame, values=["Gauss", "Gauss-Jordan"], variable=self.metodo_var, command=self._on_method_changed)
         self.seg_method.grid(row=1, column=0, sticky="ew", padx=12)
         
@@ -325,7 +376,7 @@ class App(ctk.CTk):
         sec3_frame.grid(row=2, column=0, sticky="nsew", padx=14, pady=6)
         sec3_frame.grid_columnconfigure(0, weight=1)
         sec3_frame.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(sec3_frame, text="3. Coeficientes y Términos [A | b]", font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
+        ctk.CTkLabel(sec3_frame, text="3. Coeficientes y Términos [A | b]", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, sticky="w", padx=12, pady=(10, 0))
         
         self.input_scroll = ctk.CTkScrollableFrame(sec3_frame, fg_color="transparent", orientation="horizontal")
         self.input_scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=8)
@@ -354,7 +405,8 @@ class App(ctk.CTk):
         self.tab_text.grid_columnconfigure(0, weight=1)
         self.tab_text.grid_rowconfigure(0, weight=1)
 
-        self.canvas_frame = ctk.CTkFrame(self.tab_visual, corner_radius=10, fg_color=("#0f172a", "#0f172a"))
+        self.canvas_frame = ctk.CTkFrame(self.tab_visual, corner_radius=10,
+                                         fg_color=(LIGHT["border"], "#0f172a"))
         self.canvas_frame.grid(row=0, column=0, sticky="nsew")
         self.matrix_canvas = MatrixCanvas(self.canvas_frame)
         self.matrix_canvas.pack(fill="both", expand=True, padx=4, pady=4)
@@ -369,7 +421,8 @@ class App(ctk.CTk):
         self.generar_matriz()
 
     def _create_bottom_conclusion(self):
-        self.results_frame = ctk.CTkFrame(self.right_panel, corner_radius=10, fg_color=("#ffffff", "#1e293b"))
+        self.results_frame = ctk.CTkFrame(self.right_panel, corner_radius=10,
+                                          fg_color=(LIGHT["card_alt"], "#1e293b"))
         self.results_frame.grid(row=1, column=0, sticky="nsew")
         self.results_frame.grid_columnconfigure((0, 1, 2), weight=1)
         self.results_frame.grid_rowconfigure(1, weight=1)

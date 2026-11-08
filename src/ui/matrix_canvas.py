@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from src.core.domain import formatear_fraccion, formatear_numero, a_subindice
+from src.ui.light_theme import LIGHT
 
 
 class CellState(Enum):
@@ -129,8 +130,8 @@ class MatrixCanvas(ctk.CTkFrame):
             }
         else:
             return {
-                "canvas_bg": "#f8fafc",
-                "cell_normal": "#ffffff",
+                "canvas_bg": LIGHT["raised"],
+                "cell_normal": "#edf3f9",
                 "cell_normal_fg": "#0f172a",
                 "pivot_current": "#dbeafe",
                 "pivot_current_fg": "#1d4ed8",
@@ -143,7 +144,7 @@ class MatrixCanvas(ctk.CTkFrame):
                 "zero_above": "#ede9fe",
                 "zero_above_fg": "#6d28d9",
                 "zero_existing": "#f1f5f9",
-                "zero_existing_fg": "#94a3b8",
+                "zero_existing_fg": "#475569",
                 "row_pivot": "#fef3c7",
                 "row_pivot_fg": "#b45309",
                 "independent_bg": "#fee2e2",
@@ -156,7 +157,7 @@ class MatrixCanvas(ctk.CTkFrame):
                 "border_zero": "#0d9488",
                 "border_above": "#7c3aed",
                 "border_indep": "#dc2626",
-                "legend_bg": "#ffffff",
+                "legend_bg": LIGHT["panel"],
                 "legend_fg": "#334155",
                 "staircase": "#d97706",
             }
