@@ -14,7 +14,7 @@ from src.ui.vectors_view import VectorsView
 from src.ui.matrix_ops_view import MatrixOpsView
 from src.ui.lu_view import LUView
 from src.ui.teoremas_view import TeoremasView
-from src.ui.biseccion_view import BiseccionView
+from src.ui.numericos.hub import NumericosView
 from src.ui.light_theme import (
     LIGHT, SIDEBAR, apply_light_palette, card_style, configure_light_defaults,
     dashboard_card_surface,
@@ -80,7 +80,7 @@ class App(ctk.CTk):
         self._nav_btns["matrices"] = self._create_sidebar_btn("🧮 Matrices", "matrices", 3)
         self._nav_btns["lu"] = self._create_sidebar_btn("🔷 Factorización LU", "lu", 4)
         self._nav_btns["teoremas"] = self._create_sidebar_btn("🔬 Teoremas", "teoremas", 5)
-        self._nav_btns["biseccion"] = self._create_sidebar_btn("🎯 Bisección", "biseccion", 6)
+        self._nav_btns["numericos"] = self._create_sidebar_btn("🎯 Métodos Num.", "numericos", 6)
 
         # Configuraciones (Abajo)
         config_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -144,11 +144,11 @@ class App(ctk.CTk):
         )
         self.teoremas_view.grid(row=0, column=0, sticky="nsew")
 
-        self.biseccion_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
-        self.biseccion_panel.grid_rowconfigure(0, weight=1)
-        self.biseccion_panel.grid_columnconfigure(0, weight=1)
-        self.biseccion_view = BiseccionView(self.biseccion_panel, lambda: self._modo_numero)
-        self.biseccion_view.grid(row=0, column=0, sticky="nsew")
+        self.numericos_panel = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.numericos_panel.grid_rowconfigure(0, weight=1)
+        self.numericos_panel.grid_columnconfigure(0, weight=1)
+        self.numericos_view = NumericosView(self.numericos_panel, lambda: self._modo_numero)
+        self.numericos_view.grid(row=0, column=0, sticky="nsew")
 
     def _create_sidebar_btn(self, text: str, modulo: str, row: int) -> ctk.CTkButton:
         btn = ctk.CTkButton(
@@ -183,7 +183,7 @@ class App(ctk.CTk):
             self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488"),
             self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprueba ambos miembros de las igualdades de operaciones, inversas y determinantes.", "teoremas", "#b45309"),
             self._create_card(cards_frame, 2, 0, "🔷 Factorización LU", "Obtén L y U, verifica L·U=A y resuelve Ax=b con doble sustitución.", "lu", "#0891b2"),
-            self._create_card(cards_frame, 2, 1, "🎯 Bisección", "Aproxima raíces con intervalos y muestra cada iteración del método.", "biseccion", "#0f766e"),
+            self._create_card(cards_frame, 2, 1, "🎯 Métodos Numéricos", "Bisección, gráfica de funciones, bases 10/2 y análisis de errores.", "numericos", "#0f766e"),
         ]
         self._dashboard_columnas = 2
         self.inicio_panel.bind("<Configure>", self._reorganizar_dashboard, add="+")
@@ -224,7 +224,9 @@ class App(ctk.CTk):
         title_light, title_dark, button_dark, hover_light, hover_dark = card_style(color)
         ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=15, weight="bold"),
                      text_color=(title_light, title_dark)).pack(pady=(14, 6), padx=16, anchor="w")
-        lbl_desc = ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=12), text_color=("gray40", "gray70"), wraplength=300, justify="left")
+        lbl_desc = ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(size=12),
+                                text_color=("gray40", "gray70"), wraplength=300,
+                                height=44, anchor="nw", justify="left")
         lbl_desc.pack(padx=16, anchor="w")
         
         btn = ctk.CTkButton(card, text="Abrir", fg_color=(title_light, button_dark),
@@ -261,7 +263,7 @@ class App(ctk.CTk):
         self.matrices_panel.grid_forget()
         self.lu_panel.grid_forget()
         self.teoremas_panel.grid_forget()
-        self.biseccion_panel.grid_forget()
+        self.numericos_panel.grid_forget()
 
         # Mostrar activo
         if modulo == "inicio":
@@ -282,9 +284,9 @@ class App(ctk.CTk):
             self.teoremas_panel.grid(row=0, column=0, sticky="nsew")
             self.teoremas_view.actualizar_banco()
             self.teoremas_view.refresh_format()
-        elif modulo == "biseccion":
-            self.biseccion_panel.grid(row=0, column=0, sticky="nsew")
-            self.biseccion_view.refresh_format()
+        elif modulo == "numericos":
+            self.numericos_panel.grid(row=0, column=0, sticky="nsew")
+            self.numericos_view.refresh_format()
         if ctk.get_appearance_mode() == "Light":
             apply_light_palette(self, True)
 
@@ -298,8 +300,8 @@ class App(ctk.CTk):
             self.lu_view.refresh_format()
         if hasattr(self, 'teoremas_view'):
             self.teoremas_view.refresh_format()
-        if hasattr(self, 'biseccion_view'):
-            self.biseccion_view.refresh_format()
+        if hasattr(self, 'numericos_view'):
+            self.numericos_view.refresh_format()
 
     def _change_theme(self, mode: str):
         if mode == "Dark":
@@ -308,7 +310,7 @@ class App(ctk.CTk):
         if mode == "Light":
             apply_light_palette(self, True)
         self.matrix_canvas._refresh_theme()
-        self.biseccion_view.set_theme(mode)
+        self.numericos_view.set_theme(mode)
 
     def _sync_light_after_interaction(self, _event) -> None:
         """Da el tema correcto a matrices y tarjetas creadas por una acción."""
