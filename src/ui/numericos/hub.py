@@ -1,4 +1,4 @@
-"""Contenedor compacto de las cuatro opciones del Programa 7."""
+"""Contenedor de las opciones de métodos numéricos."""
 
 from collections.abc import Callable
 
@@ -10,6 +10,7 @@ from src.ui.numericos.bases_view import BasesView
 from src.ui.numericos.biseccion_programa7_view import BiseccionPrograma7View
 from src.ui.numericos.errores_view import ErroresView
 from src.ui.numericos.graficador_view import GraficadorView
+from src.ui.numericos.iterativos_view import IterativosView
 
 
 class NumericosView(ctk.CTkFrame):
@@ -19,7 +20,7 @@ class NumericosView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         self.tabs = ctk.CTkTabview(self)
         self.tabs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        for nombre in ("Bisección", "Graficador", "Bases 10/2", "Errores"):
+        for nombre in ("Bisección", "Graficador", "Bases 10/2", "Errores", "Jacobi / Seidel"):
             pestaña = self.tabs.add(nombre)
             pestaña.grid_rowconfigure(0, weight=1)
             pestaña.grid_columnconfigure(0, weight=1)
@@ -48,6 +49,8 @@ class NumericosView(ctk.CTkFrame):
         self.bases.grid(row=0, column=0, sticky="nsew")
         self.errores = ErroresView(self.tabs.tab("Errores"), get_modo)
         self.errores.grid(row=0, column=0, sticky="nsew")
+        self.iterativos = IterativosView(self.tabs.tab("Jacobi / Seidel"), get_modo)
+        self.iterativos.grid(row=0, column=0, sticky="nsew")
 
     def _cambiar_modalidad(self, nombre: str) -> None:
         if nombre == "Sesión 19":
@@ -61,9 +64,9 @@ class NumericosView(ctk.CTkFrame):
         self.graficador.cargar_desde_biseccion(resultado)
 
     def refresh_format(self) -> None:
-        for vista in (self.programa7, self.sesion19, self.graficador, self.bases, self.errores):
+        for vista in (self.programa7, self.sesion19, self.graficador, self.bases, self.errores, self.iterativos):
             vista.refresh_format()
 
     def set_theme(self, modo: str) -> None:
-        for vista in (self.programa7, self.sesion19, self.graficador, self.bases, self.errores):
+        for vista in (self.programa7, self.sesion19, self.graficador, self.bases, self.errores, self.iterativos):
             vista.set_theme(modo)

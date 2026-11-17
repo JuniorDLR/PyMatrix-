@@ -183,7 +183,7 @@ class App(ctk.CTk):
             self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488"),
             self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprueba ambos miembros de las igualdades de operaciones, inversas y determinantes.", "teoremas", "#b45309"),
             self._create_card(cards_frame, 2, 0, "🔷 Factorización LU", "Obtén L y U, verifica L·U=A y resuelve Ax=b con doble sustitución.", "lu", "#0891b2"),
-            self._create_card(cards_frame, 2, 1, "🎯 Métodos Numéricos", "Bisección, gráfica de funciones, bases 10/2 y análisis de errores.", "numericos", "#0f766e"),
+            self._create_card(cards_frame, 2, 1, "🎯 Métodos Numéricos", "Bisección, gráficas, bases, errores, Jacobi y Gauss-Seidel.", "numericos", "#0f766e"),
         ]
         self._dashboard_columnas = 2
         self.inicio_panel.bind("<Configure>", self._reorganizar_dashboard, add="+")

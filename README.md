@@ -21,7 +21,7 @@ python main.py
 - Resolución de `A·x = b` por LU para matrices cuadradas con pivotes no nulos: muestra `[L | b] → [I | y]`, `[U | y] → [I | x]` y verifica `A·x = b`.
 - Verificador de propiedades de operaciones, transposición, inversa y determinante que calcula ambos miembros y comunica si coinciden.
 - Banco compartido de matrices para reutilizar `L`, `U` u otras matrices guardadas.
-- Métodos Numéricos: bisección oficial del Programa 7 con función escrita y contraste SciPy, ejercicio de la Sesión 19, graficador con dominio controlado, notación posicional 10/2 y errores numéricos con propagación.
+- Métodos Numéricos: bisección oficial del Programa 7 con función escrita y contraste SciPy, ejercicio de la Sesión 19, graficador con dominio controlado, notación posicional 10/2, errores numéricos y comparación de Jacobi/Gauss-Seidel. Este último acepta A, b, x⁽⁰⁾, tolerancia y máximo de iteraciones; muestra tablas, residuo, criterio de parada y gráfica de errores para los dos métodos.
 
 En Bisección y el Graficador se escriben funciones de una variable con `x`, operadores `+`, `-`, `*`, `/`, `**` y `sin`, `cos`, `tan`, `exp`, `log`, `sqrt` o `abs`. El texto se valida con una lista blanca de AST; nunca se ejecuta con `eval()`. La gráfica y los resultados de funciones trascendentes utilizan `float`; en formato Fracción, `≈` identifica aproximaciones racionales. El módulo de la Sesión 19 conserva su criterio de ancho actualizado; el Programa 7 usa la cota de semiancho antes de actualizar.
 
