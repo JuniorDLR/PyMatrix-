@@ -26,7 +26,7 @@ class App(ctk.CTk):
     Navega entre Inicio, Gauss/Jordan, Vectores en ℝⁿ y Operaciones Matriciales.
     """
     
-    def __init__(self):
+    def __init__(self, modulo_inicial: str = "inicio"):
         super().__init__()
 
         # Configuración de ventana
@@ -53,7 +53,7 @@ class App(ctk.CTk):
         self._nav_btns: Dict[str, ctk.CTkButton] = {}
 
         self._setup_ui()
-        self._show_module("inicio")
+        self._show_module(modulo_inicial)
         self._light_refresh_pending = False
         self.bind_all("<ButtonRelease-1>", self._sync_light_after_interaction, add="+")
 
@@ -183,7 +183,7 @@ class App(ctk.CTk):
             self._create_card(cards_frame, 1, 0, "🚀 Vectores en ℝⁿ", "Operaciones básicas, producto punto, combinaciones e independencia lineal.", "vectores", "#0d9488"),
             self._create_card(cards_frame, 1, 1, "🔬 Verificador de Propiedades", "Comprueba ambos miembros de las igualdades de operaciones, inversas y determinantes.", "teoremas", "#b45309"),
             self._create_card(cards_frame, 2, 0, "🔷 Factorización LU", "Obtén L y U, verifica L·U=A y resuelve Ax=b con doble sustitución.", "lu", "#0891b2"),
-            self._create_card(cards_frame, 2, 1, "🎯 Métodos Numéricos", "Bisección, gráficas, bases, errores, Jacobi y Gauss-Seidel.", "numericos", "#0f766e"),
+            self._create_card(cards_frame, 2, 1, "🎯 Métodos Numéricos", "Newton-Raphson, Bisección, Jacobi, Gauss-Seidel, gráficas y errores.", "numericos", "#0f766e"),
         ]
         self._dashboard_columnas = 2
         self.inicio_panel.bind("<Configure>", self._reorganizar_dashboard, add="+")
@@ -695,8 +695,8 @@ class App(ctk.CTk):
         self.lbl_vars_basicas.configure(text=f"• Variables Básicas (Pivotes):\n  {self._formatear_lista_legible(vars_basicas)}")
         self.lbl_vars_libres.configure(text=f"• Variables Libres (Parámetros):\n  {self._formatear_lista_legible(vars_libres)}")
 
-def main():
-    app = App()
+def main(modulo_inicial: str = "inicio"):
+    app = App(modulo_inicial=modulo_inicial)
     app.mainloop()
 
 if __name__ == "__main__":
